@@ -530,6 +530,9 @@
   border-left-color: #4fd1ff;
 }
 
+.keke-hud .hud-feed li.feed-slip {
+  border-right: 3px solid #f5d33a;
+}
 .keke-hud .hud-feed li.feed-hit {
   border-right: 3px solid #ffe14d;
 }

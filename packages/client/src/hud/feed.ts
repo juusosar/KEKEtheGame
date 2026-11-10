@@ -5,6 +5,7 @@ import {
   CombatEventMessage,
   ItemEventMessage,
   type DepositMessage,
+  type DropMessage,
   type HitMessage,
   type HitSource,
   type ItemCatalogue,
@@ -16,7 +17,7 @@ import { t } from '../i18n';
 import { isBag } from '../net/lobbyView';
 import { weaponName } from './combatHud';
 
-export type FeedKind = 'steal' | 'joke' | 'deposit' | 'hit' | 'ko';
+export type FeedKind = 'steal' | 'joke' | 'deposit' | 'slip' | 'hit' | 'ko';
 
 export interface FeedLine {
   kind: FeedKind;
@@ -60,6 +61,12 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
     }
     return null;
   }
+  if (type === ItemEventMessage.drop) {
+    // Only slips are news (M4-5); a Q drop, a KO drop (the KO line says it) and a disconnect are not.
+    const drop = message as unknown as DropMessage;
+    if (drop.reason !== 'slip') return null;
+    return { kind: 'slip', text: t('hud.feed.slip', { name, item: item.name }) };
+  }
   if (type === ItemEventMessage.deposit) {
     const deposit = message as unknown as DepositMessage;
     const points = typeof deposit.points === 'number' ? deposit.points : 0;
@@ -69,7 +76,11 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
 }
 
 /** Message types the feed listens to. */
-export const FEED_MESSAGES = [ItemEventMessage.pickup, ItemEventMessage.deposit] as const;
+export const FEED_MESSAGES = [
+  ItemEventMessage.pickup,
+  ItemEventMessage.drop,
+  ItemEventMessage.deposit,
+] as const;
 
 export interface CombatFeedContext {
   weapons: Pick<WeaponCatalogue, 'get'>;

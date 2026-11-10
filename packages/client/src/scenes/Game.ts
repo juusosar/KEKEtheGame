@@ -332,7 +332,11 @@ export class GameScene extends Phaser.Scene {
       DEPTH.fx,
       (weapon) => getWeaponCatalogue().get(weapon)?.sprite ?? weapon,
     );
-    this.peels = new PeelRenderer(this, DEPTH.player - 0.6);
+    this.peels = new PeelRenderer(
+      this,
+      DEPTH.player - 0.6,
+      (weapon) => getWeaponCatalogue().get(weapon)?.sprite ?? weapon,
+    );
     this.roundScreen = new RoundScreen();
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
