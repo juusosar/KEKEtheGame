@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/Boot';
+import { GameScene } from './scenes/Game';
 
 // Client entry point (loaded by index.html).
 new Phaser.Game({
@@ -14,5 +15,6 @@ new Phaser.Game({
     width: '100%',
     height: '100%',
   },
-  scene: [BootScene],
+  // Boot starts Game and stays on top of it as the connection status overlay.
+  scene: [BootScene, GameScene],
 });

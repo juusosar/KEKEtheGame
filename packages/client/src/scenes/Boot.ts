@@ -6,8 +6,9 @@ import { serverEndpoint } from '../net/endpoint';
 export type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
 
 /**
- * First scene: connects to the server's hello room and shows the result.
- * The status is mirrored to `<body data-connection="…">` so e2e tests can wait on it.
+ * First scene: connects to the server's hello room and shows the result in the top-left corner, over the
+ * Game scene it starts. The status is mirrored to `<body data-connection="…">` so e2e tests can wait on it.
+ * Until the lobby flow (M2) exists, the Game scene runs locally whatever the connection does.
  */
 export class BootScene extends Phaser.Scene {
   private label!: Phaser.GameObjects.Text;
@@ -17,13 +18,15 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width, height } = this.scale;
-    this.label = this.add
-      .text(width / 2, height / 2, '', { fontFamily: 'monospace', fontSize: '32px', color: '#ffffff' })
-      .setOrigin(0.5);
-    this.scale.on(Phaser.Scale.Events.RESIZE, (size: Phaser.Structs.Size) => {
-      this.label.setPosition(size.width / 2, size.height / 2);
+    this.label = this.add.text(8, 8, '', {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: '#ffffff',
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      padding: { x: 6, y: 3 },
     });
+    this.scene.launch('Game');
+    this.scene.bringToTop();
 
     this.setStatus('connecting', t('boot.connecting'));
     void this.connect();

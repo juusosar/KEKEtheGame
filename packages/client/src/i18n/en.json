@@ -2,5 +2,6 @@
   "boot.connecting": "connecting…",
   "boot.connected": "connected",
   "boot.error": "connection failed: {message}",
-  "boot.disconnected": "disconnected"
+  "boot.disconnected": "disconnected",
+  "debug.readout": "x {x}  y {y}\nzone {zone}\ninput {device}\nfps {fps}"
 }

@@ -1,0 +1,10 @@
+{
+  "cameraZoom": 2,
+  "cameraLerp": 0.2,
+  "maxFrameSeconds": 0.1,
+  "playerOriginY": 0.69,
+  "defaultPlayerColor": "#3FA9F5",
+  "defaultHat": "cap",
+  "debugZoneAlpha": 0.22,
+  "debugWallAlpha": 0.35
+}
