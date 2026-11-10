@@ -120,6 +120,8 @@ test('punching a player down: held swing, HP bar, KO overlay, feed and respawn',
 
   const guestId = (await game(guest)).net?.sessionId ?? '';
   // Meet in the store at the host's target, so the camera is centred on the host.
+  // The world items may not be drawn yet on a loaded page right after the countdown: wait for them.
+  await expect.poll(async () => (await me(host)).items.length, { timeout: 10_000 }).toBeGreaterThan(0);
   const { tile, items } = await me(host);
   const targetId = (await game(host)).net?.target ?? 0;
   // Our target, unless it lies behind the butcher's counter (the butcher would join the fight).

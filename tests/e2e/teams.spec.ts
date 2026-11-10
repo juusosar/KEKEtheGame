@@ -49,7 +49,13 @@ test('Teams: team colour outlines on bodies and vans, a ring in the lobby', asyn
 
   for (const page of [host, guest]) await page.getByRole('button', { name: 'Ready', exact: true }).click();
   await host.getByRole('button', { name: 'Start' }).click();
-  await Promise.all([waitControlling(host), waitControlling(guest)]);
+  await Promise.all(
+    [host, guest].map(async (page) => {
+      await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 10_000 });
+      await page.waitForFunction(() => (globalThis as WithHook).__KEKE__ !== undefined);
+      await waitControlling(page);
+    }),
+  );
 
   const teamOf = { Punainen: hostTeam, Sininen: guestTeam } as const;
   const forBoth = async (page: Page, me: keyof typeof teamOf, other: keyof typeof teamOf) => {
