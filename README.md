@@ -21,12 +21,16 @@ npm test
 | ------------------- | ------------------------------------------------------------- |
 | `npm run dev`       | Server in watch mode + Vite dev server (stub until M0-3/M0-4) |
 | `npm run build`     | Builds every workspace package that has a `build` script      |
-| `npm start`         | Runs the built server (stub until M0-3)                       |
+| `npm start`         | Runs the built server on `PORT` (default 2567)                |
 | `npm test`          | Vitest across all packages                                    |
 | `npm run test:e2e`  | Playwright end-to-end tests (stub until M0-5)                 |
 | `npm run lint`      | ESLint + Prettier check                                       |
 | `npm run format`    | Prettier write                                                |
 | `npm run typecheck` | `tsc --noEmit` for the root configs and every package         |
+
+## Playing on a LAN
+
+On the host machine run `npm install && npm run build && npm start`. The server prints one line per network interface, like `Open http://192.168.1.20:2567 on any device on this network`; open that URL on any device on the same network. Set `PORT` to use another port.
 
 ## Layout
 
