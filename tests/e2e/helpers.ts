@@ -183,3 +183,16 @@ export async function aimMouse(
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
   await page.mouse.move(origin.x + Math.cos(angle) * 120, origin.y + Math.sin(angle) * 120);
 }
+
+/**
+ * The butcher's behind_counter zone on the kespro map (maps/kespro.tmj, pixels; Playwright cannot import
+ * @keke/shared). The butcher (M5-6) cleaves anyone standing there, so specs that meet up to fight or
+ * count HP pick a spot outside it.
+ */
+const BEHIND_COUNTER = { x: 2048, y: 1728, w: 416, h: 160 };
+
+/** True when `at` is inside the butcher's zone or within `margin` px of it. */
+export function nearButcherCounter(at: { x: number; y: number }, margin = 64): boolean {
+  const z = BEHIND_COUNTER;
+  return at.x > z.x - margin && at.x < z.x + z.w + margin && at.y > z.y - margin && at.y < z.y + z.h + margin;
+}
