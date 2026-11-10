@@ -1,0 +1,13 @@
+{
+  "name": "@keke/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pure, deterministic game rules, data and types. No Phaser, no Colyseus, no DOM.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

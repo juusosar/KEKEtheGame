@@ -1,0 +1,13 @@
+{
+  "name": "@keke/client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Phaser 3 + Vite browser client.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

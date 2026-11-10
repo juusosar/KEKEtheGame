@@ -1,0 +1,13 @@
+{
+  "name": "@keke/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Authoritative Colyseus game server on Express; also serves the built client.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
