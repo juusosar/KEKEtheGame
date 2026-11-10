@@ -14,6 +14,8 @@ export interface RenderConfig {
   readonly menuPreviewScale: number;
   readonly debugZoneAlpha: number;
   readonly debugWallAlpha: number;
+  /** Seconds the spectator camera stays on one player before moving to the next (§13.1). */
+  readonly spectatorCycleSeconds: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -32,6 +34,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const menuPreviewScale = num('menuPreviewScale', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
   const debugZoneAlpha = num('debugZoneAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
   const debugWallAlpha = num('debugWallAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
+  const spectatorCycleSeconds = num('spectatorCycleSeconds', (n) => n > 0, 'positive');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -41,6 +44,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     menuPreviewScale,
     debugZoneAlpha,
     debugWallAlpha,
+    spectatorCycleSeconds,
   });
 }
 

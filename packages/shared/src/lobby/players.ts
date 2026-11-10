@@ -72,13 +72,17 @@ export function shuffleTeams(ids: readonly string[], rng: Rng): Map<string, 1 | 
   return result;
 }
 
-/** Start is allowed when at least one player is in and every non-spectator is ready. */
+/**
+ * Start is allowed when at least one player is in and every non-spectator is ready. Players inside
+ * the reconnect window (`connected: false`) neither block nor count; they rejoin the round if they
+ * come back in time.
+ */
 export function canStart(
-  players: Iterable<{ readonly ready: boolean; readonly spectator: boolean }>,
+  players: Iterable<{ readonly ready: boolean; readonly spectator: boolean; readonly connected?: boolean }>,
 ): boolean {
   let count = 0;
   for (const p of players) {
-    if (p.spectator) continue;
+    if (p.spectator || p.connected === false) continue;
     if (!p.ready) return false;
     count++;
   }

@@ -62,4 +62,14 @@ describe('canStart', () => {
     ).toBe(true);
     expect(canStart([{ ready: false, spectator: true }])).toBe(false);
   });
+
+  it('skips players inside the reconnect window', () => {
+    expect(
+      canStart([
+        { ready: true, spectator: false, connected: true },
+        { ready: false, spectator: false, connected: false },
+      ]),
+    ).toBe(true);
+    expect(canStart([{ ready: true, spectator: false, connected: false }])).toBe(false);
+  });
 });

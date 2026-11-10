@@ -12,4 +12,8 @@ describe('render config', () => {
       /cameraZoom[\s\S]*debugZoneAlpha/,
     );
   });
+
+  it('needs a positive spectator cycle time', () => {
+    expect(() => parseRenderConfig({ ...raw, spectatorCycleSeconds: 0 })).toThrow(/spectatorCycleSeconds/);
+  });
 });
