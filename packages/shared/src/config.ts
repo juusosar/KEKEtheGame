@@ -13,6 +13,7 @@ export const configSchema = z
     maxPlayersPerRoom: positiveInt,
     serverTickHz: positiveInt,
     playerSpeed: positive,
+    playerHitboxSize: positive,
     carrySpeedMultiplier: positive,
     maxHp: positiveInt,
     respawnSeconds: nonNegative,

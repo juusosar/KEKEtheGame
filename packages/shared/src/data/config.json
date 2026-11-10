@@ -3,6 +3,7 @@
   "maxPlayersPerRoom": 16,
   "serverTickHz": 20,
   "playerSpeed": 160,
+  "playerHitboxSize": 20,
   "carrySpeedMultiplier": 0.85,
   "maxHp": 100,
   "respawnSeconds": 3,
