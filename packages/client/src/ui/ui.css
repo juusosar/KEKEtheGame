@@ -284,3 +284,18 @@
   font-size: 12px;
   color: #bdbdbd;
 }
+
+/* Minimap (render/MinimapView.ts): bottom-right corner, kept clear by the HUD. */
+.keke-minimap {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  width: min(200px, 30vw);
+  height: auto;
+  max-height: min(200px, 30vh);
+  pointer-events: none;
+  border: 2px solid #1a1a1a;
+  outline: 2px solid var(--keke-minimap-accent, #ff6a13);
+  opacity: 0.9;
+}

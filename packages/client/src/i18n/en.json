@@ -76,6 +76,7 @@
   "lobby.error.unknown": "The server refused that request.",
   "room.joined": "room {code}",
   "game.lost": "Lost the connection to the room.",
+  "game.minimap": "Minimap: your van, your target and items on the floor",
   "game.reconnecting": "{name} (reconnecting…)",
   "game.spectating": "Spectating {name}",
   "game.spectatingNobody": "Waiting for the next round…",
