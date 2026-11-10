@@ -31,6 +31,7 @@
   "jokeItemChance": 0.08,
   "jokeItemValue": 2,
   "hpRegenPerSec": 0,
+  "knockbackSeconds": 0.15,
   "weaponRarityWeights": { "common": 55, "uncommon": 33, "rare": 12 },
   "nicknameMaxLength": 16,
   "maxRoundsPerMap": 3,

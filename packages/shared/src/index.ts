@@ -127,6 +127,17 @@ export {
   type HitSpec,
   type PickupWhat,
 } from './rules/combat';
+export {
+  angleDelta,
+  inMeleeArc,
+  knockbackDirection,
+  knockbackStep,
+  meleeTargets,
+  startKnockback,
+  syncedCombatSpeed,
+  type Knockback,
+  type MeleeCandidate,
+} from './rules/melee';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,

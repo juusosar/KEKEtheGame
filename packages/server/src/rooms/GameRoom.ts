@@ -39,6 +39,7 @@ import {
   type SessionSide,
 } from '@keke/shared';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
+import { CombatSystem } from '../systems/combat/CombatSystem';
 import { ItemSystem } from '../systems/items';
 import { MovementSystem } from '../systems/movement';
 
@@ -72,6 +73,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private phaseEndsAt = 0;
   private movement!: MovementSystem;
   private items!: ItemSystem;
+  private combat!: CombatSystem;
   private simulation: Delayed | undefined;
   /** Clock time (ms) the 'playing' phase started; the round clock for item rules counts from here. */
   private playingSince = 0;
@@ -105,6 +107,17 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       defaultThemeId,
       randomSeed(),
     );
+    this.combat = new CombatSystem(
+      this.state,
+      this.config,
+      this.map,
+      (event) => this.broadcast(event.type, event.payload),
+      // §3.2/§3.3: a KO drops the carried item where the player fell (M3 review H1).
+      { onKo: (player, now) => this.items.dropCarried(player, now, 'ko') },
+      randomSeed(),
+    );
+    // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2).
+    this.items.onPickup = (playerId) => this.combat.onPickup(playerId, 'item');
     // One state patch per simulation tick.
     this.setPatchRate(1000 / this.config.serverTickHz);
 
@@ -170,7 +183,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   /** A consented leave, or a reconnect window that ran out. */
   override onLeave(client: Client): void {
     const player = this.state.players.get(client.sessionId);
-    if (player) this.items.removePlayer(player, this.roundSeconds());
+    if (player) {
+      this.items.removePlayer(player, this.roundSeconds());
+      this.combat.removePlayer(player);
+    }
     this.state.players.delete(client.sessionId);
     this.movement.remove(client.sessionId);
     if (this.state.hostId === client.sessionId) this.reassignHost();
@@ -330,6 +346,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     for (const p of active) p.van = vans.get(p.sessionId) ?? 0;
     this.movement.spawn(active);
     this.items.startRound(active);
+    this.combat.startRound(active);
   }
 
   // --- Round results and session score (§4.1, §5) ---------------------------------------------
@@ -450,10 +467,22 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   /** One simulation tick. Public so tests can step the room without waiting on the clock. */
   tick(): void {
     const now = this.roundSeconds();
+    this.combat.beginTick(now);
     this.movement.tick(this.state.players.values(), {
-      modifiers: (player) => this.items.modifiers(player),
-      afterFrame: (player, _frame, pressed) => this.items.afterFrame(player, pressed, now),
+      // Carry slowdown times stun/slow/KO/block, from synced fields only (review H1).
+      modifiers: (player) => {
+        const carry = this.items.modifiers(player).speedMultiplier ?? 1;
+        return { speedMultiplier: carry * this.combat.speedMultiplier(player) };
+      },
+      afterFrame: (player, frame, pressed) => {
+        // A KO'd player can neither pick up nor attack until the respawn (§3.3).
+        if (!this.combat.canAct(player)) return;
+        this.items.afterFrame(player, pressed, now);
+        this.combat.afterFrame(player, frame, pressed);
+      },
     });
+    // Attacks resolve after everyone has moved this tick (M3 review H3).
+    this.combat.tick(now);
     this.items.tick(now);
   }
 
@@ -467,6 +496,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     return this.items.itemWorld;
   }
 
+  /** The current round's combat world, for tests. */
+  get combatWorld() {
+    return this.combat.combatWorld;
+  }
+
   /** Late joiners become players when the next round's countdown starts (§13.1). */
   private admitSpectators(): void {
     this.state.players.forEach((p) => {
@@ -478,6 +512,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   private resetToLobby(): void {
     this.items.reset();
+    this.combat.reset();
     this.resetSession(false);
     this.state.round = 0;
     this.state.totalRounds = 0;
