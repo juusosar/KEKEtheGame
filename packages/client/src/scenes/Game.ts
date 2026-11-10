@@ -795,6 +795,7 @@ export class GameScene extends Phaser.Scene {
       charging: c.charging,
       respawnIn: c.respawnIn,
       sliding: c.sliding,
+      slowMultiplier: c.slowMultiplier,
     };
   }
 
