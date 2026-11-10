@@ -108,12 +108,33 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.publishMetadata();
   }
 
+  /**
+   * An unexpected disconnect (§15.3): the player keeps their slot, team and everything they own for
+   * `reconnectWindowSeconds`. A consented leave skips this and goes straight to onLeave.
+   */
+  override onDrop(client: Client): void {
+    const player = this.state.players.get(client.sessionId);
+    const seconds = this.config.reconnectWindowSeconds;
+    if (!player || seconds <= 0) return; // onLeave follows and removes the player.
+    player.connected = false;
+    // Later systems drop the carried item here (§15.3, M3-4).
+    if (this.state.hostId === client.sessionId) this.reassignHost();
+    this.allowReconnection(client, seconds);
+  }
+
+  override onReconnect(client: Client): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+    player.connected = true;
+    // Everyone was away: the first one back takes the host role if its holder is still away.
+    if (this.state.players.get(this.state.hostId)?.connected !== true) this.reassignHost();
+  }
+
+  /** A consented leave, or a reconnect window that ran out. */
   override onLeave(client: Client): void {
     this.state.players.delete(client.sessionId);
     this.movement.remove(client.sessionId);
-    if (this.state.hostId === client.sessionId) {
-      this.state.hostId = pickHost(this.roster()) ?? '';
-    }
+    if (this.state.hostId === client.sessionId) this.reassignHost();
     if (this.state.phase === 'lobby' && this.state.settings.teams)
       this.applyTeams(balanceTeams(this.activeRoster()));
     this.publishMetadata();
@@ -294,6 +315,17 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private refuse(client: Client, request: string, code: LobbyErrorCode): void {
     const message: LobbyErrorMessage = { code, request };
     client.send(ServerMessage.lobbyError, message);
+  }
+
+  /**
+   * Host role goes to the longest-connected player who is online (§13.1). When nobody is online the
+   * role stays with a player inside the reconnect window, and is '' only once the room is empty.
+   */
+  private reassignHost(): void {
+    const online = this.roster().filter((e) => this.state.players.get(e.id)?.connected === true);
+    const next = pickHost(online) ?? (this.state.players.has(this.state.hostId) ? this.state.hostId : null);
+    this.state.hostId = next ?? pickHost(this.roster()) ?? '';
+    this.publishMetadata();
   }
 
   private roster(): RosterEntry[] {
