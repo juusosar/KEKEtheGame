@@ -113,8 +113,12 @@ export function moveAabb(grid: CollisionGrid, pos: Vec2, half: HalfSize, delta: 
   return { x, y, hitX, hitY };
 }
 
-/** True when the AABB centred on `pos` overlaps any solid tile (or leaves the grid). */
+/**
+ * True when the AABB centred on `pos` overlaps any solid tile (or leaves the grid).
+ * A non-finite position or size (NaN, ±Infinity) counts as overlapping, so it is never a valid spot.
+ */
 export function aabbOverlapsSolid(grid: CollisionGrid, pos: Vec2, half: HalfSize): boolean {
+  if (![pos.x, pos.y, half.hw, half.hh].every(Number.isFinite)) return true;
   const ts = grid.tileSize;
   const [tx0, tx1] = tileSpan(pos.x - half.hw, pos.x + half.hw, ts);
   const [ty0, ty1] = tileSpan(pos.y - half.hh, pos.y + half.hh, ts);
