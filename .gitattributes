@@ -1,0 +1,17 @@
+# Keep LF line endings in every checkout, including Windows with core.autocrlf=true.
+# Prettier checks for LF, so CRLF files would fail `npm run lint`.
+* text=auto eol=lf
+
+# Binary assets: never touch line endings or try to diff them.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
