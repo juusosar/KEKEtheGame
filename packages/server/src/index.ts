@@ -2,10 +2,12 @@
 import { existsSync } from 'node:fs';
 import { ConfigError } from '@keke/shared';
 import { DEFAULT_CLIENT_DIST, resolvePort } from './app';
-import { lanBanner } from './lan';
+import { devBanner, lanBanner } from './lan';
 import { startServer } from './start';
 
 const port = resolvePort(process.env['PORT']);
+// `npm run dev` passes --dev: the page is then served by Vite, not by this server.
+const dev = process.argv.includes('--dev');
 try {
   await startServer({ port });
 } catch (err) {
@@ -17,8 +19,8 @@ try {
 }
 
 console.log(`[keke] Server listening on port ${port}`);
-for (const line of lanBanner(port)) console.log(line);
-if (!existsSync(DEFAULT_CLIENT_DIST)) {
+for (const line of dev ? devBanner(port) : lanBanner(port)) console.log(line);
+if (!dev && !existsSync(DEFAULT_CLIENT_DIST)) {
   console.log(
     `[keke] No client build at ${DEFAULT_CLIENT_DIST}; run "npm run build" to serve the game page.`,
   );

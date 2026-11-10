@@ -1,6 +1,6 @@
 import type { NetworkInterfaceInfo } from 'node:os';
 import { describe, expect, it } from 'vitest';
-import { lanAddresses, lanBanner } from './lan';
+import { devBanner, lanAddresses, lanBanner } from './lan';
 
 function iface(address: string, family: 'IPv4' | 'IPv6', internal = false): NetworkInterfaceInfo {
   const base = { address, netmask: '255.255.255.0', mac: '00:00:00:00:00:00', internal, cidr: null };
@@ -32,5 +32,14 @@ describe('lanBanner', () => {
     expect(lanBanner(3000, { lo: [iface('127.0.0.1', 'IPv4', true)] })).toEqual([
       'Open http://localhost:3000 (no LAN network interface found)',
     ]);
+  });
+});
+
+describe('devBanner', () => {
+  it('points LAN players at the Vite port and names the server port', () => {
+    const lines = devBanner(2567, { eth0: [iface('192.168.1.20', 'IPv4')] });
+    expect(lines[0]).toContain('2567');
+    expect(lines[0]).toContain('5173');
+    expect(lines.slice(1)).toEqual(['Open http://192.168.1.20:5173 on any device on this network']);
   });
 });

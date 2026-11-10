@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { DEV_PROXY_PATH } from './src/net/endpoint';
+import { DEV_PROXY_PATH } from './src/net/endpoint.ts';
 
 // Dev only: Vite serves the client on 5173 and forwards everything under DEV_PROXY_PATH
 // (Colyseus HTTP matchmaking and the room WebSocket) to the game server.

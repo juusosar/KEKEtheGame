@@ -18,7 +18,8 @@
     "start": "npm run start -w @keke/server",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright install chromium && playwright test",
+    "test:e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present"

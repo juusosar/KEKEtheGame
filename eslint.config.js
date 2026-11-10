@@ -43,6 +43,32 @@ export default tseslint.config(
         { object: 'Math', property: 'random', message: 'Use the seeded RNG in shared/src/rng.ts.' },
         { object: 'Date', property: 'now', message: 'Pass time into rules instead of reading the clock.' },
       ],
+      // §15.2: shared has no Phaser, no Colyseus and no Node APIs, so client and server can both run it.
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['phaser', 'phaser/*'], message: 'shared must not depend on Phaser.' },
+            {
+              group: ['colyseus', 'colyseus.js', '@colyseus/*'],
+              message: 'shared must not depend on Colyseus.',
+            },
+            { group: ['node:*'], message: 'shared must not use Node APIs.' },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'performance', message: 'Pass time into rules instead of reading the clock.' },
+        { name: 'process', message: 'shared must not use Node APIs.' },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: 'new Date() reads the clock; pass time into rules instead.',
+        },
+      ],
     },
   },
   prettier,
