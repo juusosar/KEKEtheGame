@@ -22,7 +22,8 @@
     "e2e:install": "playwright install chromium",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present"
+    "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present",
+    "gen:art": "tsx tools/gen-placeholder-art.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
