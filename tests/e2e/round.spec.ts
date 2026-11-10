@@ -111,12 +111,16 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
   const before = await hook(host);
   const target = before.items.find((i) => i.id === targetId);
   if (!target) throw new Error(`target ${targetId} is not drawn`);
-  await teleportNear(host, { x: target.serverX, y: target.serverY }, before.tile * 0.6);
-  // Hold E for a few input steps so a fixed-step sample sees it.
-  await host.keyboard.down('KeyE');
-  await host.waitForTimeout(150);
-  await host.keyboard.up('KeyE');
-  await expect.poll(async () => (await game(host)).net?.carrying).toBe(targetId);
+  // Retried: a target can spawn behind the meat counter, where the butcher (M5-6) cleaves and knocks
+  // back anyone who stands there, so one teleport may not stay put long enough to pick it up.
+  await expect(async () => {
+    await teleportNear(host, { x: target.serverX, y: target.serverY }, before.tile * 0.6);
+    // Hold E for a few input steps so a fixed-step sample sees it.
+    await host.keyboard.down('KeyE');
+    await host.waitForTimeout(150);
+    await host.keyboard.up('KeyE');
+    await expect.poll(async () => (await game(host)).net?.carrying, { timeout: 3_000 }).toBe(targetId);
+  }).toPass({ timeout: 30_000 });
   await expect(host.getByRole('region', { name: 'Carrying' })).toHaveAttribute(
     'data-world-id',
     String(targetId),
