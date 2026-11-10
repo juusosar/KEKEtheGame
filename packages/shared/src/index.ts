@@ -37,9 +37,8 @@ export {
   type InputQueueConfig,
 } from './rules/input';
 export { findSpawn, vanSpawn, type SpawnMap } from './rules/spawn';
-export { NORMAL_ITEM_VALUE, itemValue, type ItemRarity } from './rules/scoring';
+export { NORMAL_ITEM_VALUE, itemValue } from './rules/scoring';
 export {
-  ANY_ZONE,
   eligibleSpawns,
   modelCAssigner,
   spawnsForItem,

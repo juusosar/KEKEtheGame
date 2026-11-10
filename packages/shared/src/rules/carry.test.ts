@@ -20,7 +20,8 @@ import {
   type CarryResult,
   type ItemWorld,
 } from './carry';
-import { ANY_ZONE, type TargetAssigner, type TargetItemDef, type TargetMap } from './targets';
+import { ANY_ZONE } from '../items/catalogue';
+import { type TargetAssigner, type TargetItemDef, type TargetMap } from './targets';
 
 const config = loadConfig();
 const T = 32;

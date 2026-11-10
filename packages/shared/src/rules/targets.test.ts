@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../config';
 import { createRng } from '../rng';
-import {
-  ANY_ZONE,
-  eligibleSpawns,
-  modelCAssigner,
-  spawnsForItem,
-  type TargetItemDef,
-  type TargetMap,
-} from './targets';
+import { ANY_ZONE } from '../items/catalogue';
+import { eligibleSpawns, modelCAssigner, spawnsForItem, type TargetItemDef, type TargetMap } from './targets';
 
 const config = loadConfig();
 const T = 32;

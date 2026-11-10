@@ -6,7 +6,8 @@
 import type { GameConfig } from '../config';
 import type { Rng } from '../rng';
 import type { Vec2 } from '../types';
-import { itemValue, type ItemRarity } from './scoring';
+import type { ItemRarity } from '../items/catalogue';
+import { itemValue } from './scoring';
 import {
   modelCAssigner,
   type TargetAssigner,
