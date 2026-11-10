@@ -242,8 +242,9 @@ export const NpcState = schema(
     stunned: t.boolean().default(false),
     /**
      * What the behaviour is doing, for animation and FX. Common: 'idle', 'ko'. Stocker: 'walk' (to an aisle
-     * waypoint), 'stock' (restocking a shelf), 'angry' (retaliating against `target`). Later behaviours
-     * add their own (see the M5-3 handoff).
+     * waypoint), 'stock' (restocking a shelf), 'angry' (retaliating against `target`). Forklift: 'drive'
+     * (to the next route corner), 'corner' (stopped at a corner), 'blocked' (a stock cart is in the way).
+     * Later behaviours add their own (see the M5-3 handoff).
      */
     mode: t.string().default('idle'),
     /** sessionId of the player this NPC is after (retaliation, chase); '' when none. */
