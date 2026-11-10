@@ -1,0 +1,314 @@
+import { describe, expect, it } from 'vitest';
+import fixture from './fixtures/test-map.json';
+import type { CollisionGrid, MovementMap } from '../index';
+import { MapError, OBJECT_LAYERS, TILE_LAYERS, inOfficeTrigger, loadMap, zonesAt } from './index';
+
+/** A deep copy of the fixture that a test can break without affecting the others. */
+function cloneFixture(): typeof fixture {
+  return structuredClone(fixture);
+}
+
+type AnyLayer = { name: string; type: string; layers?: AnyLayer[]; objects?: Record<string, unknown>[] };
+
+/** Finds a layer by name, looking inside group layers too. */
+function layerOf(map: { layers: unknown[] }, name: string): AnyLayer {
+  const walk = (layers: AnyLayer[]): AnyLayer | undefined => {
+    for (const l of layers) {
+      if (l.name === name) return l;
+      const inner = l.layers ? walk(l.layers) : undefined;
+      if (inner) return inner;
+    }
+    return undefined;
+  };
+  const found = walk(map.layers as AnyLayer[]);
+  if (!found) throw new Error(`fixture has no layer ${name}`);
+  return found;
+}
+
+function removeLayer(map: { layers: unknown[] }, name: string): void {
+  const strip = (layers: AnyLayer[]): AnyLayer[] =>
+    layers.filter((l) => l.name !== name).map((l) => (l.layers ? { ...l, layers: strip(l.layers) } : l));
+  map.layers = strip(map.layers as AnyLayer[]);
+}
+
+function issuesOf(raw: unknown): readonly string[] {
+  try {
+    loadMap(raw, 'test-map');
+  } catch (e) {
+    expect(e).toBeInstanceOf(MapError);
+    return (e as MapError).issues;
+  }
+  throw new Error('expected loadMap to throw');
+}
+
+const map = loadMap(fixture, 'test-map');
+const T = 32;
+/** Pixel centre of tile (tx, ty). */
+const c = (t: number): number => t * T + T / 2;
+
+describe('loadMap: dimensions', () => {
+  it('reads size in tiles and pixels', () => {
+    expect(map).toMatchObject({ width: 12, height: 10, tileSize: 32, widthPx: 384, heightPx: 320 });
+  });
+});
+
+describe('loadMap: tile layers', () => {
+  it('builds the collision grid from walls', () => {
+    const grid = map.collision;
+    expect(grid).toMatchObject({ width: 12, height: 10, tileSize: 32 });
+    expect(grid.solid).toHaveLength(120);
+    expect(grid.isSolid(0, 0)).toBe(true); // border
+    expect(grid.isSolid(11, 9)).toBe(true);
+    expect(grid.isSolid(1, 1)).toBe(false); // floor
+    expect(grid.isSolid(6, 1)).toBe(true); // interior wall
+    expect(grid.isSolid(6, 5)).toBe(false);
+  });
+
+  it('ignores Tiled flip flags when reading wall gids', () => {
+    expect(map.collision.isSolid(6, 2)).toBe(true);
+  });
+
+  it('treats out-of-bounds and fractional tiles as solid', () => {
+    expect(map.collision.isSolid(-1, 3)).toBe(true);
+    expect(map.collision.isSolid(3, -1)).toBe(true);
+    expect(map.collision.isSolid(12, 3)).toBe(true);
+    expect(map.collision.isSolid(3, 10)).toBe(true);
+    expect(map.collision.isSolid(1.5, 1)).toBe(true);
+  });
+
+  it('finds tile layers nested in a group layer', () => {
+    // decor and above live inside the "overlay" group in the fixture; loading succeeds only if found.
+    expect(layerOf(fixture, 'overlay').type).toBe('group');
+    expect(() => loadMap(fixture)).not.toThrow();
+  });
+});
+
+describe('loadMap: zones', () => {
+  it('reads every zone with its id and properties', () => {
+    expect(map.zones.map((z) => z.id)).toEqual([
+      'loading_dock',
+      'cold_room',
+      'meat_fish',
+      'behind_counter',
+      'staff_only',
+    ]);
+    const cold = map.zones.find((z) => z.id === 'cold_room');
+    expect(cold).toMatchObject({ friction: 0.92, speedMultiplier: 0.9, wantedOnEnter: false });
+    const staff = map.zones.find((z) => z.id === 'staff_only');
+    expect(staff?.wantedOnEnter).toBe(true);
+    expect(staff && 'friction' in staff).toBe(false);
+  });
+
+  it('turns rectangles and polygons into absolute vertices', () => {
+    const dock = map.zones.find((z) => z.id === 'loading_dock');
+    expect(dock?.polygon).toEqual([
+      { x: 32, y: 32 },
+      { x: 192, y: 32 },
+      { x: 192, y: 160 },
+      { x: 32, y: 160 },
+    ]);
+    expect(dock?.bounds).toEqual({ minX: 32, minY: 32, maxX: 192, maxY: 160 });
+    const counter = map.zones.find((z) => z.id === 'behind_counter');
+    expect(counter?.polygon[0]).toEqual({ x: 96, y: 192 });
+    expect(counter?.area).toBe(64 * 64);
+  });
+});
+
+describe('zoneAt', () => {
+  it('returns the zone containing a point', () => {
+    expect(map.zoneAt(c(2), c(2))?.id).toBe('loading_dock');
+    expect(map.zoneAt(c(8), c(2))?.id).toBe('cold_room');
+    expect(map.zoneAt(c(8), c(6))?.id).toBe('staff_only');
+  });
+
+  it('returns undefined outside every zone', () => {
+    expect(map.zoneAt(5, 5)).toBeUndefined();
+    expect(map.zoneAt(-100, -100)).toBeUndefined();
+  });
+
+  it('prefers the smallest zone where zones nest', () => {
+    expect(map.zoneAt(c(4), c(7))?.id).toBe('behind_counter');
+    expect(map.zoneAt(c(1), c(7))?.id).toBe('meat_fish');
+    expect(zonesAt(map.zones, c(4), c(7)).map((z) => z.id)).toEqual(['behind_counter', 'meat_fish']);
+  });
+
+  it('gives a shared edge to exactly one zone', () => {
+    // cold_room ends and staff_only starts at y = 160.
+    expect(map.zoneAt(c(8), 160)?.id).toBe('staff_only');
+    expect(map.zoneAt(c(8), 159.9)?.id).toBe('cold_room');
+  });
+});
+
+describe('loadMap: object layers', () => {
+  it('reads van slots sorted by index', () => {
+    expect(map.vanSlots).toEqual([
+      { index: 0, x: 80, y: 48 },
+      { index: 1, x: 48, y: 48 },
+    ]);
+  });
+
+  it('reads item spawns with their zone', () => {
+    expect(map.itemSpawns).toEqual([
+      { x: 256, y: 64, zone: 'cold_room' },
+      { x: 64, y: 224, zone: 'meat_fish' },
+      { x: 128, y: 224, zone: 'behind_counter' },
+    ]);
+  });
+
+  it('reads NPC spawn types from a property or the object class', () => {
+    expect(map.npcSpawns).toEqual([
+      { x: 144, y: 240, type: 'butcher' },
+      { x: 288, y: 200, type: 'security' },
+    ]);
+  });
+
+  it('reads NPC waypoints', () => {
+    expect(map.npcWaypoints.map(({ name, x, y }) => ({ name, x, y }))).toEqual([
+      { name: 'aisle_a', x: 240, y: 48 },
+      { name: 'aisle_b', x: 336, y: 144 },
+    ]);
+  });
+
+  it('reads forklift routes as absolute polylines', () => {
+    expect(map.forkliftRoutes).toHaveLength(1);
+    expect(map.forkliftRoutes[0]).toMatchObject({
+      name: 'loop_a',
+      points: [
+        { x: 48, y: 144 },
+        { x: 144, y: 144 },
+        { x: 144, y: 80 },
+      ],
+    });
+  });
+
+  it('reads the office trigger polygon', () => {
+    expect(map.officeTrigger.polygon).toEqual([
+      { x: 256, y: 224 },
+      { x: 320, y: 224 },
+      { x: 288, y: 272 },
+    ]);
+    expect(inOfficeTrigger(map, 288, 240)).toBe(true);
+    expect(inOfficeTrigger(map, 258, 270)).toBe(false);
+  });
+});
+
+describe('loadMap: errors', () => {
+  it.each([...TILE_LAYERS, ...OBJECT_LAYERS])('reports a missing "%s" layer', (name) => {
+    const raw = cloneFixture();
+    removeLayer(raw, name);
+    expect(issuesOf(raw)).toContainEqual(expect.stringContaining(`"${name}"`));
+  });
+
+  it('lists every missing layer at once', () => {
+    const raw = cloneFixture();
+    removeLayer(raw, 'walls');
+    removeLayer(raw, 'zones');
+    expect(issuesOf(raw)).toEqual(['missing tile layer "walls"', 'missing object layer "zones"']);
+  });
+
+  it('names the source in the error message', () => {
+    const raw = cloneFixture();
+    removeLayer(raw, 'walls');
+    expect(() => loadMap(raw, 'kespro.tmj')).toThrow(
+      /Invalid map kespro\.tmj:\n {2}- missing tile layer "walls"/,
+    );
+  });
+
+  it('rejects a layer of the wrong kind', () => {
+    const raw = cloneFixture();
+    const zones = layerOf(raw, 'zones');
+    Object.assign(zones, { type: 'tilelayer', width: 12, height: 10, data: new Array(120).fill(0) });
+    delete zones.objects;
+    expect(issuesOf(raw)).toContain('layer "zones" must be an object layer');
+  });
+
+  it('rejects non-JSON-map input', () => {
+    expect(issuesOf(null)[0]).toMatch(/^\(root\)/);
+    expect(issuesOf({ ...cloneFixture(), orientation: 'isometric' })[0]).toMatch(/^orientation/);
+  });
+
+  it('explains base64 tile data', () => {
+    const raw = cloneFixture();
+    Object.assign(layerOf(raw, 'ground'), { encoding: 'base64', data: 'AAAA' });
+    expect(issuesOf(raw)).toContainEqual(expect.stringContaining('CSV encoding'));
+  });
+
+  it('rejects a tile layer whose size does not match the map', () => {
+    const raw = cloneFixture();
+    Object.assign(layerOf(raw, 'walls'), { width: 11, data: new Array(110).fill(0) });
+    expect(issuesOf(raw)).toContain('tile layer "walls" is 11x10, map is 12x10');
+  });
+
+  it('rejects duplicate zone ids and unknown spawn zones', () => {
+    const raw = cloneFixture();
+    const zones = layerOf(raw, 'zones').objects ?? [];
+    Object.assign(zones[1] as object, {
+      properties: [{ name: 'id', type: 'string', value: 'loading_dock' }],
+    });
+    expect(issuesOf(raw)).toEqual([
+      'zones: duplicate zone id "loading_dock"',
+      'item_spawns #8: zone "cold_room" is not in the zones layer',
+    ]);
+  });
+
+  it('rejects bad zone properties', () => {
+    const raw = cloneFixture();
+    const zones = layerOf(raw, 'zones').objects ?? [];
+    Object.assign(zones[1] as object, {
+      properties: [
+        { name: 'id', type: 'string', value: 'cold_room' },
+        { name: 'friction', type: 'float', value: 1.5 },
+        { name: 'speedMultiplier', type: 'string', value: 'fast' },
+        { name: 'wantedOnEnter', type: 'string', value: 'yes' },
+      ],
+    });
+    expect(issuesOf(raw)).toEqual([
+      'zones #101: property "speedMultiplier" must be a number',
+      'zones #101: property "wantedOnEnter" must be a boolean',
+      'zones #101: friction must be between 0 and 1, got 1.5',
+    ]);
+  });
+
+  it('rejects van slots without an index or with a duplicate index', () => {
+    const raw = cloneFixture();
+    const slots = layerOf(raw, 'van_slots').objects ?? [];
+    Object.assign(slots[0] as object, { properties: [{ name: 'index', type: 'int', value: 0 }] });
+    slots.push({ id: 150, x: 1, y: 1, point: true });
+    expect(issuesOf(raw)).toEqual([
+      'van_slots #150: property "index" must be a non-negative integer',
+      'van_slots: duplicate index 0',
+    ]);
+  });
+
+  it('rejects wrong object shapes', () => {
+    const raw = cloneFixture();
+    (layerOf(raw, 'item_spawns').objects ?? []).push({ id: 151, x: 0, y: 0, width: 32, height: 32 });
+    (layerOf(raw, 'forklift_routes').objects ?? []).push({ id: 152, x: 0, y: 0, polyline: [{ x: 0, y: 0 }] });
+    expect(issuesOf(raw)).toEqual([
+      'item_spawns #151: must be a point object',
+      'item_spawns #151: missing "zone" property',
+      'forklift_routes #152: must be a polyline with at least 2 points',
+    ]);
+  });
+
+  it('requires exactly one office trigger', () => {
+    const raw = cloneFixture();
+    layerOf(raw, 'office_trigger').objects = [];
+    expect(issuesOf(raw)).toEqual(['office_trigger: expected exactly 1 object, found 0']);
+  });
+
+  it('rejects rotated areas', () => {
+    const raw = cloneFixture();
+    Object.assign((layerOf(raw, 'zones').objects ?? [])[0] as object, { rotation: 45 });
+    expect(issuesOf(raw)).toEqual(['zones #100: rotated objects are not supported']);
+  });
+});
+
+describe('MapModel and the movement rules', () => {
+  it('plugs straight into step() and moveAabb() without an adapter', () => {
+    const movementMap: MovementMap = map;
+    const grid: CollisionGrid = map.collision;
+    expect(movementMap.zoneAt(c(8), c(2))?.friction).toBe(0.92);
+    expect(grid.isSolid(0, 0)).toBe(true);
+  });
+});
