@@ -7,6 +7,8 @@ new Phaser.Game({
   parent: 'game',
   backgroundColor: '#1a1a1a',
   pixelArt: true,
+  // §13.3: gamepads are read through Phaser's gamepad plugin by the InputManager.
+  input: { gamepad: true },
   scale: {
     mode: Phaser.Scale.RESIZE,
     width: '100%',
