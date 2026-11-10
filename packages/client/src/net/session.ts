@@ -115,3 +115,27 @@ function tabStorage(): TicketStorage | null {
     return null;
   }
 }
+
+/**
+ * Resolves once the room's first state patch has arrived (join and reconnect resolve before it), or
+ * after `timeoutMs` without one. True when the state arrived.
+ */
+export function waitForFirstState(
+  room: Pick<Room, 'onStateChange' | 'state'> & { readonly sessionId: string },
+  ready: (state: unknown) => boolean,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (ready(room.state)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const done = (ok: boolean): void => {
+      clearTimeout(timer);
+      room.onStateChange.remove(onState);
+      resolve(ok);
+    };
+    const onState = (state: unknown): void => {
+      if (ready(state)) done(true);
+    };
+    const timer = setTimeout(() => done(false), timeoutMs);
+    room.onStateChange(onState);
+  });
+}

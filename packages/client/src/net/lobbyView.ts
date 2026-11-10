@@ -42,18 +42,18 @@ export interface LobbyView {
   synced: boolean;
 }
 
-type Bag = Record<string, unknown>;
+export type Bag = Record<string, unknown>;
 
-const isBag = (value: unknown): value is Bag => typeof value === 'object' && value !== null;
-const str = (bag: Bag, key: string, fallback = ''): string =>
+export const isBag = (value: unknown): value is Bag => typeof value === 'object' && value !== null;
+export const str = (bag: Bag, key: string, fallback = ''): string =>
   typeof bag[key] === 'string' ? bag[key] : fallback;
-const num = (bag: Bag, key: string, fallback = 0): number =>
+export const num = (bag: Bag, key: string, fallback = 0): number =>
   typeof bag[key] === 'number' && Number.isFinite(bag[key]) ? bag[key] : fallback;
-const bool = (bag: Bag, key: string, fallback = false): boolean =>
+export const bool = (bag: Bag, key: string, fallback = false): boolean =>
   typeof bag[key] === 'boolean' ? bag[key] : fallback;
 
 /** Entries of a schema MapSchema (has forEach) or a plain object, as [key, value] pairs. */
-function mapEntries(value: unknown): [string, unknown][] {
+export function mapEntries(value: unknown): [string, unknown][] {
   if (!isBag(value)) return [];
   const forEach = value['forEach'];
   if (typeof forEach === 'function') {

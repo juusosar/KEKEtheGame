@@ -6,5 +6,9 @@
   "menuPreviewScale": 5,
   "debugZoneAlpha": 0.22,
   "debugWallAlpha": 0.35,
-  "spectatorCycleSeconds": 6
+  "spectatorCycleSeconds": 6,
+  "interpolationDelayMs": 100,
+  "snapDistancePx": 64,
+  "disconnectedAlpha": 0.4,
+  "nameplateOffsetY": 24
 }

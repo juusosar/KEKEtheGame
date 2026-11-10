@@ -1,36 +1,53 @@
+import type { Room } from '@colyseus/sdk';
 import {
+  ClientMessage,
   TILE_LAYERS,
+  aabbOverlapsSolid,
   defaultThemeId,
   getTheme,
+  inputStepSeconds,
   loadConfig,
   loadMap,
   playerHalfSize,
-  step,
-  aabbOverlapsSolid,
   vanSpawn,
   type GameConfig,
   type MapModel,
   type MapTheme,
-  type MovementState,
+  type Vec2,
 } from '@keke/shared';
 import Phaser from 'phaser';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
+import { Avatar } from '../game/avatar';
 import { isDebugEnabled } from '../game/debugFlag';
 import { placeZoneLabels } from '../game/debugLayout';
-import { animKey, facingFromMove, type Facing } from '../game/facing';
 import { installHook, removeHook, type KekeHook } from '../game/hook';
+import type { KekeNetSnapshot, KekeRemoteSnapshot } from '../game/hookTypes';
 import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
+import { SpectatorCycle, spectateCandidates } from '../game/spectate';
 import { t } from '../i18n';
-import { InputManager } from '../input';
+import { InputManager, STANDARD } from '../input';
+import { SnapshotBuffer } from '../net/interpolation';
+import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
+import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
+import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
+import type { PlaySceneData } from './Lobby';
 
-/** Draw order (§15.4): ground, walls, decor, characters, then `above` over them; debug on top. */
-const DEPTH = { ground: 0, walls: 1, decor: 2, player: 10, above: 20, debug: 30 } as const;
+/** Draw order (§15.4): ground, walls, decor, characters, then `above` over them; nameplates; debug on top. */
+const DEPTH = { ground: 0, walls: 1, decor: 2, player: 10, above: 20, label: 25, debug: 30 } as const;
+
+interface Remote {
+  avatar: Avatar;
+  buffer: SnapshotBuffer;
+}
 
 /**
- * M1 game scene: one local player walking the map. Movement runs through the shared rules
- * (`step()`), exactly what the server will run from M2, so prediction can reuse it unchanged.
+ * The game scene. In a room (M2-3) the server owns every position: the local player is predicted
+ * with the shared rules one fixed input step at a time and reconciled against the server's acks,
+ * and everyone else is drawn ~100 ms in the past between state patches. Without a room
+ * (`?scene=game`) it is the M1 offline walk: the same fixed-step prediction, with nothing to reconcile.
+ * Late joiners spectate: the camera cycles between players, click or pad A skips to the next.
  * `?debug=1` adds the zone/collision overlay and the `window.__KEKE__` test hook.
  */
 export class GameScene extends Phaser.Scene {
@@ -38,14 +55,28 @@ export class GameScene extends Phaser.Scene {
   private model!: MapModel;
   private config!: GameConfig;
   private inputManager!: InputManager;
-  private playerBody!: Phaser.GameObjects.Sprite;
-  private hat!: Phaser.GameObjects.Sprite;
-  private state: MovementState = { x: 0, y: 0, vx: 0, vy: 0 };
-  private facing: Facing = 'down';
+  private local!: Avatar;
+  private predictor!: Predictor;
+  private clock!: FixedStepClock;
+  private lastMove: Vec2 = { x: 0, y: 0 };
+
+  // Online only.
+  private room: Room | null = null;
+  private code = '';
+  private sequence: InputSequence | null = null;
+  private view: GameView | null = null;
+  private controlling = false;
+  private remotes = new Map<string, Remote>();
+  private spectatorCycle = new SpectatorCycle(renderConfig.spectatorCycleSeconds);
+  private spectating: string | null = null;
+  private spectateBanner: HTMLElement | undefined;
+  private leaving = false;
+  private unsubscribe: (() => void)[] = [];
+
   private debug = false;
   private hitbox?: Phaser.GameObjects.Rectangle;
-  private readout?: HTMLElement;
-  private hook?: KekeHook;
+  private readout: HTMLElement | undefined;
+  private hook: KekeHook | undefined;
 
   constructor() {
     super('Game');
@@ -61,36 +92,73 @@ export class GameScene extends Phaser.Scene {
     this.config = loadConfig();
     const raw = rawMapFor(this.theme);
     this.model = loadMap(raw, this.theme.assets.map);
+    this.resetFields();
+
+    const current = currentRoom();
+    this.room = current?.room ?? null;
+    this.code = current?.code ?? '';
 
     createManifestAnimations(this);
     this.createTilemap(raw);
-    this.createPlayer();
+    this.createLocalPlayer();
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.model.widthPx, this.model.heightPx);
     cam.setZoom(renderConfig.cameraZoom);
     cam.setRoundPixels(true);
-    cam.startFollow(this.playerBody, true, renderConfig.cameraLerp, renderConfig.cameraLerp);
+    cam.startFollow(this.local.body, true, renderConfig.cameraLerp, renderConfig.cameraLerp);
 
     this.inputManager = new InputManager(this);
+    this.clock = new FixedStepClock(inputStepSeconds(this.config));
 
     if (this.debug) this.createDebug();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardownDebug());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown());
     document.body.dataset['scene'] = 'game';
+
+    if (this.room !== null) this.joinRoom(this.room);
   }
 
   override update(_time: number, deltaMs: number): void {
+    if (this.leaving) return;
     const dt = Math.min(deltaMs / 1000, renderConfig.maxFrameSeconds);
-    this.inputManager.setOrigin(this.state);
-    const frame = this.inputManager.sample();
-    this.state = step(this.state, frame, dt, this.model, this.config);
+    const offline = this.room === null;
 
-    const walking = frame.move.x !== 0 || frame.move.y !== 0;
-    this.facing = facingFromMove(frame.move, this.facing);
-    this.playerBody.play(animKey('body', walking, this.facing), true);
-    this.placePlayer();
+    const steps = this.clock.advance(dt);
+    for (let i = 0; i < steps; i++) {
+      if (!offline && !this.controlling) break;
+      this.inputManager.setOrigin(this.predictor.state);
+      const frame = this.inputManager.sample();
+      this.lastMove = frame.move;
+      if (offline) {
+        this.predictor.apply(frame, false);
+      } else if (this.room && this.sequence) {
+        const sent = { ...frame, seq: this.sequence.next() };
+        this.predictor.apply(sent);
+        this.room.send(ClientMessage.input, sent);
+      }
+    }
+    if (!offline && !this.controlling) this.lastMove = { x: 0, y: 0 };
 
+    const pos = this.predictor.renderPosition(this.clock.alpha);
+    this.local.place(pos.x, pos.y, this.lastMove);
+
+    if (!offline) this.updateRemotes(dt);
     if (this.debug) this.updateDebug();
+  }
+
+  /** Scene objects are reused between runs; fields that hold per-run state start fresh here. */
+  private resetFields(): void {
+    this.lastMove = { x: 0, y: 0 };
+    this.room = null;
+    this.code = '';
+    this.sequence = null;
+    this.view = null;
+    this.controlling = false;
+    this.remotes = new Map();
+    this.spectatorCycle = new SpectatorCycle(renderConfig.spectatorCycleSeconds);
+    this.spectating = null;
+    this.leaving = false;
+    this.unsubscribe = [];
   }
 
   private createTilemap(raw: unknown): void {
@@ -112,32 +180,249 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createPlayer(): void {
-    // Van slot 1 until the networked Game scene (M2-3) takes positions from the server.
+  private createLocalPlayer(): void {
+    // Offline: van slot 1. In a room the first state patch moves us to the server's spawn.
     const spawn = vanSpawn(this.model, 0, playerHalfSize(this.config));
-    this.state = { x: spawn.x, y: spawn.y, vx: 0, vy: 0 };
+    const start = { x: spawn.x, y: spawn.y, vx: 0, vy: 0 };
+    this.predictor = new Predictor(this.model, this.config, start);
 
-    // The local player wears the saved profile (§13.1); first-time players get the profile defaults.
+    this.local = this.newAvatar(this.room !== null);
+    // Offline (and in a room until the first patch) the local player wears the saved profile (§13.1).
     const { profile } = loadProfile(browserStorage(), this.config.nicknameMaxLength);
-    const tint = Phaser.Display.Color.HexStringToColor(profile.color).color;
-    this.playerBody = this.add
-      .sprite(spawn.x, spawn.y, 'body')
-      .setOrigin(0.5, renderConfig.playerOriginY)
-      .setTint(tint)
-      .setDepth(DEPTH.player);
-    this.hat = this.add
-      .sprite(spawn.x, spawn.y, `hat_${profile.hat}`)
-      .setOrigin(0.5, renderConfig.playerOriginY)
-      .setDepth(DEPTH.player + 0.5);
-    this.playerBody.play(animKey('body', false, this.facing));
-    this.placePlayer();
+    this.local.setLook(profile);
+    this.local.setLabel(profile.nickname);
+    this.local.place(start.x, start.y, { x: 0, y: 0 });
   }
 
-  /** Puts body and hat on the simulated position. The hat shows the body's frame, so they never drift apart. */
-  private placePlayer(): void {
-    this.playerBody.setPosition(this.state.x, this.state.y);
-    this.hat.setPosition(this.state.x, this.state.y);
-    this.hat.setFrame(this.playerBody.frame.name);
+  private newAvatar(withLabel: boolean): Avatar {
+    return new Avatar(
+      this,
+      { player: DEPTH.player, label: DEPTH.label, mapHeight: this.model.heightPx },
+      withLabel,
+    );
+  }
+
+  // --- room -----------------------------------------------------------------------------------------
+
+  private joinRoom(room: Room): void {
+    this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
+    // Hidden until the first patch says where we are (and whether we are in the round at all).
+    this.local.setVisible(false);
+
+    const onState = (): void => this.onPatch();
+    const onLeave = (): void => this.lost();
+    room.onStateChange(onState);
+    room.onLeave(onLeave);
+    this.unsubscribe.push(
+      () => room.onStateChange.remove(onState),
+      () => room.onLeave.remove(onLeave),
+    );
+
+    // Spectators skip to the next player on click or pad A (§13.1).
+    const onPointer = (): void => this.skipSpectated();
+    const onPad = (_pad: Phaser.Input.Gamepad.Gamepad, button: Phaser.Input.Gamepad.Button): void => {
+      if (button.index === STANDARD.buttons.a) this.skipSpectated();
+    };
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, onPointer);
+    this.input.gamepad?.on(Phaser.Input.Gamepad.Events.BUTTON_DOWN, onPad);
+    this.unsubscribe.push(
+      () => this.input.off(Phaser.Input.Events.POINTER_DOWN, onPointer),
+      () => this.input.gamepad?.off(Phaser.Input.Gamepad.Events.BUTTON_DOWN, onPad),
+    );
+
+    this.onPatch();
+  }
+
+  /** Every state patch: reconcile our prediction, feed the remote buffers, follow phase changes. */
+  private onPatch(): void {
+    const room = this.room;
+    if (room === null || this.leaving) return;
+    const view = readGame(room.state, room.sessionId);
+    if (!view.synced) return;
+    this.view = view;
+
+    if (sceneForPhase(view.phase) !== 'Game') {
+      // The session is over (podium → lobby): everyone goes back to the lobby.
+      this.leaving = true;
+      this.scene.start(sceneForPhase(view.phase));
+      return;
+    }
+
+    const me = view.me;
+    if (me === null) return;
+    this.sequence?.sync(me.ack);
+    this.local.setLook(me);
+    this.local.setLabel(me.nickname);
+    this.local.setVisible(isOnMap(me, view.phase));
+
+    const controlling = isControlling(view);
+    if (controlling && this.controlling) {
+      this.predictor.reconcile(me);
+    } else {
+      // Not simulated (countdown, results, spectating), or the round just started: take the server's body.
+      this.predictor.reset(me);
+      this.clock.reset();
+    }
+    this.controlling = controlling;
+
+    const now = performance.now();
+    const seen = new Set<string>();
+    for (const p of view.players) {
+      if (p.isMe || !isOnMap(p, view.phase)) continue;
+      seen.add(p.id);
+      let remote = this.remotes.get(p.id);
+      if (!remote) {
+        remote = {
+          avatar: this.newAvatar(true),
+          buffer: new SnapshotBuffer({
+            delayMs: renderConfig.interpolationDelayMs,
+            snapDistance: renderConfig.snapDistancePx,
+            patchIntervalMs: 1000 / this.config.serverTickHz,
+          }),
+        };
+        this.remotes.set(p.id, remote);
+      }
+      remote.buffer.push(now, p.x, p.y);
+      remote.avatar.setLook(p);
+      remote.avatar.setConnected(p.connected);
+      remote.avatar.setLabel(p.connected ? p.nickname : t('game.reconnecting', { name: p.nickname }));
+    }
+    for (const [id, remote] of this.remotes) {
+      if (seen.has(id)) continue;
+      remote.avatar.destroy();
+      this.remotes.delete(id);
+    }
+  }
+
+  private updateRemotes(dt: number): void {
+    const now = performance.now();
+    for (const remote of this.remotes.values()) {
+      const pos = remote.buffer.sample(now);
+      if (pos) remote.avatar.place(pos.x, pos.y);
+    }
+    this.updateSpectator(dt);
+  }
+
+  /** Late joiners watch the round: the camera cycles between the players in it (§13.1). */
+  private updateSpectator(dt: number): void {
+    const view = this.view;
+    const watching = view?.me?.spectator === true;
+    const cam = this.cameras.main;
+    if (!watching || view === null) {
+      if (this.spectating !== null || this.spectateBanner) {
+        this.spectating = null;
+        this.hideSpectateBanner();
+        cam.startFollow(this.local.body, true, renderConfig.cameraLerp, renderConfig.cameraLerp);
+      }
+      return;
+    }
+    const target = this.spectatorCycle.update(this.candidates(), dt);
+    if (target !== this.spectating) {
+      this.spectating = target;
+      const followed = target === null ? undefined : this.remotes.get(target);
+      if (followed)
+        cam.startFollow(followed.avatar.body, true, renderConfig.cameraLerp, renderConfig.cameraLerp);
+      else cam.stopFollow();
+    }
+    const name = view.players.find((p) => p.id === target)?.nickname;
+    this.showSpectateBanner(name === undefined ? t('game.spectatingNobody') : t('game.spectating', { name }));
+  }
+
+  private candidates(): string[] {
+    const view = this.view;
+    if (view === null || view.me === null) return [];
+    return spectateCandidates(
+      view.players.map((p) => ({ ...p, sessionId: p.id })),
+      view.me.id,
+    );
+  }
+
+  private skipSpectated(): void {
+    if (this.view?.me?.spectator !== true) return;
+    this.spectatorCycle.next(this.candidates());
+    // updateSpectator picks up the new target on the next frame.
+  }
+
+  private showSpectateBanner(text: string): void {
+    if (!this.spectateBanner) {
+      const banner = document.createElement('div');
+      banner.id = 'keke-spectate';
+      banner.setAttribute('role', 'status');
+      banner.className = 'spectate-banner';
+      const title = document.createElement('strong');
+      const hint = document.createElement('span');
+      hint.textContent = t('game.spectateHint');
+      banner.append(title, hint);
+      document.body.appendChild(banner);
+      this.spectateBanner = banner;
+    }
+    const title = this.spectateBanner.firstElementChild;
+    if (title && title.textContent !== text) title.textContent = text;
+    document.body.dataset['spectating'] = this.spectating ?? '';
+  }
+
+  private hideSpectateBanner(): void {
+    this.spectateBanner?.remove();
+    this.spectateBanner = undefined;
+    delete document.body.dataset['spectating'];
+  }
+
+  /** The connection is gone for good (the SDK already tried to reconnect, or the server closed the room). */
+  private lost(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    setCurrentRoom(null);
+    this.registry.remove(ROOM_CODE_REGISTRY_KEY);
+    delete document.body.dataset['room'];
+    const data: PlaySceneData = { notice: t('game.lost') };
+    this.scene.start('Play', data);
+  }
+
+  private shutdown(): void {
+    for (const off of this.unsubscribe) off();
+    this.unsubscribe = [];
+    for (const remote of this.remotes.values()) remote.avatar.destroy();
+    this.remotes.clear();
+    this.hideSpectateBanner();
+    this.teardownDebug();
+    delete document.body.dataset['scene'];
+  }
+
+  private netSnapshot(): KekeNetSnapshot | null {
+    const room = this.room;
+    if (room === null) return null;
+    const me = this.view?.me ?? null;
+    return {
+      code: this.code,
+      sessionId: room.sessionId,
+      phase: this.view?.phase ?? 'lobby',
+      controlling: this.controlling,
+      spectator: me?.spectator ?? false,
+      spectating: this.spectating,
+      pendingInputs: this.predictor.pendingCount,
+      ack: me?.ack ?? 0,
+      lastCorrection: this.predictor.lastCorrection,
+    };
+  }
+
+  private remoteSnapshots(): KekeRemoteSnapshot[] {
+    const view = this.view;
+    if (view === null) return [];
+    const out: KekeRemoteSnapshot[] = [];
+    for (const p of view.players) {
+      const remote = this.remotes.get(p.id);
+      if (!remote) continue;
+      out.push({
+        id: p.id,
+        nickname: p.nickname,
+        x: remote.avatar.body.x,
+        y: remote.avatar.body.y,
+        serverX: p.x,
+        serverY: p.y,
+        connected: p.connected,
+      });
+    }
+    return out;
   }
 
   // --- ?debug=1 -------------------------------------------------------------------------------------
@@ -209,7 +494,7 @@ export class GameScene extends Phaser.Scene {
 
     const size = this.config.playerHitboxSize;
     this.hitbox = this.add
-      .rectangle(this.state.x, this.state.y, size, size)
+      .rectangle(this.predictor.state.x, this.predictor.state.y, size, size)
       .setStrokeStyle(1, 0x00ff00)
       .setDepth(DEPTH.debug + 1);
 
@@ -236,22 +521,29 @@ export class GameScene extends Phaser.Scene {
         heightPx: model.heightPx,
         tileSize: model.tileSize,
       },
-      player: () => ({
-        x: this.state.x,
-        y: this.state.y,
-        vx: this.state.vx,
-        vy: this.state.vy,
-        facing: this.facing,
-        zone: model.zoneAt(this.state.x, this.state.y)?.id ?? null,
-      }),
+      player: () => {
+        const p = this.predictor.state;
+        return {
+          x: p.x,
+          y: p.y,
+          vx: p.vx,
+          vy: p.vy,
+          facing: this.local.currentFacing,
+          zone: model.zoneAt(p.x, p.y)?.id ?? null,
+        };
+      },
       teleport: (x, y) => {
+        // In a room the server owns every position.
+        if (this.room !== null) return false;
         if (aabbOverlapsSolid(model.collision, { x, y }, playerHalfSize(this.config))) return false;
-        this.state = { x, y, vx: 0, vy: 0 };
-        this.placePlayer();
+        this.predictor.reset({ x, y, vx: 0, vy: 0 });
+        this.local.place(x, y, { x: 0, y: 0 });
         this.cameras.main.centerOn(x, y);
         return true;
       },
       zoneAt: (x, y) => model.zoneAt(x, y)?.id ?? null,
+      net: () => this.netSnapshot(),
+      remotePlayers: () => this.remoteSnapshots(),
     };
     this.hook = hook;
     installHook(hook);
@@ -271,12 +563,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateDebug(): void {
-    this.hitbox?.setPosition(this.state.x, this.state.y);
+    const p = this.predictor.state;
+    this.hitbox?.setPosition(p.x, p.y);
     if (this.readout) {
       this.readout.textContent = t('debug.readout', {
-        x: Math.round(this.state.x),
-        y: Math.round(this.state.y),
-        zone: this.model.zoneAt(this.state.x, this.state.y)?.id ?? '-',
+        x: Math.round(p.x),
+        y: Math.round(p.y),
+        zone: this.model.zoneAt(p.x, p.y)?.id ?? '-',
         device: this.inputManager.device,
         fps: Math.round(this.game.loop.actualFps),
       });
@@ -285,7 +578,8 @@ export class GameScene extends Phaser.Scene {
 
   private teardownDebug(): void {
     this.readout?.remove();
+    this.readout = undefined;
     if (this.hook) removeHook(this.hook);
-    delete document.body.dataset['scene'];
+    this.hook = undefined;
   }
 }

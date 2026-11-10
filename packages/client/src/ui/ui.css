@@ -262,3 +262,25 @@
 .keke-menu button.start {
   margin-top: 16px;
 }
+
+/* Spectator banner in the Game scene (late joiners, §13.1). Clicks go through to the canvas (skip). */
+.spectate-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px;
+  pointer-events: none;
+  font-family: system-ui, sans-serif;
+  color: #f2f2f2;
+  background: rgba(0, 0, 0, 0.6);
+  border-top: 3px solid #ff6a13;
+}
+.spectate-banner span {
+  font-size: 12px;
+  color: #bdbdbd;
+}
