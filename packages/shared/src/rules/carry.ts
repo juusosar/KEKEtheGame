@@ -58,7 +58,8 @@ export interface ItemWorld {
   readonly vanPoints: Readonly<Record<number, number>>;
 }
 
-export type DropReason = 'drop' | 'ko' | 'disconnect';
+/** 'slip': stepped on a banana peel (§7, M4-5). */
+export type DropReason = 'drop' | 'ko' | 'disconnect' | 'slip';
 
 /** How a pickup relates to target ownership (§3.1). */
 export type PickupKind = 'own_target' | 'other_target' | 'loose';

@@ -29,6 +29,8 @@ export interface KekeCombatSnapshot {
   charging: boolean;
   /** Whole seconds to the respawn while KO'd, else 0. */
   respawnIn: number;
+  /** Slipped on a banana peel and sliding (M4-5). */
+  sliding: boolean;
 }
 
 /** A combat broadcast as the client received it (`attack`, `hit`, `ko`, `respawn`, `weaponRolled`, `weaponSpent`). */
@@ -190,4 +192,18 @@ export interface KekeHook {
   items(): KekeItemSnapshot[];
   /** Vans drawn on the dock, by slot. Offline: slot 1 only. */
   vans(): KekeVanSnapshot[];
+  /** Banana peels on the floor (M4-5), by id; empty offline. */
+  traps(): KekeTrapSnapshot[];
+}
+
+/** A banana peel on the floor (M4-5). */
+export interface KekeTrapSnapshot {
+  id: number;
+  weapon: string;
+  /** Session id of the thrower. */
+  owner: string;
+  x: number;
+  y: number;
+  /** Past its arm delay: trips rivals. */
+  armed: boolean;
 }

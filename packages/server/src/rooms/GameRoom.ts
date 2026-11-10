@@ -126,6 +126,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         onKo: (player, now) => this.items.dropCarried(player, now, 'ko'),
         // §7 pallet jack: loose items in the dash's line scatter (M4-6).
         onScatterItems: (from, to, halfWidth, px) => this.items.scatter(from, to, halfWidth, px),
+        // §7: a banana peel slip drops the carried item where the player slipped (M4-5).
+        onDropCarried: (player, now) => this.items.dropCarried(player, now, 'slip'),
       },
       randomSeed(),
     );

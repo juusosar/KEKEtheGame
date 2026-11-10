@@ -82,6 +82,8 @@ export const PlayerState = schema(
     charging: t.boolean().default(false),
     /** Whole seconds until the respawn while KO'd, rounded up; 0 while alive (KO countdown overlay). */
     respawnIn: t.uint8().default(0),
+    /** Slipped on a banana peel (M4-5): sliding without control (also `stunned`) until the slide ends. */
+    sliding: t.boolean().default(false),
   },
   'PlayerState',
 );
@@ -179,6 +181,30 @@ export const ProjectileState = schema(
 );
 export type ProjectileState = SchemaType<typeof ProjectileState>;
 
+/**
+ * A banana peel on the floor (§7, M4-5). Keyed by String(id) in `GameState.traps`. Added when dropped,
+ * removed when someone slips on it, when it expires (45 s) and at every round start and in the lobby.
+ */
+export const TrapState = schema(
+  {
+    /** Unique within the round, from 1. */
+    id: t.uint32().default(0),
+    /** Weapon id that dropped it ('banana_peels'). */
+    weapon: t.string().default(''),
+    /** sessionId of the thrower. */
+    owner: t.string().default(''),
+    /** The thrower's team when dropped (0 = no teams): the owner and their team never slip on it. */
+    team: t.uint8().default(0),
+    /** Position in pixels. */
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    /** False for the arm delay after the drop; only armed peels trip anyone. */
+    armed: t.boolean().default(false),
+  },
+  'TrapState',
+);
+export type TrapState = SchemaType<typeof TrapState>;
+
 /** Host settings (§13.1). */
 export const RoomSettingsState = schema(
   {
@@ -215,6 +241,8 @@ export const GameState = schema(
     teams: t.map(TeamState),
     /** Projectiles in flight (M4-3). Emptied in the lobby and at each countdown. */
     projectiles: t.map(ProjectileState),
+    /** Banana peels on the floor this round (M4-5). */
+    traps: t.map(TrapState),
   },
   'GameState',
 );

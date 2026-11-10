@@ -21,6 +21,8 @@ export interface CombatPlayerView {
   charging: boolean;
   /** Whole seconds until the respawn while KO'd; 0 while alive. */
   respawnIn: number;
+  /** Slipped on a banana peel: sliding out of control (M4-5). */
+  sliding: boolean;
 }
 
 export const DEFAULT_COMBAT: CombatPlayerView = Object.freeze({
@@ -34,6 +36,7 @@ export const DEFAULT_COMBAT: CombatPlayerView = Object.freeze({
   blocking: false,
   charging: false,
   respawnIn: 0,
+  sliding: false,
 });
 
 /** Combat fields of every player, keyed by session id. */
@@ -54,6 +57,7 @@ export function readCombat(state: unknown): Map<string, CombatPlayerView> {
       blocking: bool(value, 'blocking'),
       charging: bool(value, 'charging'),
       respawnIn: num(value, 'respawnIn'),
+      sliding: bool(value, 'sliding'),
     });
   }
   return out;
