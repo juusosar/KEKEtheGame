@@ -53,5 +53,6 @@ describe('predictionSpeed', () => {
     expect(predictionSpeed(pan, false, config, weapons)).toBe(
       weapons.require('cast_iron_pan').block?.moveSpeedMultiplier,
     );
+    expect(predictionSpeed({ ...DEFAULT_COMBAT, charging: true }, false, config, weapons)).toBe(0);
   });
 });

@@ -67,6 +67,7 @@ export {
   createItemWorld,
   deposit,
   despawnLooseItems,
+  moveLyingItems,
   drop,
   findItem,
   findCarryPlayer,
@@ -158,6 +159,14 @@ export {
   type ProjectileImpact,
   type ProjectileStep,
 } from './rules/projectile';
+export {
+  chargeKnockbackDirection,
+  distanceToSegment,
+  SCATTER_ITEM_HALF,
+  scatterMoves,
+  sideOfLine,
+  sweepTargets,
+} from './rules/charge';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,

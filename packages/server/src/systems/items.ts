@@ -15,9 +15,11 @@ import {
   getItemCatalogue,
   inDepositRange,
   itemEventToWire,
+  moveLyingItems,
   nearestInReach,
   pickup,
   removeCarryPlayer,
+  scatterMoves,
   vanCentre,
   type CarryResult,
   type DropReason,
@@ -29,6 +31,7 @@ import {
   type Rng,
   type StepModifiers,
   type ThemeId,
+  type Vec2,
 } from '@keke/shared';
 import { ItemState, VanState, type GameState, type PlayerState } from '../schema/GameState';
 
@@ -139,6 +142,14 @@ export class ItemSystem {
   dropCarried(player: PlayerState, now: number, reason: DropReason): void {
     if (!this.running || player.carrying === 0) return;
     this.commit(drop(this.world, player.sessionId, { x: player.x, y: player.y }, now, reason));
+  }
+
+  /** Pushes the lying items within `halfWidth` of from→to `px` pixels out of that line (pallet jack, §7). */
+  scatter(from: Vec2, to: Vec2, halfWidth: number, px: number): void {
+    if (!this.running) return;
+    const lying = this.world.items.filter((i) => i.state !== 'carried');
+    const moves = scatterMoves(this.map.collision, from, to, halfWidth, px, lying);
+    if (moves.length > 0) this.commit(moveLyingItems(this.world, moves));
   }
 
   /** A player left the room for good: their carried item drops, their target despawns (M3-2). */

@@ -23,6 +23,10 @@ export interface KekeCombatSnapshot {
   stunned: boolean;
   /** Spawn protection after a respawn. */
   protected: boolean;
+  /** Holding Block with the pan (M4-6). */
+  blocking: boolean;
+  /** Dashing with the pallet jack (M4-6). */
+  charging: boolean;
   /** Whole seconds to the respawn while KO'd, else 0. */
   respawnIn: number;
 }

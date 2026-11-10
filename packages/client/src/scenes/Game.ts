@@ -624,6 +624,8 @@ export class GameScene extends Phaser.Scene {
       weaponUses: c.uses,
       stunned: c.stunned,
       protected: c.protected,
+      blocking: c.blocking,
+      charging: c.charging,
       respawnIn: c.respawnIn,
     };
   }

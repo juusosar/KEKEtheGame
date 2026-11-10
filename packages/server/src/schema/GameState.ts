@@ -60,7 +60,7 @@ export const PlayerState = schema(
     /**
      * Combat (§3.3, §7; M4-2). Mirrored from the server's CombatWorld every tick by CombatSystem; set at
      * each countdown (full HP, fists) and reset in the lobby. Movement prediction reads `alive`,
-     * `stunned`, `slowMultiplier` and `blocking` (`syncedCombatSpeed`), like `carrying` (review H1).
+     * `stunned`, `slowMultiplier`, `blocking` and `charging` (`syncedCombatSpeed`), like `carrying` (review H1).
      * `hp`: 0..maxHp; 0 while KO'd.
      */
     hp: t.uint16().default(0),
@@ -78,6 +78,8 @@ export const PlayerState = schema(
     protected: t.boolean().default(false),
     /** Holding Block with a weapon that can block (pan, M4-6). Set only by the block module. */
     blocking: t.boolean().default(false),
+    /** Dashing with a pallet jack (M4-6): input does not move the body; set only by the charge module. */
+    charging: t.boolean().default(false),
     /** Whole seconds until the respawn while KO'd, rounded up; 0 while alive (KO countdown overlay). */
     respawnIn: t.uint8().default(0),
   },

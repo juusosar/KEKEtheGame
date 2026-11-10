@@ -113,7 +113,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.map,
       (event) => this.broadcast(event.type, event.payload),
       // §3.2/§3.3: a KO drops the carried item where the player fell (M3 review H1).
-      { onKo: (player, now) => this.items.dropCarried(player, now, 'ko') },
+      {
+        onKo: (player, now) => this.items.dropCarried(player, now, 'ko'),
+        // §7 pallet jack: loose items in the dash's line scatter (M4-6).
+        onScatterItems: (from, to, halfWidth, px) => this.items.scatter(from, to, halfWidth, px),
+      },
       randomSeed(),
     );
     // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2).
