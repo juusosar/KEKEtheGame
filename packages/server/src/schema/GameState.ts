@@ -19,6 +19,16 @@ export const PlayerState = schema(
     spectator: t.boolean().default(false),
     /** False while the player is inside the reconnect window (set by M2-6). */
     connected: t.boolean().default(true),
+    /** Body centre in pixels, set by the server's movement simulation (M2-2). */
+    x: t.float64().default(0),
+    y: t.float64().default(0),
+    /** Velocity in px/s; prediction needs it to replay from this state on slippery floors. */
+    vx: t.float64().default(0),
+    vy: t.float64().default(0),
+    /** Aim of the last applied input, radians (InputFrame.aim). */
+    aim: t.float32().default(0),
+    /** `seq` of the last InputFrame the server applied for this player; 0 before any (§15.3). */
+    ack: t.uint32().default(0),
   },
   'PlayerState',
 );

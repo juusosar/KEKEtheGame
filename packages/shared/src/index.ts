@@ -28,6 +28,15 @@ export {
   type StepModifiers,
 } from './rules/movement';
 export {
+  InputQueue,
+  MAX_INPUT_SEQ,
+  applyInput,
+  inputStepSeconds,
+  sanitizeInputFrame,
+  type InputQueueConfig,
+} from './rules/input';
+export { findSpawn, vanSpawn, type SpawnMap } from './rules/spawn';
+export {
   MapError,
   OBJECT_LAYERS,
   TILE_LAYERS,

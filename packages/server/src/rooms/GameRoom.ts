@@ -20,6 +20,7 @@ import {
   type GameConfig,
   type GameJoinOptions,
   type GameMode,
+  type MapModel,
   type GameRoomMetadata,
   type LobbyErrorCode,
   type LobbyErrorMessage,
@@ -28,6 +29,7 @@ import {
   type RoundPhase,
 } from '@keke/shared';
 import { GameState, PlayerState } from '../schema/GameState';
+import { MovementSystem } from '../systems/movement';
 
 /** Close/auth error code for a join with a missing or wrong room code. */
 export const WRONG_CODE_ERROR = 4404;
@@ -46,6 +48,8 @@ function randomSeed(): number {
 export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRoomMetadata }> {
   /** Validated game config; `gameRoomWithConfig` supplies it. */
   protected abstract readonly config: GameConfig;
+  /** The map this room simulates on; `gameRoomWithConfig` supplies it. */
+  protected abstract readonly map: MapModel;
 
   override state = new GameState();
 
@@ -53,6 +57,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private joinCounter = 0;
   private phaseTimer: Delayed | undefined;
   private phaseEndsAt = 0;
+  private movement!: MovementSystem;
+  private simulation: Delayed | undefined;
 
   override onCreate(): void {
     this.maxClients = this.config.maxPlayersPerRoom;
@@ -66,6 +72,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.onMessage(ClientMessage.shuffleTeams, (client) => this.handleShuffle(client));
     this.onMessage(ClientMessage.start, (client) => this.handleStart(client));
     this.onMessage(ClientMessage.profile, (client, message: unknown) => this.handleProfile(client, message));
+    this.onMessage(ClientMessage.input, (client, message: unknown) => this.handleInput(client, message));
+
+    this.movement = new MovementSystem(this.config, this.map);
+    // One state patch per simulation tick.
+    this.setPatchRate(1000 / this.config.serverTickHz);
 
     this.clock.setInterval(() => this.refreshSecondsLeft(), TIMER_REFRESH_MS);
     this.publishMetadata();
@@ -99,6 +110,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   override onLeave(client: Client): void {
     this.state.players.delete(client.sessionId);
+    this.movement.remove(client.sessionId);
     if (this.state.hostId === client.sessionId) {
       this.state.hostId = pickHost(this.roster()) ?? '';
     }
@@ -172,6 +184,13 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (this.state.hostId === client.sessionId) this.publishMetadata();
   }
 
+  /** Queues an InputFrame; only players (not spectators) in the 'playing' phase move (§15.3). */
+  private handleInput(client: Client, message: unknown): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player || player.spectator || this.state.phase !== 'playing') return;
+    this.movement.receive(player, message);
+  }
+
   // --- Round state machine ---------------------------------------------------------------------
 
   /** Ends the current phase now. Called by the phase timer; tests and later systems may call it too. */
@@ -187,8 +206,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.phaseTimer = undefined;
     this.state.phase = phase;
 
-    if (phase === 'countdown') this.admitSpectators();
+    if (phase === 'countdown') {
+      this.admitSpectators();
+      this.spawnPlayers();
+    }
     if (phase === 'lobby') this.resetToLobby();
+    this.runSimulation(phase === 'playing');
 
     const seconds = phaseSeconds(phase, this.state.settings.mode as GameMode, this.config);
     if (seconds === null) {
@@ -199,6 +222,30 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     }
     this.refreshSecondsLeft();
     this.publishMetadata();
+  }
+
+  /** Every player starts the round at their van (§3). Until M3-4 assigns vans, van order = join order. */
+  private spawnPlayers(): void {
+    const active = [...this.state.players.values()]
+      .filter((p) => !p.spectator)
+      .sort((a, b) => a.joinOrder - b.joinOrder);
+    this.movement.spawn(active);
+  }
+
+  /** Starts or stops the 20 Hz movement tick. Inputs queued outside 'playing' never run. */
+  private runSimulation(on: boolean): void {
+    this.movement.clear();
+    if (!on) {
+      this.simulation?.clear();
+      this.simulation = undefined;
+    } else if (!this.simulation) {
+      this.simulation = this.clock.setInterval(() => this.tick(), 1000 / this.config.serverTickHz);
+    }
+  }
+
+  /** One simulation tick. Public so tests can step the room without waiting on the clock. */
+  tick(): void {
+    this.movement.tick(this.state.players.values());
   }
 
   /** Late joiners become players when the next round's countdown starts (§13.1). */
@@ -283,9 +330,13 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   }
 }
 
-/** A concrete GameRoom class bound to a validated config, ready for `server.define`. */
-export function gameRoomWithConfig(config: GameConfig): typeof GameRoom & (new () => GameRoom) {
+/** A concrete GameRoom class bound to a validated config and map, ready for `server.define`. */
+export function gameRoomWithConfig(
+  config: GameConfig,
+  map: MapModel,
+): typeof GameRoom & (new () => GameRoom) {
   return class ConfiguredGameRoom extends GameRoom {
     protected readonly config = config;
+    protected readonly map = map;
   };
 }
