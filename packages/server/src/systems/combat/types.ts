@@ -78,6 +78,8 @@ export interface CombatContext {
    * (pallet jack, M4-6). Nothing happens when the room has no item hook.
    */
   scatterItems(from: Vec2, to: Vec2, halfWidth: number, px: number): void;
+  /** The round player drops what they carry where they stand (banana peel slip, M4-5). */
+  dropCarried(target: string): void;
 }
 
 export interface BehaviourModule {

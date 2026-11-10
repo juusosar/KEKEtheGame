@@ -55,6 +55,8 @@ export interface CombatHooks {
   onKo(player: PlayerState, now: number): void;
   /** A dash swept the band from→to: scatter the lying items in it (pallet jack, M4-6). */
   onScatterItems?(from: Vec2, to: Vec2, halfWidth: number, px: number): void;
+  /** A hit makes the player drop their carried item (banana peel slip, M4-5). */
+  onDropCarried?(player: PlayerState, now: number): void;
 }
 
 export class CombatSystem {
@@ -239,6 +241,10 @@ export class CombatSystem {
       hit: (h) => this.landHit(h),
       push: (target, dir, px) => this.push(target, dir, px),
       scatterItems: (from, to, halfWidth, px) => this.hooks.onScatterItems?.(from, to, halfWidth, px),
+      dropCarried: (target) => {
+        const p = findCombatant(this.world, target) ? this.state.players.get(target) : undefined;
+        if (p) this.hooks.onDropCarried?.(p, this.now);
+      },
     };
   }
 

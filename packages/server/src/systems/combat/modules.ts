@@ -10,6 +10,7 @@ import { ProjectileSystem } from './projectiles';
 import { shotBehaviour } from './shot';
 import { createSprayBehaviour } from './spray';
 import { thrownBehaviour } from './thrown';
+import { createTrapBehaviour } from './trap';
 import type { BehaviourModule } from './types';
 
 export function defaultCombatModules(state: GameState): BehaviourModule[] {
@@ -22,5 +23,6 @@ export function defaultCombatModules(state: GameState): BehaviourModule[] {
     thrownBehaviour(projectiles),
     shotBehaviour(projectiles),
     createChargeBehaviour(),
+    createTrapBehaviour(state),
   ];
 }
