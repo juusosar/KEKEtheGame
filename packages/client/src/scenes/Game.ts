@@ -5,6 +5,7 @@ import {
   aabbOverlapsSolid,
   carryMultiplier,
   defaultThemeId,
+  getItemCatalogue,
   getTheme,
   inputStepSeconds,
   loadConfig,
@@ -27,6 +28,9 @@ import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
 import { WorldRenderer } from '../game/worldItems';
+import { Hud } from '../hud/Hud';
+import { FEED_MESSAGES, feedLine } from '../hud/feed';
+import { readHud, type HudContext } from '../hud/hudState';
 import { t } from '../i18n';
 import { InputManager, STANDARD } from '../input';
 import { SnapshotBuffer } from '../net/interpolation';
@@ -83,6 +87,9 @@ export class GameScene extends Phaser.Scene {
   private spectateBanner: HTMLElement | undefined;
   private leaving = false;
   private unsubscribe: (() => void)[] = [];
+  private hud: Hud | undefined;
+  private hudContext!: HudContext;
+  private icons = new Map<string, string | null>();
 
   private debug = false;
   private hitbox?: Phaser.GameObjects.Rectangle;
@@ -158,6 +165,7 @@ export class GameScene extends Phaser.Scene {
     if (!offline) this.updateRemotes(dt);
     this.updateMinimap(dt);
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
+    if (this.hud) this.updateHud(this.hud);
     if (this.debug) this.updateDebug();
   }
 
@@ -175,6 +183,8 @@ export class GameScene extends Phaser.Scene {
     this.spectating = null;
     this.leaving = false;
     this.unsubscribe = [];
+    this.hud = undefined;
+    this.icons = new Map();
   }
 
   private createTilemap(raw: unknown): void {
@@ -263,6 +273,7 @@ export class GameScene extends Phaser.Scene {
 
   private joinRoom(room: Room): void {
     this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
+    this.createHud(room);
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
 
@@ -297,6 +308,7 @@ export class GameScene extends Phaser.Scene {
     const view = readGame(room.state, room.sessionId);
     if (!view.synced) return;
     this.view = view;
+    this.hud?.render(readHud(room.state, room.sessionId, this.hudContext));
 
     if (sceneForPhase(view.phase) !== 'Game') {
       // The session is over (podium → lobby): everyone goes back to the lobby.
@@ -361,6 +373,53 @@ export class GameScene extends Phaser.Scene {
       if (pos) remote.avatar.place(pos.x, pos.y);
     }
     this.updateSpectator(dt);
+  }
+
+  // --- HUD (§13.2) -----------------------------------------------------------------------------------
+
+  /** Online only: the HUD shows round state, so `?scene=game` walk mode has none. */
+  private createHud(room: Room): void {
+    const catalogue = getItemCatalogue(this.theme.id);
+    this.hudContext = { catalogue, vanSlots: this.model.vanSlots };
+    const hud = new Hud({ iconFor: (sprite) => this.itemIcon(sprite) });
+    this.hud = hud;
+    const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
+    for (const type of FEED_MESSAGES) {
+      this.unsubscribe.push(
+        room.onMessage(type, (message: unknown) => {
+          const line = feedLine(type, message, { catalogue, nameOf });
+          if (line) hud.pushFeed(line, performance.now());
+        }),
+      );
+    }
+  }
+
+  private updateHud(hud: Hud): void {
+    hud.tick(performance.now());
+    hud.setBoardOpen(this.inputManager.scoreboardHeld());
+    const cam = this.cameras.main;
+    const rect = this.game.canvas.getBoundingClientRect();
+    const scaleX = this.scale.width > 0 ? rect.width / this.scale.width : 1;
+    const scaleY = this.scale.height > 0 ? rect.height / this.scale.height : 1;
+    hud.updateArrow(
+      (world) => ({
+        x: rect.left + ((world.x - cam.worldView.x) * cam.zoom + cam.x) * scaleX,
+        y: rect.top + ((world.y - cam.worldView.y) * cam.zoom + cam.y) * scaleY,
+      }),
+      { width: hud.root.clientWidth, height: hud.root.clientHeight },
+    );
+  }
+
+  /** Data URL of an `items` atlas frame for the HUD card and carry slot, cached per frame. */
+  private itemIcon(sprite: string): string | null {
+    const cached = this.icons.get(sprite);
+    if (cached !== undefined) return cached;
+    let url: string | null = null;
+    if (this.textures.exists('items') && this.textures.get('items').has(sprite)) {
+      url = this.textures.getBase64('items', sprite) || null;
+    }
+    this.icons.set(sprite, url);
+    return url;
   }
 
   /** Late joiners watch the round: the camera cycles between the players in it (§13.1). */
@@ -447,6 +506,8 @@ export class GameScene extends Phaser.Scene {
     this.hideSpectateBanner();
     this.minimap?.destroy();
     this.minimap = undefined;
+    this.hud?.destroy();
+    this.hud = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
   }
@@ -570,8 +631,9 @@ export class GameScene extends Phaser.Scene {
     this.readout.id = 'keke-debug';
     Object.assign(this.readout.style, {
       position: 'fixed',
-      top: '8px',
-      right: '8px',
+      // Bottom-left: the HUD scoreboard sits top-right and the minimap bottom-right.
+      bottom: '8px',
+      left: '8px',
       margin: '0',
       padding: '4px 8px',
       font: '12px monospace',
