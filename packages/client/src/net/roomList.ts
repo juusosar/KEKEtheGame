@@ -1,7 +1,7 @@
 // Room list shown on the Play screen, fed by the server's LobbyRoom ("rooms" = full list,
 // "+" = [roomId, room] added or updated, "-" = roomId removed). Pure, so it is unit-tested.
 
-export type RoomPhase = 'lobby' | 'countdown' | 'playing' | 'roundResults' | 'podium';
+import { ROUND_PHASES, type RoundPhase } from '@keke/shared';
 
 export interface RoomSummary {
   roomId: string;
@@ -9,11 +9,11 @@ export interface RoomSummary {
   hostName: string;
   clients: number;
   maxClients: number;
-  phase: RoomPhase | null;
+  phase: RoundPhase | null;
   mode: string | null;
 }
 
-const PHASES: readonly string[] = ['lobby', 'countdown', 'playing', 'roundResults', 'podium'];
+const PHASES: readonly string[] = ROUND_PHASES;
 
 const str = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 const num = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
@@ -35,7 +35,7 @@ export function toRoomSummary(raw: unknown): RoomSummary | null {
     hostName: str(meta['hostName']) ?? '',
     clients: num(room['clients']),
     maxClients: num(room['maxClients']),
-    phase: phase !== null && PHASES.includes(phase) ? (phase as RoomPhase) : null,
+    phase: phase !== null && PHASES.includes(phase) ? (phase as RoundPhase) : null,
     mode: str(meta['mode']),
   };
 }
