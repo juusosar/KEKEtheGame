@@ -2,9 +2,10 @@
 // and M5-6 (butcher) each add one line here. NPCs whose behaviour has no module are not spawned.
 // Modules keep per-NPC memory, so each NpcSystem (one per room) gets fresh ones.
 import { createForkliftBehaviour } from './forklift';
+import { createSecurityBehaviour } from './security';
 import { createStockerBehaviour } from './stocker';
 import type { NpcBehaviourModule } from './types';
 
 export function defaultNpcBehaviours(): NpcBehaviourModule[] {
-  return [createStockerBehaviour(), createForkliftBehaviour()];
+  return [createStockerBehaviour(), createSecurityBehaviour(), createForkliftBehaviour()];
 }

@@ -48,6 +48,24 @@ interface Player {
 }
 
 /** A walkable point inside the staff-only zone. */
+/** The staff_only floor spot nearest `to` (the door guard's post). */
+function staffOnlySpotNear(to: Vec2): Vec2 {
+  const zone = map.zones.find((z) => z.wantedOnEnter);
+  if (!zone) throw new Error('no wantedOnEnter zone');
+  const ts = map.tileSize;
+  const half = playerHalfSize(config);
+  let best: Vec2 | undefined;
+  for (let y = zone.bounds.minY + ts / 2; y < zone.bounds.maxY; y += ts) {
+    for (let x = zone.bounds.minX + ts / 2; x < zone.bounds.maxX; x += ts) {
+      const p = { x, y };
+      if (!inWantedZone(map.zones, x, y) || aabbOverlapsSolid(map.collision, p, half)) continue;
+      if (!best || Math.hypot(x - to.x, y - to.y) < Math.hypot(best.x - to.x, best.y - to.y)) best = p;
+    }
+  }
+  if (!best) throw new Error('no floor in staff_only');
+  return best;
+}
+
 function staffOnlySpot(): Vec2 {
   const zone = map.zones.find((z) => z.wantedOnEnter);
   if (!zone) throw new Error('no wantedOnEnter zone');
@@ -150,6 +168,25 @@ describe('GameRoom NPCs and Wanted (integration)', () => {
     // It retaliates: a hit from the NPC lands on the player.
     await waitFor(() =>
       p.events.some((e) => e.type === 'hit' && (e.payload as HitMessage).source.kind === 'npc'),
+    );
+    expect(p.me.hp).toBeLessThan(config.maxHp);
+  });
+
+  it('the staff-door guard goes after a player in staff_only and stuns them', async () => {
+    const { room, p } = await playingRoom();
+    const guards = [...room.state.npcs.values()].filter((n) => n.behaviour === 'security');
+    expect(guards.length).toBeGreaterThanOrEqual(1);
+    const posted = guards.find((n) => room.npcSystem.npc(n.id)?.placement.post);
+    if (!posted) throw new Error('no posted guard');
+    expect(posted.mode).toBe('post');
+    const at = staffOnlySpotNear(posted);
+    p.me.x = at.x;
+    p.me.y = at.y;
+    await waitFor(() => p.me.wanted);
+    await waitFor(() => posted.target === p.conn.sessionId);
+    await waitFor(
+      () => p.events.some((e) => e.type === 'hit' && (e.payload as HitMessage).source.id === posted.id),
+      8000,
     );
     expect(p.me.hp).toBeLessThan(config.maxHp);
   });

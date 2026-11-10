@@ -45,7 +45,7 @@ describe('NpcSystem', () => {
   });
 
   it('stockers wander between waypoints without entering walls, searching paths only on events', () => {
-    const s = npcSetup(2);
+    const s = npcSetup(2, undefined, { modules: [createStockerBehaviour()] });
     const start = new Map([...s.state.npcs.values()].map((n) => [n.id, { x: n.x, y: n.y }]));
     const half = { hw: stocker.hitboxPx / 2, hh: stocker.hitboxPx / 2 };
     let ticks = 0;
