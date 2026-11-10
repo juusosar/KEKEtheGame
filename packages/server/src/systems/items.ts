@@ -8,26 +8,38 @@ import {
   carryMultiplier,
   createItemWorld,
   createRng,
+  deliver,
   deposit,
   despawnLooseItems,
   drop,
   findCarryPlayer,
   getItemCatalogue,
   inDepositRange,
+  isCarryingBox,
+  isOrderBox,
   itemEventToWire,
+  itemsControlled,
   moveLyingItems,
   nearestInReach,
   pickup,
+  raceDeposit,
+  raceEventToWire,
   removeCarryPlayer,
   scatterMoves,
   vanCentre,
   type CarryResult,
   type DropReason,
+  type ItemEvent,
   type GameConfig,
   type ItemCatalogue,
   type ItemEventWire,
   type ItemWorld,
   type MapModel,
+  type PickupKind,
+  type RaceDelivery,
+  type RaceEvent,
+  type RaceEventWire,
+  type RaceResult,
   type Rng,
   type StepModifiers,
   type ThemeId,
@@ -35,9 +47,16 @@ import {
 } from '@keke/shared';
 import { ItemState, VanState, type GameState, type PlayerState } from '../schema/GameState';
 
-export type ItemBroadcast = (event: ItemEventWire) => void;
-/** Called once per committed `pickup` event, whatever caused it (M3 review H2: the weapon roll hooks here). */
-export type PickupListener = (playerId: string) => void;
+/** Item events (M3-4) and, in race mode, race events (M6-2: `boxPacked`, `delivery`). */
+export type ItemBroadcast = (event: ItemEventWire | RaceEventWire) => void;
+/**
+ * Called once per committed `pickup` event, whatever caused it (M3 review H2: the weapon roll hooks here).
+ * `kind` 'box' is an order box (M6-2): no weapon roll for it (plan M4-1).
+ */
+export type PickupListener = (playerId: string, kind: PickupKind) => void;
+
+const isRaceEvent = (event: ItemEvent | RaceEvent): event is RaceEvent =>
+  event.type === 'boxPacked' || event.type === 'delivery';
 
 export class ItemSystem {
   private world: ItemWorld = createItemWorld();
@@ -45,7 +64,7 @@ export class ItemSystem {
   private readonly catalogue: ItemCatalogue;
   /** True from a round's countdown until the lobby: item actions and despawns run only then. */
   private running = false;
-  /** Set by the room: CombatSystem rolls a weapon on every pickup (§7). Order boxes (M6) come with their own path. */
+  /** Set by the room: CombatSystem rolls a weapon on every pickup (§7) except an order box's (M6-2). */
   onPickup: PickupListener | null = null;
 
   constructor(
@@ -130,9 +149,50 @@ export class ItemSystem {
     if (player.carrying !== 0) {
       const van = vanCentre(this.map.vanSlots, Math.max(0, player.van));
       if (van && inDepositRange(pos, van, this.config)) {
-        this.commit(deposit(this.world, player.sessionId, this.config));
+        // Race (§4.2): a deposit that reaches the quota packs the order box into the depositor's hands.
+        // A box carrier at their van is refused with box_not_depositable every frame; commit ignores it.
+        this.commit(
+          this.race
+            ? raceDeposit(this.world, player.sessionId, pos, this.config)
+            : deposit(this.world, player.sessionId, this.config),
+        );
       }
     }
+  }
+
+  /** True while the room's mode is Quota + Race (the host setting, fixed from Start to the lobby). */
+  private get race(): boolean {
+    return this.state.settings.mode === 'race';
+  }
+
+  /** True when `player` carries an order box (race mode). */
+  carriesBox(player: PlayerState): boolean {
+    return this.running && isCarryingBox(this.world, player.sessionId);
+  }
+
+  /**
+   * Race (§4.2): `player`, carrying an order box, is inside the office trigger (checked by the room). The
+   * box leaves the world and the `delivery` event goes out. Returns the delivery, or null when the player
+   * carries no box.
+   */
+  deliverBox(player: PlayerState, now: number): RaceDelivery | null {
+    if (!this.running) return null;
+    const result = deliver(this.world, player.sessionId, now);
+    if (result.rejected || !result.delivery) return null;
+    this.commit(result);
+    return result.delivery;
+  }
+
+  /**
+   * Debug only (`DebugMessage.vanPoints`): sets the banked points of `player`'s van, so an e2e spec
+   * reaches the race quota with one deposit. False when no round runs or the player is not in it.
+   */
+  setVanPoints(player: PlayerState, points: number): boolean {
+    const carry = this.running ? findCarryPlayer(this.world, player.sessionId) : undefined;
+    if (!carry) return false;
+    this.world = { ...this.world, vanPoints: { ...this.world.vanPoints, [carry.van]: points } };
+    this.sync();
+    return true;
   }
 
   /** Once per server tick, after movement: loose items past their time despawn. */
@@ -165,7 +225,7 @@ export class ItemSystem {
    * Takes a rule result: keeps its world, gives targets to anyone who lost theirs (same tick, §3.1),
    * broadcasts the events in order and mirrors the world into the schema. A refused action changes nothing.
    */
-  private commit(result: CarryResult): void {
+  private commit(result: CarryResult | RaceResult): void {
     if (result.rejected) return;
     const assigned = assignTargets(result.world, {
       catalogue: this.catalogue.items,
@@ -178,8 +238,12 @@ export class ItemSystem {
     this.world = assigned.world;
     this.sync();
     for (const event of events) {
+      if (isRaceEvent(event)) {
+        this.broadcast(raceEventToWire(event));
+        continue;
+      }
       this.broadcast(itemEventToWire(event));
-      if (event.type === 'pickup') this.onPickup?.(event.player);
+      if (event.type === 'pickup') this.onPickup?.(event.player, event.kind);
     }
   }
 
@@ -203,6 +267,9 @@ export class ItemSystem {
       s.y = item.y;
       s.owner = item.owner ?? '';
       s.carrier = item.carrier ?? '';
+      // Order boxes (M6-2): the van that packed it and the points inside; -1 / 0 for normal items.
+      s.packedVan = isOrderBox(item) ? item.box.van : -1;
+      s.points = isOrderBox(item) ? item.box.points : 0;
     }
     for (const key of [...items.keys()]) if (!live.has(key)) items.delete(key);
 
@@ -215,6 +282,11 @@ export class ItemSystem {
       }
       van.points = points;
     }
+    // Race (§4.2): "items you control" per van, the race scoreboard and the time-cap ranking.
+    this.state.vans.forEach((van) => {
+      const controlled = this.race ? itemsControlled(this.world, van.van) : van.points;
+      if (van.controlled !== controlled) van.controlled = controlled;
+    });
     for (const p of this.world.players) {
       const player = this.state.players.get(p.id);
       if (!player) continue;

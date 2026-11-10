@@ -1059,6 +1059,11 @@ export class GameScene extends Phaser.Scene {
         this.room.send(DebugMessage.giveWeapon, { weapon });
         return true;
       },
+      vanPoints: (points) => {
+        if (this.room === null) return false;
+        this.room.send(DebugMessage.vanPoints, { points });
+        return true;
+      },
       zoneAt: (x, y) => model.zoneAt(x, y)?.id ?? null,
       net: () => this.netSnapshot(),
       remotePlayers: () => this.remoteSnapshots(),

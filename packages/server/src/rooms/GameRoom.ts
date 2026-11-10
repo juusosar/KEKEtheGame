@@ -16,6 +16,7 @@ import {
   expireWanted,
   generateRoomCode,
   gridWithBlocked,
+  inOfficeTrigger,
   inWantedZone,
   isWanted,
   nextPhase,
@@ -24,6 +25,7 @@ import {
   pickHost,
   placementPointsFor,
   playerHalfSize,
+  rankRaceRound,
   rankSession,
   rankTimedRound,
   removeWantedPlayer,
@@ -45,6 +47,7 @@ import {
   type GameMode,
   type MapModel,
   type GameRoomMetadata,
+  type RaceDelivery,
   type LobbyErrorCode,
   type LobbyErrorMessage,
   type Rng,
@@ -101,6 +104,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private simulation: Delayed | undefined;
   /** Clock time (ms) the 'playing' phase started; the round clock for item rules counts from here. */
   private playingSince = 0;
+  /** Race (§4.2, M6-2): the round's first and only counted delivery; null until then and in Timed. */
+  private delivery: RaceDelivery | null = null;
 
   override onCreate(): void {
     this.maxClients = this.config.maxPlayersPerRoom;
@@ -126,6 +131,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.debug
         ? this.handleDebugGiveWeapon(client, message)
         : this.refuse(client, DebugMessage.giveWeapon, 'debug_off'),
+    );
+    this.onMessage(DebugMessage.vanPoints, (client, message: unknown) =>
+      this.debug
+        ? this.handleDebugVanPoints(client, message)
+        : this.refuse(client, DebugMessage.vanPoints, 'debug_off'),
     );
     this.onMessage(DebugMessage.endPhase, (client) =>
       this.debug ? this.handleDebugEndPhase(client) : this.refuse(client, DebugMessage.endPhase, 'debug_off'),
@@ -182,8 +192,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       randomSeed(),
     );
     this.combat.npcTargets = this.npcs;
-    // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2).
-    this.items.onPickup = (playerId) => this.combat.onPickup(playerId, 'item');
+    // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2); an order box does not
+    // (plan M4-1, M6-2): the carrier keeps the weapon they hold.
+    this.items.onPickup = (playerId, kind) => {
+      if (kind !== 'box') this.combat.onPickup(playerId, 'item');
+    };
     // One state patch per simulation tick.
     this.setPatchRate(1000 / this.config.serverTickHz);
 
@@ -369,6 +382,20 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     player.vy = 0;
   }
 
+  /** Sets the banked points of the sender's van; race e2e specs reach the quota with one deposit. */
+  private handleDebugVanPoints(client: Client, message: unknown): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player || player.spectator) return;
+    if (this.state.phase !== 'playing') return this.refuse(client, DebugMessage.vanPoints, 'wrong_phase');
+    const points = (message as { points?: unknown } | null)?.points;
+    if (typeof points !== 'number' || !Number.isInteger(points) || points < 0 || points > 0xffff) {
+      return this.refuse(client, DebugMessage.vanPoints, 'invalid_payload');
+    }
+    if (!this.items.setVanPoints(player, points)) {
+      return this.refuse(client, DebugMessage.vanPoints, 'invalid_payload');
+    }
+  }
+
   /** Host only: ends the current phase now, so an e2e round does not take 180 s. */
   private handleDebugEndPhase(client: Client): void {
     if (client.sessionId !== this.state.hostId) return this.refuse(client, DebugMessage.endPhase, 'not_host');
@@ -395,6 +422,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.admitSpectators();
       this.spawnPlayers();
       this.clearRoundResults();
+      this.clearDelivery();
     }
     if (phase === 'playing') this.playingSince = this.clock.currentTime;
     if (phase === 'roundResults') this.scoreRound();
@@ -438,17 +466,19 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
    * The round clock ran out (or something ended 'playing'): rank the players who took part on the item
    * points they deposited, give placement points and add both to the session totals. Items are frozen
    * from here on (no inputs outside 'playing'), so `deposited` is final.
-   * Race mode (M6) ranks by delivery and "items you control"; until then it falls back to deposits.
+   * Race mode (§4.2, M6-2) ranks the deliverer's side first and everyone else by "items you control";
+   * after the time cap everyone by items they control. Player `itemPoints` stay their own deposits.
    */
   private scoreRound(): void {
     const teams = this.state.settings.teams;
     const active = [...this.state.players.values()].filter((p) => !p.spectator);
-    // Teams: the van's banked total, so a member who left for good still counts (§3.2, §4.3; M3 review F3).
-    const result = rankTimedRound(
-      active.map((p) => ({ id: p.sessionId, itemPoints: p.deposited, team: p.team })),
-      teams,
-      teams ? teamPointsFromVans(this.state.vans.values()) : undefined,
-    );
+    const scores = active.map((p) => ({ id: p.sessionId, itemPoints: p.deposited, team: p.team }));
+    // Race: van points drop to 0 at packing, so never teamPointsFromVans there (M6-1 handoff).
+    // Timed teams: the van's banked total, so a member who left for good still counts (§3.2, §4.3; M3 review F3).
+    const result =
+      this.state.settings.mode === 'race'
+        ? rankRaceRound(this.items.itemWorld, scores, teams, this.delivery)
+        : rankTimedRound(scores, teams, teams ? teamPointsFromVans(this.state.vans.values()) : undefined);
     for (const placement of result.players) {
       const player = this.state.players.get(placement.id);
       if (!player) continue;
@@ -465,7 +495,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         team.itemPoints = side.itemPoints;
         team.roundPoints = placementPointsFor(side.place, this.config);
         team.sessionPoints += team.roundPoints;
-        team.sessionItemPoints += side.itemPoints;
+        // Race: the round's itemPoints are the items the team controlled, but the session tie-break (§5)
+        // counts deposits, as it does for players: the members' own deposits.
+        team.sessionItemPoints +=
+          this.state.settings.mode === 'race'
+            ? active.filter((p) => p.team === team.team).reduce((sum, p) => sum + p.deposited, 0)
+            : side.itemPoints;
       }
     }
     this.rankSessionStandings();
@@ -517,6 +552,35 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       t.itemPoints = 0;
       t.roundPoints = 0;
     });
+  }
+
+  /** A new round or the lobby: no delivery yet. */
+  private clearDelivery(): void {
+    this.delivery = null;
+    this.state.raceWinner = '';
+    this.state.raceStolen = false;
+  }
+
+  /**
+   * Race (§4.2): every box carrier whose body centre is inside the office trigger delivers, in join order;
+   * only the first delivery counts and it ends 'playing' in this tick. True when the round ended.
+   */
+  private checkDelivery(now: number): boolean {
+    if (this.state.settings.mode !== 'race' || this.state.phase !== 'playing' || this.delivery) return false;
+    const carriers = [...this.state.players.values()]
+      .filter((p) => !p.spectator && p.alive && this.items.carriesBox(p))
+      .sort((a, b) => a.joinOrder - b.joinOrder);
+    for (const p of carriers) {
+      if (!inOfficeTrigger(this.map, p.x, p.y)) continue;
+      const delivery = this.items.deliverBox(p, now);
+      if (!delivery) continue;
+      this.delivery = delivery;
+      this.state.raceWinner = delivery.player;
+      this.state.raceStolen = delivery.box.box.van !== delivery.van;
+      this.advancePhase();
+      return true;
+    }
+    return false;
   }
 
   /** Start of a session (and back in the lobby): every total back to 0. At Start, Teams on gets both team entries. */
@@ -573,6 +637,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.combat.tick(now);
     this.items.tick(now);
     this.updateWanted(now);
+    // Race: a delivery ends the round in this tick, after this tick's KOs (a KO'd carrier dropped the box).
+    this.checkDelivery(now);
   }
 
   /**
@@ -668,6 +734,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   }
 
   private resetToLobby(): void {
+    this.clearDelivery();
     this.items.reset();
     this.combat.reset();
     this.npcs.reset();
