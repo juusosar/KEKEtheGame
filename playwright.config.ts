@@ -9,7 +9,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
-  retries: process.env['CI'] ? 1 : 0,
+  // No automatic retries: local runs are the merge gate, and a retry would report a flaky spec as a
+  // pass. Use --retries=1 on the command line when wanted (M2 review F6).
+  retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL,

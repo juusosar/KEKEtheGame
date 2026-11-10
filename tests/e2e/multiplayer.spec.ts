@@ -135,7 +135,8 @@ for (const names of [
   ['Anna', 'Bert', 'Cilla', 'Dano'],
 ]) {
   test(`${names.length} players join one room by code and see each other move`, async ({ newPlayer }) => {
-    test.setTimeout(90_000);
+    // The 4-player run takes about 50 s alone and over a minute beside other workers (M2 review F6).
+    test.setTimeout(150_000);
     const pageErrors: Error[] = [];
     const seats = await startRound(newPlayer, names, pageErrors);
 
