@@ -1,0 +1,131 @@
+import { describe, expect, it } from 'vitest';
+import { loadConfig } from '../config';
+import { createRng } from '../rng';
+import {
+  ANY_ZONE,
+  eligibleSpawns,
+  modelCAssigner,
+  spawnsForItem,
+  type TargetItemDef,
+  type TargetMap,
+} from './targets';
+
+const config = loadConfig();
+const T = 32;
+
+// One van at the origin; spawns at increasing distances (in tiles) along x.
+const map: TargetMap = {
+  tileSize: T,
+  vanSlots: [{ x: 0, y: 0 }],
+  itemSpawns: [
+    { x: 7 * T, y: 0, zone: 'dry_goods' }, // too close to the van (7 < 8 tiles)
+    { x: 8 * T, y: 0, zone: 'dry_goods' }, // exactly 8 tiles: allowed
+    { x: 20 * T, y: 0, zone: 'cold_room' },
+    { x: 30 * T, y: 0, zone: 'beverages' },
+  ],
+};
+
+const catalogue: TargetItemDef[] = [
+  { id: 'flour', zone: 'dry_goods', rarity: 'normal' },
+  { id: 'butter', zone: 'cold_room', rarity: 'normal' },
+  { id: 'cola', zone: 'beverages', rarity: 'normal' },
+  { id: 'gnome', zone: ANY_ZONE, rarity: 'joke' },
+];
+
+describe('eligibleSpawns (§3.1)', () => {
+  it('keeps only spawns at least targetMinDistanceFromVanTiles from every van', () => {
+    const xs = eligibleSpawns(map, [], config).map((s) => s.x / T);
+    expect(xs).toEqual([8, 20, 30]);
+  });
+
+  it('checks the distance to every van slot, not just one', () => {
+    const twoVans = {
+      ...map,
+      vanSlots: [
+        { x: 0, y: 0 },
+        { x: 25 * T, y: 0 },
+      ],
+    };
+    expect(eligibleSpawns(twoVans, [], config).map((s) => s.x / T)).toEqual([8]);
+  });
+
+  it('skips spawns occupied by an item (within half a tile)', () => {
+    const occupied = [{ x: 20 * T + 10, y: 0 }];
+    expect(eligibleSpawns(map, occupied, config).map((s) => s.x / T)).toEqual([8, 30]);
+    const nearby = [{ x: 20 * T + T / 2, y: 0 }]; // exactly half a tile away: not occupied
+    expect(eligibleSpawns(map, nearby, config).map((s) => s.x / T)).toEqual([8, 20, 30]);
+  });
+});
+
+describe('spawnsForItem', () => {
+  it('matches the item zone, or any spawn for joke items', () => {
+    const spawns = eligibleSpawns(map, [], config);
+    expect(spawnsForItem(catalogue[1] as TargetItemDef, spawns).map((s) => s.zone)).toEqual(['cold_room']);
+    expect(spawnsForItem(catalogue[3] as TargetItemDef, spawns)).toHaveLength(3);
+  });
+});
+
+describe('modelCAssigner (§3.1, §10.1)', () => {
+  const place = (seed: number, overrides: Partial<Parameters<typeof modelCAssigner.place>[0]> = {}) =>
+    modelCAssigner.place({ catalogue, map, occupied: [], rng: createRng(seed), config, ...overrides });
+
+  it('places a normal item at an eligible spawn of its own zone', () => {
+    const noJokes = { ...config, jokeItemChance: 0 };
+    for (let seed = 0; seed < 50; seed++) {
+      const p = place(seed, { config: noJokes });
+      expect(p).toBeDefined();
+      expect(p?.item.rarity).toBe('normal');
+      expect(p?.zone).toBe(p?.item.zone);
+      expect(p?.x).toBeGreaterThanOrEqual(8 * T);
+    }
+  });
+
+  it('makes a joke item with jokeItemChance, placed at any eligible spawn', () => {
+    const p = place(1, { config: { ...config, jokeItemChance: 1 } });
+    expect(p?.item.id).toBe('gnome');
+    expect(['dry_goods', 'cold_room', 'beverages']).toContain(p?.zone);
+  });
+
+  it('rolls joke items at about jokeItemChance (8%)', () => {
+    const rng = createRng(1234);
+    let jokes = 0;
+    const n = 20000;
+    for (let i = 0; i < n; i++) {
+      const p = modelCAssigner.place({ catalogue, map, occupied: [], rng, config });
+      if (p?.item.rarity === 'joke') jokes++;
+    }
+    expect(jokes / n).toBeGreaterThan(0.07);
+    expect(jokes / n).toBeLessThan(0.09);
+  });
+
+  it('is deterministic for a seed', () => {
+    expect(place(42)).toEqual(place(42));
+  });
+
+  it('never uses an occupied spawn', () => {
+    const occupied = [
+      { x: 8 * T, y: 0 },
+      { x: 30 * T, y: 0 },
+    ];
+    for (let seed = 0; seed < 30; seed++) {
+      const p = place(seed, { occupied, config: { ...config, jokeItemChance: 0 } });
+      expect(p?.item.id).toBe('butter');
+    }
+  });
+
+  it('falls back to the other rarity when the rolled one cannot be placed', () => {
+    const onlyJoke = catalogue.filter((i) => i.rarity === 'joke');
+    expect(place(3, { catalogue: onlyJoke, config: { ...config, jokeItemChance: 0 } })?.item.id).toBe(
+      'gnome',
+    );
+    const onlyNormal = catalogue.filter((i) => i.rarity === 'normal');
+    expect(place(3, { catalogue: onlyNormal, config: { ...config, jokeItemChance: 1 } })?.item.rarity).toBe(
+      'normal',
+    );
+  });
+
+  it('returns undefined when no spawn is free', () => {
+    const occupied = map.itemSpawns.map((s) => ({ x: s.x, y: s.y }));
+    expect(place(1, { occupied })).toBeUndefined();
+  });
+});
