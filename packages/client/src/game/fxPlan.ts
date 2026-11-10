@@ -8,7 +8,14 @@
 // by peels.ts from M4-5's synced traps, a slip leaves the banana slip frame (HIT_FRAMES) and spins it over
 // the sliding body (combatFx). spray cones and clouds are sprayFx.ts (M4-4). charge draws a dust lane
 // along the dash.
-import type { AttackMessage, AttackMode, HitMessage, WeaponDef } from '@keke/shared';
+import type {
+  AttackMessage,
+  AttackMode,
+  HitMessage,
+  MeleeStats,
+  NpcAttackMessage,
+  WeaponDef,
+} from '@keke/shared';
 
 export type FxFrame =
   | 'hit_spark'
@@ -172,7 +179,11 @@ export function hitFrame(weapon: string | null): FxFrame {
  * FX for a `hit` broadcast: the impact frame on the target and, when it hurt, a damage number.
  * `me` is our session id: hits on us are numbered in red.
  */
-export function hitFx(h: HitMessage, me: string, cfg: FxConfig): FxSpec[] {
+export function hitFx(
+  h: Pick<HitMessage, 'target' | 'weapon' | 'damage'>,
+  me: string,
+  cfg: FxConfig,
+): FxSpec[] {
   const out: FxSpec[] = [
     {
       kind: 'sprite',
@@ -211,6 +222,31 @@ export function koFx(player: string, cfg: FxConfig): FxSpec[] {
       scaleTo: 1.1,
       risePx: 10,
       seconds: cfg.fxBurstSeconds * 1.5,
+    },
+  ];
+}
+
+/**
+ * FX for an `npcAttack` broadcast (M5-7): the same swing wedge as a player's melee, sized by the NPC's
+ * melee stats from npcs.json (orange, so a worker's swing reads differently from a player's).
+ */
+export function npcAttackFx(
+  a: NpcAttackMessage,
+  melee: Pick<MeleeStats, 'rangePx' | 'arcDegrees'> | null,
+  cfg: FxConfig,
+): FxSpec[] {
+  if (melee === null) return [];
+  return [
+    {
+      kind: 'wedge',
+      x: a.x,
+      y: a.y,
+      aim: a.aim,
+      rangePx: melee.rangePx,
+      arcDegrees: melee.arcDegrees,
+      color: 0xffa040,
+      alpha: 0.4,
+      seconds: cfg.swingFxSeconds,
     },
   ];
 }

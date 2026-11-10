@@ -8,11 +8,12 @@
 //   #keke-hud-timer      round timer, role timer, data-seconds
 //   #keke-hud-scores     mini scoreboard (top 5 + you): li[data-player-id][data-place][data-points]
 //   #keke-hud-board      full scoreboard while Tab / pad View is held: tr[data-player-id]
-//   #keke-hud-feed       event feed, role log (li[data-kind] steal|joke|deposit|hit|ko)
+//   #keke-hud-feed       event feed, role log (li[data-kind] steal|joke|deposit|slip|runover|hit|ko|wanted)
 //   #keke-hud-combat     bottom-centre: HP bar and weapon slot (M4-7)
 //   #keke-hud-hp         role meter "Health", data-hp, data-max, data-level ok|warn|low
 //   #keke-hud-weapon     region "Weapon", data-weapon (id), data-uses (number, or 'inf'), class .new after a roll
 //   #keke-hud-ko         KO overlay, role status, data-respawn-in (whole seconds)
+//   #keke-hud-wanted     Wanted indicator (M5-7), role status, data-seconds; hidden when not wanted
 //
 // Layout: target + carry top-left, timer top-centre, scores and feed top-right, HP and weapon
 // bottom-centre, KO overlay in the middle, minimap (M3-8) owns the bottom-right corner. The Game scene owns one Hud and feeds it from state patches and item events.
@@ -69,6 +70,8 @@ export class Hud {
   private readonly weaponName: HTMLElement;
   private readonly weaponUses: HTMLElement;
   private readonly status: HTMLElement;
+  private readonly wanted: HTMLElement;
+  private wantedSeconds: number | null = null;
   private readonly ko: HTMLElement;
   private readonly koBy: HTMLElement;
   private readonly koCount: HTMLElement;
@@ -154,9 +157,17 @@ export class Hud {
       this.weaponUses,
     );
     this.status = h('div', { class: 'hud-status' });
+    this.wanted = h('div', {
+      id: 'keke-hud-wanted',
+      class: 'hud-wanted',
+      role: 'status',
+      'aria-label': t('hud.wanted'),
+      hidden: true,
+    });
     this.combat = h(
       'div',
       { id: 'keke-hud-combat', class: 'hud-combat', hidden: true },
+      this.wanted,
       this.status,
       this.hp,
       this.weapon,
@@ -250,6 +261,19 @@ export class Hud {
     this.feed.append(el);
     this.feedEntries.push({ el, expires, merge: line.merge });
     while (this.feedEntries.length > renderConfig.hudFeedLines) this.feedEntries.shift()?.el.remove();
+  }
+
+  /** Our Wanted status (§8, §13.2 "Wanted indicator"): seconds left, or null when not wanted. */
+  renderWanted(seconds: number | null): void {
+    if (seconds === this.wantedSeconds) return;
+    this.wantedSeconds = seconds;
+    this.wanted.hidden = seconds === null;
+    if (seconds === null) {
+      delete this.wanted.dataset['seconds'];
+      return;
+    }
+    this.wanted.dataset['seconds'] = String(seconds);
+    this.wanted.textContent = t('hud.wanted.value', { seconds });
   }
 
   /** Every frame: drops expired feed lines and ends the new-weapon glow. */

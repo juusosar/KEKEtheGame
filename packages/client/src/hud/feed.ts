@@ -4,20 +4,23 @@
 import {
   CombatEventMessage,
   ItemEventMessage,
+  NpcEventMessage,
   type DepositMessage,
   type DropMessage,
   type HitMessage,
   type HitSource,
   type ItemCatalogue,
   type KoMessage,
+  type NpcKoMessage,
   type PickupMessage,
+  type WantedMessage,
   type WeaponCatalogue,
 } from '@keke/shared';
 import { t } from '../i18n';
 import { isBag } from '../net/lobbyView';
 import { weaponName } from './combatHud';
 
-export type FeedKind = 'steal' | 'joke' | 'deposit' | 'slip' | 'hit' | 'ko';
+export type FeedKind = 'steal' | 'joke' | 'deposit' | 'slip' | 'runover' | 'hit' | 'ko' | 'wanted';
 
 export interface FeedLine {
   kind: FeedKind;
@@ -62,10 +65,14 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
     return null;
   }
   if (type === ItemEventMessage.drop) {
-    // Only slips are news (M4-5); a Q drop, a KO drop (the KO line says it) and a disconnect are not.
+    // Only slips (M4-5) and forklift run-overs (M5-5) are news; a Q drop, a KO drop (the KO line says it)
+    // and a disconnect are not.
     const drop = message as unknown as DropMessage;
-    if (drop.reason !== 'slip') return null;
-    return { kind: 'slip', text: t('hud.feed.slip', { name, item: item.name }) };
+    if (drop.reason === 'slip') return { kind: 'slip', text: t('hud.feed.slip', { name, item: item.name }) };
+    if (drop.reason === 'forklift') {
+      return { kind: 'runover', text: t('hud.feed.runover', { name, item: item.name }) };
+    }
+    return null;
   }
   if (type === ItemEventMessage.deposit) {
     const deposit = message as unknown as DepositMessage;
@@ -88,11 +95,18 @@ export interface CombatFeedContext {
   me: string;
   /** Nickname for a session id; the id itself when unknown. */
   nameOf(sessionId: string): string;
+  /** Display name of a store worker by NPC id (M5-7); hits by NPCs and hazards name it. */
+  npcName?(npcId: string): string;
 }
 
 function sourceName(source: HitSource, ctx: CombatFeedContext): string | null {
-  if (source.kind !== 'player') return null;
-  return source.id === ctx.me ? t('hud.feed.you') : ctx.nameOf(source.id);
+  if (source.kind === 'player') return source.id === ctx.me ? t('hud.feed.you') : ctx.nameOf(source.id);
+  if ((source.kind === 'npc' || source.kind === 'hazard') && ctx.npcName) {
+    // Worker names are lower case mid-sentence; as the attacker they open the line.
+    const name = ctx.npcName(source.id);
+    return name.charAt(0).toLocaleUpperCase() + name.slice(1);
+  }
+  return null;
 }
 
 /**
@@ -132,12 +146,13 @@ export function combatFeedLine(type: string, message: unknown, ctx: CombatFeedCo
     const weapon = typeof hit.weapon === 'string' ? weaponName(hit.weapon, ctx.weapons) : '';
     const render = mine
       ? (damage: number) => t('hud.feed.youHit', { victim: ctx.nameOf(hit.target), weapon, damage })
-      : (damage: number) =>
-          t('hud.feed.hitYou', {
-            attacker: sourceName(hit.source, ctx) ?? t('hud.feed.somebody'),
-            weapon,
-            damage,
-          });
+      : (damage: number) => {
+          const attacker = sourceName(hit.source, ctx) ?? t('hud.feed.somebody');
+          // Store workers hit with their hands (no weapon id).
+          return weapon === ''
+            ? t('hud.feed.hitYouPlain', { attacker, damage })
+            : t('hud.feed.hitYou', { attacker, weapon, damage });
+        };
     const damage = Math.round(hit.damage);
     return {
       kind: 'hit',
@@ -154,3 +169,31 @@ export function combatFeedLine(type: string, message: unknown, ctx: CombatFeedCo
 
 /** Combat message types the feed listens to. */
 export const COMBAT_FEED_MESSAGES = [CombatEventMessage.hit, CombatEventMessage.ko] as const;
+
+/**
+ * One feed line for a store worker or Wanted event (M5-7), or null. Announced: a worker we knocked out,
+ * and anyone becoming Wanted (not a refresh of a running timer).
+ */
+export function npcFeedLine(
+  type: string,
+  message: unknown,
+  ctx: CombatFeedContext & { npcName(npcId: string): string },
+): FeedLine | null {
+  if (!isBag(message)) return null;
+  if (type === NpcEventMessage.npcKo) {
+    const ko = message as unknown as NpcKoMessage;
+    if (typeof ko.npc !== 'string' || !isBag(ko.source)) return null;
+    if (ko.source.kind !== 'player' || ko.source.id !== ctx.me) return null;
+    return { kind: 'ko', text: t('hud.feed.youKoNpc', { npc: ctx.npcName(ko.npc) }) };
+  }
+  if (type === NpcEventMessage.wanted) {
+    const w = message as unknown as WantedMessage;
+    if (typeof w.player !== 'string' || w.refreshed === true) return null;
+    if (w.player === ctx.me) return { kind: 'wanted', text: t('hud.feed.wantedYou') };
+    return { kind: 'wanted', text: t('hud.feed.wanted', { name: ctx.nameOf(w.player) }) };
+  }
+  return null;
+}
+
+/** Store worker and Wanted message types the feed listens to. */
+export const NPC_FEED_MESSAGES = [NpcEventMessage.npcKo, NpcEventMessage.wanted] as const;

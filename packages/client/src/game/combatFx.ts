@@ -8,13 +8,18 @@ import {
   type AttackMode,
   type HitMessage,
   type KoMessage,
+  type NpcAttackMessage,
+  type NpcHitMessage,
+  type NpcKoMessage,
+  NpcEventMessage,
+  type MeleeStats,
   type Vec2,
   type WeaponCatalogue,
 } from '@keke/shared';
 import type Phaser from 'phaser';
 import type { CombatPlayerView } from '../net/combatView';
 import { combatLook, hpBarFill, swingAngles, type CombatLook } from './combatLook';
-import { attackFx, hitFx, koFx, type FxConfig, type FxSpec } from './fxPlan';
+import { attackFx, hitFx, koFx, npcAttackFx, type FxConfig, type FxSpec } from './fxPlan';
 import type { KekeFxSnapshot, KekeHeldSnapshot, KekeSwingsSnapshot } from './hookTypes';
 import { heldPose, swingProgress, turnToward, type HeldPose, type HeldSwing } from './heldPose';
 import { renderConfig } from './renderConfig';
@@ -123,6 +128,29 @@ export class CombatFx {
   }
 
   /**
+   * Store worker events (M5-7): the NPC's swing wedge, the spark and damage number on a hit NPC, the KO
+   * burst. `melee` sizes the wedge (npcs.json). NPC positions come in through `draw`'s `anchors`.
+   */
+  onNpcEvent(
+    type: string,
+    payload: unknown,
+    now: number,
+    melee: Pick<MeleeStats, 'rangePx' | 'arcDegrees'> | null,
+  ): void {
+    if (typeof payload !== 'object' || payload === null) return;
+    this.log.push({ type, payload });
+    if (this.log.length > LOG_LIMIT) this.log.shift();
+    if (type === NpcEventMessage.npcAttack) {
+      this.spawn(npcAttackFx(payload as NpcAttackMessage, melee, this.fxCfg), now);
+    } else if (type === NpcEventMessage.npcHit) {
+      const h = payload as NpcHitMessage;
+      this.spawn(hitFx({ target: h.npc, weapon: h.weapon, damage: h.damage }, this.me, this.fxCfg), now);
+    } else if (type === NpcEventMessage.npcKo) {
+      this.spawn(koFx((payload as NpcKoMessage).npc, this.fxCfg), now);
+    }
+  }
+
+  /**
    * Our own Attack press: start the held weapon's swing at once instead of a round trip later. Uses the
    * weapon's cooldown so a press the server will refuse does not swing. Returns true when it swung.
    */
@@ -189,11 +217,15 @@ export class CombatFx {
     return this.started.map((f) => ({ ...f }));
   }
 
-  /** Redraws everything. `bodies` are the players drawn this frame. */
-  draw(now: number, bodies: readonly FxBody[]): void {
+  /**
+   * Redraws everything. `bodies` are the players drawn this frame; `anchors` are other things effects may
+   * follow (store workers, M5-7).
+   */
+  draw(now: number, bodies: readonly FxBody[], anchors?: ReadonlyMap<string, Vec2>): void {
     const dt = Math.max(0, Math.min(0.1, now - this.lastDraw));
     this.lastDraw = now;
     this.positions.clear();
+    if (anchors) for (const [id, pos] of anchors) this.positions.set(id, pos);
     for (const b of bodies) if (b.visible) this.positions.set(b.id, b.pos);
 
     const g = this.g;
