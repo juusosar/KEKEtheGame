@@ -18,13 +18,14 @@
     "start": "npm run start -w @keke/server",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node scripts/stub.mjs test:e2e \"Playwright e2e harness (M0-5)\"",
+    "test:e2e": "playwright install chromium && playwright test",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "~1.63.0",
     "@types/node": "^20.19.0",
     "concurrently": "^10.0.7",
     "eslint": "^10.14.0",
