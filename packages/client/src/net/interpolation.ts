@@ -2,7 +2,10 @@
 // bracket that moment, so their motion is smooth even though patches arrive only every 50 ms.
 
 export interface Snapshot {
-  /** Receive time in ms (performance.now()). */
+  /**
+   * Time in ms (performance.now()) the position counts for: when it was first seen, pushed later when
+   * patches arrive in a burst so that two snapshots are never closer than MIN_GAP intervals.
+   */
   readonly t: number;
   readonly x: number;
   readonly y: number;
@@ -23,8 +26,18 @@ export interface InterpolationOptions {
 /** Snapshots kept per player; at 20 Hz this is a few seconds, far more than the delay needs. */
 const MAX_SNAPSHOTS = 64;
 
+/**
+ * Least spacing of two snapshots, in patch intervals. After a main-thread hitch several patches are
+ * handled a few ms apart; stamped as received, the drawn avatar would cross them at many times walking
+ * speed. Spacing them out replays the burst at (at most) 1.25x the real pace instead. Below 1 so that
+ * the extra lead this adds shrinks again at the normal patch rate.
+ */
+const MIN_GAP = 0.8;
+
 export class SnapshotBuffer {
   private readonly snapshots: Snapshot[] = [];
+  /** Newest receive time pushed (snapshot times can run ahead of it). */
+  private lastReceived = -Infinity;
 
   constructor(private readonly options: InterpolationOptions) {}
 
@@ -32,11 +45,16 @@ export class SnapshotBuffer {
     return this.snapshots.length;
   }
 
-  /** Records where the player was at `t`. Times must not go backwards. */
+  /**
+   * Records where the player was at receive time `t`. Receive times must not go backwards. A snapshot
+   * that follows the previous one too closely (a burst after a hitch) is stamped later, at most
+   * `delayMs` past `t`, so the drawn motion never runs faster than about the real speed.
+   */
   push(t: number, x: number, y: number): void {
+    if (t < this.lastReceived) return;
+    this.lastReceived = t;
     const last = this.snapshots[this.snapshots.length - 1];
     if (last) {
-      if (t < last.t) return;
       if (Math.hypot(x - last.x, y - last.y) > this.options.snapDistance) {
         this.snapshots.length = 0;
       } else if (last.x === x && last.y === y) {
@@ -44,6 +62,13 @@ export class SnapshotBuffer {
         return;
       } else if (t - last.t > 2 * this.options.patchIntervalMs) {
         this.snapshots.push({ t: t - this.options.patchIntervalMs, x: last.x, y: last.y });
+      } else {
+        const earliest = last.t + MIN_GAP * this.options.patchIntervalMs;
+        if (t < earliest) {
+          // A snapshot already stamped ahead of real time may be later than `t`; never go backwards.
+          t = Math.max(Math.min(earliest, t + this.options.delayMs), last.t);
+          if (t === last.t) return;
+        }
       }
     }
     this.snapshots.push({ t, x, y });
@@ -76,5 +101,6 @@ export class SnapshotBuffer {
 
   clear(): void {
     this.snapshots.length = 0;
+    this.lastReceived = -Infinity;
   }
 }
