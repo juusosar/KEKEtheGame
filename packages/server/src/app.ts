@@ -4,16 +4,17 @@ import { fileURLToPath } from 'node:url';
 import { LobbyRoom, Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import {
+  HEALTH_PATH,
   ROOM_NAMES,
   defaultThemeId,
   getTheme,
   loadConfig,
   type GameConfig,
+  type HealthResponse,
   type MapModel,
 } from '@keke/shared';
 import express from 'express';
 import { gameRoomWithConfig } from './rooms/GameRoom';
-import { HelloRoom } from './rooms/HelloRoom';
 import { loadThemeMap } from './maps';
 
 /** Default port from §16; override with the PORT env var. */
@@ -50,6 +51,11 @@ export function createGameServer({
     transport: new WebSocketTransport(),
     greet: false,
     express: (app) => {
+      // Health check for the client's connection badge and the e2e specs (replaces the M0 hello room).
+      app.get(HEALTH_PATH, (_req, res) => {
+        const health: HealthResponse = { ok: true, debug };
+        res.set('Cache-Control', 'no-store').json(health);
+      });
       const indexHtml = join(clientDist, 'index.html');
       if (existsSync(indexHtml)) {
         app.use(express.static(clientDist));
@@ -64,7 +70,6 @@ export function createGameServer({
       }
     },
   });
-  server.define('hello', HelloRoom);
   // Join by code: the room puts its code in metadata, and filterBy matches `{ code }` join options against it.
   server
     .define(ROOM_NAMES.game, gameRoomWithConfig(config, map, { debug }))

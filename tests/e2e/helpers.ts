@@ -1,4 +1,10 @@
-import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
+import {
+  test as base,
+  expect,
+  type APIRequestContext,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 import type {
   KekeHook,
   KekeNetSnapshot,
@@ -109,4 +115,19 @@ export async function expectSettled(page: Page): Promise<void> {
     .poll(async () => (await game(page)).net?.lastCorrection ?? Infinity, { timeout: 5_000 })
     .toBeLessThan(1);
   expect((await game(page)).net?.pendingInputs ?? Infinity).toBeLessThan(10);
+}
+
+/**
+ * Fails early, with a clear message, when the server under test does not accept the debug-only room
+ * messages (teleport, end phase). Locally Playwright reuses a server already on the e2e port, and one
+ * started without KEKE_DEBUG=1 refuses them (M3 review F5). Call it first in specs that use them.
+ */
+export async function requireDebugServer(request: APIRequestContext): Promise<void> {
+  const res = await request.get('/healthz');
+  expect(res.ok(), 'GET /healthz on the server under test').toBe(true);
+  const health = (await res.json()) as { ok?: boolean; debug?: boolean };
+  expect(
+    health.debug,
+    'the server on the e2e port was not started with KEKE_DEBUG=1; stop it or run with CI=1',
+  ).toBe(true);
 }

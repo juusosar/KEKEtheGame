@@ -91,12 +91,21 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.onMessage(ClientMessage.start, (client) => this.handleStart(client));
     this.onMessage(ClientMessage.profile, (client, message: unknown) => this.handleProfile(client, message));
     this.onMessage(ClientMessage.input, (client, message: unknown) => this.handleInput(client, message));
-    if (this.debug) {
-      this.onMessage(DebugMessage.teleport, (client, message: unknown) =>
-        this.handleDebugTeleport(client, message),
-      );
-      this.onMessage(DebugMessage.endPhase, (client) => this.handleDebugEndPhase(client));
-    }
+    // Debug messages are always registered (M3 review F1): Colyseus disconnects a client that sends a
+    // type with no handler, so on a normal server they are refused with 'debug_off' instead.
+    this.onMessage(DebugMessage.teleport, (client, message: unknown) =>
+      this.debug
+        ? this.handleDebugTeleport(client, message)
+        : this.refuse(client, DebugMessage.teleport, 'debug_off'),
+    );
+    this.onMessage(DebugMessage.giveWeapon, (client, message: unknown) =>
+      this.debug
+        ? this.handleDebugGiveWeapon(client, message)
+        : this.refuse(client, DebugMessage.giveWeapon, 'debug_off'),
+    );
+    this.onMessage(DebugMessage.endPhase, (client) =>
+      this.debug ? this.handleDebugEndPhase(client) : this.refuse(client, DebugMessage.endPhase, 'debug_off'),
+    );
 
     this.movement = new MovementSystem(this.config, this.map);
     this.items = new ItemSystem(
@@ -273,6 +282,19 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   }
 
   // --- Debug messages (KEKE_DEBUG=1 only, §17) -----------------------------------------------------
+
+  /** Gives the sender a weapon by id; e2e specs use it to test one weapon without rolling for it. */
+  private handleDebugGiveWeapon(client: Client, message: unknown): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player || player.spectator) return;
+    if (this.state.phase !== 'playing' || !player.alive) {
+      return this.refuse(client, DebugMessage.giveWeapon, 'wrong_phase');
+    }
+    const weapon = (message as { weapon?: unknown } | null)?.weapon;
+    if (typeof weapon !== 'string' || !this.combat.giveWeapon(client.sessionId, weapon)) {
+      return this.refuse(client, DebugMessage.giveWeapon, 'invalid_payload');
+    }
+  }
 
   /** Moves the sender's body to `{ x, y }`; e2e specs use it to script a pickup and a deposit. */
   private handleDebugTeleport(client: Client, message: unknown): void {

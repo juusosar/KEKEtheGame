@@ -6,6 +6,7 @@ import {
   game,
   joinRoom,
   players,
+  requireDebugServer,
   test,
   toPlay,
   waitControlling,
@@ -63,7 +64,8 @@ async function teleportNear(page: Page, at: { x: number; y: number }, reach: num
 
 const endPhase = (page: Page) => page.evaluate(() => (globalThis as WithHook).__KEKE__?.endPhase() ?? false);
 
-test('a Timed round: intro, scripted pickup and deposit, results, podium', async ({ newPlayer }) => {
+test('a Timed round: intro, scripted pickup and deposit, results, podium', async ({ newPlayer, request }) => {
+  await requireDebugServer(request);
   test.setTimeout(90_000);
   const pageErrors: Error[] = [];
   const host = await newPlayer(pageErrors);

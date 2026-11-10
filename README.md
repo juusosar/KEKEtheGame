@@ -42,7 +42,7 @@ git rm --cached -r . && git reset --hard
 
 ## Development
 
-`npm run dev` starts the game server in watch mode and the Vite dev server together. Open http://localhost:5173: the Boot scene joins the server's `hello` room and shows **connected**. Vite proxies `/colyseus/*` (HTTP matchmaking and the room WebSocket) to the server on `PORT` (default 2567), so the browser only talks to Vite. In dev the server's startup banner prints the Vite URLs (port 5173), since that is where the page lives.
+`npm run dev` starts the game server in watch mode and the Vite dev server together. Open http://localhost:5173: the Boot scene reads the server's health check (`GET /healthz`, answering `{ ok, debug }`) and shows **connected**. Vite proxies `/colyseus/*` (HTTP matchmaking and the room WebSocket) to the server on `PORT` (default 2567), so the browser only talks to Vite. In dev the server's startup banner prints the Vite URLs (port 5173), since that is where the page lives.
 
 `npm run build` writes the client to `packages/client/dist`, which the server serves on its own port in production.
 

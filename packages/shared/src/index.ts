@@ -100,6 +100,7 @@ export {
 export {
   addCombatant,
   armOnPickup,
+  armWith,
   attackBlocked,
   canHit,
   combatSpeedMultiplier,

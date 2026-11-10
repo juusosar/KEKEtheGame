@@ -195,7 +195,16 @@ export function armOnPickup(
   const player = findCombatant(world, playerId);
   if (!player) return { world, events: [], rejected: 'unknown_player' };
   if (what === 'order_box') return { world, events: [] };
-  const rolled = rollWeapon(weapons, rng, config);
+  return armWith(world, playerId, rollWeapon(weapons, rng, config), now);
+}
+
+/**
+ * Puts `weapon` in the player's hands with full uses, ready at once, as a pickup roll does. `armOnPickup`
+ * uses it; so does the debug "give weapon" room message that e2e specs use to test one weapon.
+ */
+export function armWith(world: CombatWorld, playerId: string, rolled: WeaponDef, now: number): CombatResult {
+  const player = findCombatant(world, playerId);
+  if (!player) return { world, events: [], rejected: 'unknown_player' };
   return {
     world: update(world, playerId, (p) => ({
       ...p,
