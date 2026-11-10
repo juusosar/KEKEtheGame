@@ -1,0 +1,23 @@
+// Weapon catalogue (§7): schema, validation and lookups.
+export {
+  ROLL_RARITIES,
+  WEAPON_BEHAVIOURS,
+  attackMode,
+  getWeaponCatalogue,
+  loadWeaponCatalogue,
+  weaponCatalogueSchema,
+  weaponSchema,
+  type AttackMode,
+  type BlockStats,
+  type ChargeStats,
+  type MeleeStats,
+  type ProjectileStats,
+  type RollRarity,
+  type SprayStats,
+  type TrapStats,
+  type WeaponBehaviour,
+  type WeaponCatalogue,
+  type WeaponDef,
+  type WeaponOf,
+  type WeaponRarity,
+} from './catalogue';

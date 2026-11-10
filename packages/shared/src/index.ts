@@ -6,6 +6,7 @@ export { ConfigError, configSchema, formatIssues, loadConfig, type GameConfig } 
 export * from './profile';
 export * from './lobby';
 export * from './items';
+export * from './weapons';
 export {
   aabbOverlapsSolid,
   circleSeparation,
@@ -95,6 +96,37 @@ export {
   type TimedPlayerScore,
   type TimedRoundResult,
 } from './rules/modes/timed';
+export {
+  addCombatant,
+  armOnPickup,
+  attackBlocked,
+  canHit,
+  combatSpeedMultiplier,
+  createCombatWorld,
+  dropItemsOnKo,
+  findCombatant,
+  hit,
+  hitBlocked,
+  isFriendly,
+  isStunned,
+  regenerate,
+  removeCombatant,
+  respawnDue,
+  rollWeapon,
+  setCombatTeam,
+  useWeapon,
+  type AttackRejection,
+  type CombatConfig,
+  type CombatEvent,
+  type CombatResult,
+  type CombatWorld,
+  type Combatant,
+  type HeldWeapon,
+  type HitRejection,
+  type HitSource,
+  type HitSpec,
+  type PickupWhat,
+} from './rules/combat';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,
