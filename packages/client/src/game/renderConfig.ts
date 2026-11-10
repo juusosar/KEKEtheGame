@@ -44,6 +44,18 @@ export interface RenderConfig {
   readonly hudArrowMarginPx: number;
   /** How far the target arrow floats above an on-screen target, CSS px. */
   readonly hudArrowHoverPx: number;
+  /** How long a melee swing arc stays drawn (M4-2 feedback), seconds. */
+  readonly swingFxSeconds: number;
+  /** How long a body flashes white after a hit, seconds. */
+  readonly hitFlashSeconds: number;
+  /** Opacity of a KO'd body lying on the floor, 0..1. */
+  readonly koAlpha: number;
+  /** Blink rate of a spawn-protected body, Hz. */
+  readonly protectedBlinkHz: number;
+  /** Width of the small HP bar over a hurt player, px. */
+  readonly hpBarWidthPx: number;
+  /** HP bar height above the player's position, px (just under the nameplate). */
+  readonly hpBarOffsetY: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -77,6 +89,12 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const hudTimerWarnSeconds = num('hudTimerWarnSeconds', (n) => n >= 0, '>= 0');
   const hudArrowMarginPx = num('hudArrowMarginPx', (n) => n >= 0, '>= 0');
   const hudArrowHoverPx = num('hudArrowHoverPx', (n) => n >= 0, '>= 0');
+  const swingFxSeconds = num('swingFxSeconds', (n) => n > 0, 'positive');
+  const hitFlashSeconds = num('hitFlashSeconds', (n) => n >= 0, '>= 0');
+  const koAlpha = num('koAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
+  const protectedBlinkHz = num('protectedBlinkHz', (n) => n > 0, 'positive');
+  const hpBarWidthPx = num('hpBarWidthPx', (n) => n > 0, 'positive');
+  const hpBarOffsetY = num('hpBarOffsetY', () => true, 'a number');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -101,6 +119,12 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     hudTimerWarnSeconds,
     hudArrowMarginPx,
     hudArrowHoverPx,
+    swingFxSeconds,
+    hitFlashSeconds,
+    koAlpha,
+    protectedBlinkHz,
+    hpBarWidthPx,
+    hpBarOffsetY,
   });
 }
 

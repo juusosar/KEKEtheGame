@@ -57,6 +57,29 @@ export const PlayerState = schema(
      * the team's standing with Teams on. 0 = not ranked yet.
      */
     sessionPlace: t.uint8().default(0),
+    /**
+     * Combat (§3.3, §7; M4-2). Mirrored from the server's CombatWorld every tick by CombatSystem; set at
+     * each countdown (full HP, fists) and reset in the lobby. Movement prediction reads `alive`,
+     * `stunned`, `slowMultiplier` and `blocking` (`syncedCombatSpeed`), like `carrying` (review H1).
+     * `hp`: 0..maxHp; 0 while KO'd.
+     */
+    hp: t.uint16().default(0),
+    /** False while KO'd (body stays where it fell, cannot act, cannot be hit) until the respawn. */
+    alive: t.boolean().default(true),
+    /** Held weapon id (`getWeaponCatalogue().get(weapon)`); the fallback 'fists' when nothing else. */
+    weapon: t.string().default('fists'),
+    /** Uses left of the held weapon (seconds of spray for sprays); -1 = unlimited (fists). */
+    weaponUses: t.float32().default(-1),
+    /** Cannot move or attack (rolling pin, knockdowns). */
+    stunned: t.boolean().default(false),
+    /** Speed multiplier from a slow (ketchup, M4-4); 1 = not slowed. */
+    slowMultiplier: t.float32().default(1),
+    /** Spawn protection after a respawn: hits do not land (§3.3). */
+    protected: t.boolean().default(false),
+    /** Holding Block with a weapon that can block (pan, M4-6). Set only by the block module. */
+    blocking: t.boolean().default(false),
+    /** Whole seconds until the respawn while KO'd, rounded up; 0 while alive (KO countdown overlay). */
+    respawnIn: t.uint8().default(0),
   },
   'PlayerState',
 );

@@ -33,6 +33,8 @@ import {
 import { ItemState, VanState, type GameState, type PlayerState } from '../schema/GameState';
 
 export type ItemBroadcast = (event: ItemEventWire) => void;
+/** Called once per committed `pickup` event, whatever caused it (M3 review H2: the weapon roll hooks here). */
+export type PickupListener = (playerId: string) => void;
 
 export class ItemSystem {
   private world: ItemWorld = createItemWorld();
@@ -40,6 +42,8 @@ export class ItemSystem {
   private readonly catalogue: ItemCatalogue;
   /** True from a round's countdown until the lobby: item actions and despawns run only then. */
   private running = false;
+  /** Set by the room: CombatSystem rolls a weapon on every pickup (§7). Order boxes (M6) come with their own path. */
+  onPickup: PickupListener | null = null;
 
   constructor(
     private readonly state: GameState,
@@ -131,7 +135,7 @@ export class ItemSystem {
     this.commit(despawnLooseItems(this.world, now, this.config));
   }
 
-  /** Drops what `player` carries where they stand (disconnect, and KO in M4). No-op when not carrying. */
+  /** Drops what `player` carries where they stand (disconnect, KO). No-op when not carrying. */
   dropCarried(player: PlayerState, now: number, reason: DropReason): void {
     if (!this.running || player.carrying === 0) return;
     this.commit(drop(this.world, player.sessionId, { x: player.x, y: player.y }, now, reason));
@@ -159,7 +163,10 @@ export class ItemSystem {
     if (assigned.world === this.world && events.length === 0) return;
     this.world = assigned.world;
     this.sync();
-    for (const event of events) this.broadcast(itemEventToWire(event));
+    for (const event of events) {
+      this.broadcast(itemEventToWire(event));
+      if (event.type === 'pickup') this.onPickup?.(event.player);
+    }
   }
 
   /** Mirrors the world into `GameState.items`, the vans' points and each player's carry fields. */

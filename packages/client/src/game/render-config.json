@@ -20,5 +20,11 @@
   "hudFeedSeconds": 6,
   "hudTimerWarnSeconds": 10,
   "hudArrowMarginPx": 40,
-  "hudArrowHoverPx": 36
+  "hudArrowHoverPx": 36,
+  "swingFxSeconds": 0.15,
+  "hitFlashSeconds": 0.12,
+  "koAlpha": 0.45,
+  "protectedBlinkHz": 8,
+  "hpBarWidthPx": 18,
+  "hpBarOffsetY": 19
 }

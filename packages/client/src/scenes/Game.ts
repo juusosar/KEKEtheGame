@@ -1,12 +1,13 @@
 import type { Room } from '@colyseus/sdk';
 import {
   ClientMessage,
+  CombatEventMessage,
   DebugMessage,
   TILE_LAYERS,
   aabbOverlapsSolid,
-  carryMultiplier,
   defaultThemeId,
   getItemCatalogue,
+  getWeaponCatalogue,
   getTheme,
   inputStepSeconds,
   loadConfig,
@@ -21,10 +22,11 @@ import {
 import Phaser from 'phaser';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { Avatar } from '../game/avatar';
+import { CombatFx } from '../game/combatFx';
 import { isDebugEnabled } from '../game/debugFlag';
 import { placeZoneLabels } from '../game/debugLayout';
 import { installHook, removeHook, type KekeHook } from '../game/hook';
-import type { KekeNetSnapshot, KekeRemoteSnapshot } from '../game/hookTypes';
+import type { KekeCombatSnapshot, KekeNetSnapshot, KekeRemoteSnapshot } from '../game/hookTypes';
 import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
@@ -36,6 +38,7 @@ import { RoundScreen } from '../hud/RoundScreen';
 import { readRoundScreen } from '../hud/roundScreens';
 import { t } from '../i18n';
 import { InputManager, STANDARD } from '../input';
+import { DEFAULT_COMBAT, predictionSpeed, readCombat, type CombatPlayerView } from '../net/combatView';
 import { SnapshotBuffer } from '../net/interpolation';
 import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
@@ -47,7 +50,7 @@ import { buildMinimapMarkers, offlineMinimapWorld, readMinimapWorld, withSelfAt 
 import type { PlaySceneData } from './Lobby';
 
 /** Draw order (§15.4): ground, walls, decor, characters, then `above` over them; nameplates; debug on top. */
-const DEPTH = { ground: 0, walls: 1, decor: 2, player: 10, above: 20, label: 25, debug: 30 } as const;
+const DEPTH = { ground: 0, walls: 1, decor: 2, player: 10, fx: 15, above: 20, label: 25, debug: 30 } as const;
 
 interface Remote {
   avatar: Avatar;
@@ -95,6 +98,9 @@ export class GameScene extends Phaser.Scene {
   private roundScreen: RoundScreen | undefined;
   private hudContext!: HudContext;
   private icons = new Map<string, string | null>();
+  /** Swings, hit flashes, stun rings and HP bars (M4-2); online only. */
+  private combatFx: CombatFx | undefined;
+  private combat = new Map<string, CombatPlayerView>();
 
   private debug = false;
   private hitbox?: Phaser.GameObjects.Rectangle;
@@ -168,6 +174,7 @@ export class GameScene extends Phaser.Scene {
     this.local.place(pos.x, pos.y, this.lastMove);
 
     if (!offline) this.updateRemotes(dt);
+    this.drawCombat(time / 1000);
     this.updateMinimap(dt);
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
     if (this.hud) this.updateHud(this.hud);
@@ -191,6 +198,8 @@ export class GameScene extends Phaser.Scene {
     this.hud = undefined;
     this.roundScreen = undefined;
     this.icons = new Map();
+    this.combatFx = undefined;
+    this.combat = new Map();
   }
 
   private createTilemap(raw: unknown): void {
@@ -280,6 +289,7 @@ export class GameScene extends Phaser.Scene {
   private joinRoom(room: Room): void {
     this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
     this.createHud(room);
+    this.createCombatFx(room);
     this.roundScreen = new RoundScreen();
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
@@ -335,8 +345,12 @@ export class GameScene extends Phaser.Scene {
     this.local.setVisible(isOnMap(me, view.phase));
 
     const controlling = isControlling(view);
-    // Same carry slowdown as the server, from synced state (M2 review H1).
-    this.predictor.setModifiers({ speedMultiplier: carryMultiplier(this.config, me.carrying !== 0) });
+    this.combat = readCombat(room.state);
+    // Same carry, stun, slow and KO speed as the server, from synced state (M2 review H1).
+    const myCombat = this.combat.get(me.id) ?? DEFAULT_COMBAT;
+    this.predictor.setModifiers({
+      speedMultiplier: predictionSpeed(myCombat, me.carrying !== 0, this.config, getWeaponCatalogue()),
+    });
     if (controlling && this.controlling) {
       this.predictor.reconcile(me);
     } else {
@@ -383,6 +397,34 @@ export class GameScene extends Phaser.Scene {
       if (pos) remote.avatar.place(pos.x, pos.y);
     }
     this.updateSpectator(dt);
+  }
+
+  // --- combat feedback (M4-2) --------------------------------------------------------------------------
+
+  private createCombatFx(room: Room): void {
+    const fx = new CombatFx(this, DEPTH.fx, getWeaponCatalogue(), this.config.maxHp);
+    this.combatFx = fx;
+    for (const type of Object.values(CombatEventMessage)) {
+      this.unsubscribe.push(
+        room.onMessage(type, (message: unknown) => fx.onEvent(type, message, this.time.now / 1000)),
+      );
+    }
+  }
+
+  /** Avatar looks (KO, protection, hit flash) and the world FX, from the last patch. */
+  private drawCombat(now: number): void {
+    const fx = this.combatFx;
+    const room = this.room;
+    if (!fx || room === null) return;
+    const bodies: { pos: Vec2; combat: CombatPlayerView }[] = [];
+    const add = (id: string, avatar: Avatar): void => {
+      const combat = this.combat.get(id) ?? DEFAULT_COMBAT;
+      avatar.setCombatLook(fx.lookFor(id, combat, now));
+      if (avatar.body.visible) bodies.push({ pos: { x: avatar.body.x, y: avatar.body.y }, combat });
+    };
+    add(room.sessionId, this.local);
+    for (const [id, remote] of this.remotes) add(id, remote.avatar);
+    fx.draw(now, bodies);
   }
 
   // --- HUD (§13.2) -----------------------------------------------------------------------------------
@@ -520,6 +562,8 @@ export class GameScene extends Phaser.Scene {
     this.hud = undefined;
     this.roundScreen?.destroy();
     this.roundScreen = undefined;
+    this.combatFx?.destroy();
+    this.combatFx = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
     delete document.body.dataset['phase'];
@@ -544,6 +588,20 @@ export class GameScene extends Phaser.Scene {
       carrying: mine?.carrying ?? 0,
       target: mine?.target ?? 0,
       deposited: mine?.deposited ?? 0,
+      ...this.combatSnapshot(room.sessionId),
+    };
+  }
+
+  private combatSnapshot(id: string): KekeCombatSnapshot {
+    const c = this.combat.get(id) ?? DEFAULT_COMBAT;
+    return {
+      hp: c.hp,
+      alive: c.alive,
+      weapon: c.weapon,
+      weaponUses: c.uses,
+      stunned: c.stunned,
+      protected: c.protected,
+      respawnIn: c.respawnIn,
     };
   }
 
@@ -562,6 +620,7 @@ export class GameScene extends Phaser.Scene {
         serverX: p.x,
         serverY: p.y,
         connected: p.connected,
+        ...this.combatSnapshot(p.id),
       });
     }
     return out;
@@ -698,6 +757,7 @@ export class GameScene extends Phaser.Scene {
       minimap: () => (this.minimap?.markers ?? []).map((m) => ({ ...m })),
       items: () => this.world.itemSnapshots(),
       vans: () => this.world.vanSnapshots(),
+      combatEvents: () => this.combatFx?.events() ?? [],
     };
     this.hook = hook;
     installHook(hook);

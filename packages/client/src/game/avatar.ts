@@ -2,6 +2,7 @@
 // for every remote player in the Game scene.
 import { HAT_IDS } from '@keke/shared';
 import Phaser from 'phaser';
+import { NEUTRAL_LOOK, type CombatLook } from './combatLook';
 import { animKey, facingFromMove, type Facing } from './facing';
 import { renderConfig } from './renderConfig';
 
@@ -24,6 +25,9 @@ export class Avatar {
   private labelText = '';
   private last: { x: number; y: number } | null = null;
   private labelLift = 0;
+  private tint = 0xffffff;
+  private connectedAlpha = 1;
+  private combat: CombatLook = NEUTRAL_LOOK;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -53,7 +57,8 @@ export class Avatar {
     const prev = this.look;
     if (prev?.color !== look.color) {
       const color = /^#[0-9a-f]{6}$/i.test(look.color) ? look.color : '#ffffff';
-      this.body.setTint(Phaser.Display.Color.HexStringToColor(color).color);
+      this.tint = Phaser.Display.Color.HexStringToColor(color).color;
+      if (!this.combat.flash) this.body.setTint(this.tint);
     }
     if (prev?.hat !== look.hat) {
       const key = `hat_${look.hat}`;
@@ -76,10 +81,30 @@ export class Avatar {
 
   /** Half-transparent while the player is inside the reconnect window. */
   setConnected(connected: boolean): void {
-    const alpha = connected ? 1 : renderConfig.disconnectedAlpha;
+    this.connectedAlpha = connected ? 1 : renderConfig.disconnectedAlpha;
+    this.applyAlpha();
+  }
+
+  /** KO (lying down, faded), spawn-protection blink and the white hit flash (M4-2). Cheap every frame. */
+  setCombatLook(look: CombatLook): void {
+    const prev = this.combat;
+    this.combat = look;
+    if (prev.angle !== look.angle) {
+      this.body.setAngle(look.angle);
+      this.hat.setAngle(look.angle);
+    }
+    if (prev.flash !== look.flash) {
+      if (look.flash) this.body.setTintFill(0xffffff);
+      else this.body.setTint(this.tint);
+    }
+    if (prev.alpha !== look.alpha) this.applyAlpha();
+  }
+
+  private applyAlpha(): void {
+    const alpha = this.connectedAlpha * this.combat.alpha;
     this.body.setAlpha(alpha);
     this.hat.setAlpha(alpha);
-    this.label?.setAlpha(alpha);
+    this.label?.setAlpha(this.connectedAlpha);
   }
 
   setVisible(visible: boolean): void {

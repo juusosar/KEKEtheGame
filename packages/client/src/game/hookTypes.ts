@@ -12,8 +12,29 @@ export interface KekePlayerSnapshot {
   zone: string | null;
 }
 
+/** A player's combat state from the last patch (M4-2). */
+export interface KekeCombatSnapshot {
+  hp: number;
+  alive: boolean;
+  /** Held weapon id ('fists' when nothing else). */
+  weapon: string;
+  /** Uses left (spray: seconds); null = unlimited. */
+  weaponUses: number | null;
+  stunned: boolean;
+  /** Spawn protection after a respawn. */
+  protected: boolean;
+  /** Whole seconds to the respawn while KO'd, else 0. */
+  respawnIn: number;
+}
+
+/** A combat broadcast as the client received it (`attack`, `hit`, `ko`, `respawn`, `weaponRolled`, `weaponSpent`). */
+export interface KekeCombatEvent {
+  type: string;
+  payload: unknown;
+}
+
 /** A remote player as the Game scene draws them (online only). */
-export interface KekeRemoteSnapshot {
+export interface KekeRemoteSnapshot extends KekeCombatSnapshot {
   /** Session id (same as the lobby's data-player-id). */
   id: string;
   nickname: string;
@@ -27,7 +48,7 @@ export interface KekeRemoteSnapshot {
 }
 
 /** Netcode state of the local player, or null offline (`?scene=game`). */
-export interface KekeNetSnapshot {
+export interface KekeNetSnapshot extends KekeCombatSnapshot {
   code: string;
   sessionId: string;
   /** RoundPhase. */
@@ -138,6 +159,8 @@ export interface KekeHook {
   remotePlayers(): KekeRemoteSnapshot[];
   /** Markers on the minimap at its last redraw (a few times a second). */
   minimap(): KekeMinimapMarker[];
+  /** The last 50 combat broadcasts this client received, oldest first; empty offline. */
+  combatEvents(): KekeCombatEvent[];
   /** Items in the world, by id; empty offline and in the lobby. */
   items(): KekeItemSnapshot[];
   /** Vans drawn on the dock, by slot. Offline: slot 1 only. */

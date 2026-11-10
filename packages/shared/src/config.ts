@@ -41,6 +41,7 @@ export const configSchema = z
     jokeItemChance: fraction,
     jokeItemValue: positiveInt,
     hpRegenPerSec: nonNegative,
+    knockbackSeconds: nonNegative,
     weaponRarityWeights: z.object({ common: nonNegative, uncommon: nonNegative, rare: nonNegative }).strict(),
     nicknameMaxLength: positiveInt,
     maxRoundsPerMap: positiveInt,
