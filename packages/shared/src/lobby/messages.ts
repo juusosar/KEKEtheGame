@@ -16,6 +16,11 @@ export const ClientMessage = {
   start: 'start',
   /** `{ nickname?, color?, hat? }` profile change while in the lobby. */
   profile: 'profile',
+  /**
+   * `InputFrame`, one per fixed input step (1 / inputHz s), idle frames included. Only applied while
+   * the phase is 'playing' and the sender is not spectating; otherwise silently ignored (no ack).
+   */
+  input: 'input',
 } as const;
 
 /** Server → client message types. */

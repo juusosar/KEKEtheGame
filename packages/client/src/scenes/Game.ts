@@ -7,6 +7,7 @@ import {
   playerHalfSize,
   step,
   aabbOverlapsSolid,
+  vanSpawn,
   type GameConfig,
   type MapModel,
   type MapTheme,
@@ -20,7 +21,6 @@ import { animKey, facingFromMove, type Facing } from '../game/facing';
 import { installHook, removeHook, type KekeHook } from '../game/hook';
 import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
-import { findSpawn } from '../game/spawn';
 import { t } from '../i18n';
 import { InputManager } from '../input';
 import { browserStorage, loadProfile } from '../profile/storage';
@@ -113,9 +113,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayer(): void {
-    const slot = this.model.vanSlots[0];
-    const preferred = slot ?? { x: this.model.widthPx / 2, y: this.model.heightPx / 2 };
-    const spawn = findSpawn(this.model.collision, preferred, playerHalfSize(this.config));
+    // Van slot 1 until the networked Game scene (M2-3) takes positions from the server.
+    const spawn = vanSpawn(this.model, 0, playerHalfSize(this.config));
     this.state = { x: spawn.x, y: spawn.y, vx: 0, vy: 0 };
 
     // The local player wears the saved profile (§13.1); first-time players get the profile defaults.

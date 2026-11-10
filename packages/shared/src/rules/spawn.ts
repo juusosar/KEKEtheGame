@@ -1,5 +1,7 @@
-// Where the local player starts. M1 has no van assignment yet (M3-4), so the player spawns at van slot 1.
-import { aabbOverlapsSolid, type CollisionGrid, type HalfSize, type Vec2 } from '@keke/shared';
+// Where players start (§3: every player spawns at their van). Shared so the server places players and
+// the client's offline Game scene uses the same rule.
+import type { Vec2 } from '../types';
+import { aabbOverlapsSolid, type CollisionGrid, type HalfSize } from './collision';
 
 /**
  * The free position nearest to `preferred` where a body of size `half` touches no wall: `preferred`
@@ -30,4 +32,25 @@ export function findSpawn(grid: CollisionGrid, preferred: Vec2, half: HalfSize):
     if (best) return best;
   }
   throw new Error('findSpawn: no free tile on the map');
+}
+
+/** What spawning needs from a map. `MapModel` from shared/src/map satisfies this shape. */
+export interface SpawnMap {
+  readonly collision: CollisionGrid;
+  readonly widthPx: number;
+  readonly heightPx: number;
+  /** Van slots sorted by index (`loadMap` sorts them). */
+  readonly vanSlots: readonly Vec2[];
+}
+
+/**
+ * Spawn position for the player in van slot `slot` (0-based, wraps when there are more players than
+ * slots): the nearest free spot to that van's centre, or to the map centre when the map has no vans.
+ * Until M3-4 assigns vans, the server passes the player's order among active players.
+ */
+export function vanSpawn(map: SpawnMap, slot: number, half: HalfSize): Vec2 {
+  const count = map.vanSlots.length;
+  const van = count > 0 ? map.vanSlots[((slot % count) + count) % count] : undefined;
+  const preferred = van ?? { x: map.widthPx / 2, y: map.heightPx / 2 };
+  return findSpawn(map.collision, preferred, half);
 }
