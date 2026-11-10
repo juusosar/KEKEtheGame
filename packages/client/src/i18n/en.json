@@ -1,0 +1,6 @@
+{
+  "boot.connecting": "connecting…",
+  "boot.connected": "connected",
+  "boot.error": "connection failed: {message}",
+  "boot.disconnected": "disconnected"
+}

@@ -17,16 +17,22 @@ npm test
 
 ## Scripts
 
-| Script              | What it does                                                  |
-| ------------------- | ------------------------------------------------------------- |
-| `npm run dev`       | Server in watch mode + Vite dev server (stub until M0-3/M0-4) |
-| `npm run build`     | Builds every workspace package that has a `build` script      |
-| `npm start`         | Runs the built server on `PORT` (default 2567)                |
-| `npm test`          | Vitest across all packages                                    |
-| `npm run test:e2e`  | Playwright end-to-end tests (stub until M0-5)                 |
-| `npm run lint`      | ESLint + Prettier check                                       |
-| `npm run format`    | Prettier write                                                |
-| `npm run typecheck` | `tsc --noEmit` for the root configs and every package         |
+| Script              | What it does                                                    |
+| ------------------- | --------------------------------------------------------------- |
+| `npm run dev`       | Server in watch mode + Vite dev server on http://localhost:5173 |
+| `npm run build`     | Builds every workspace package that has a `build` script        |
+| `npm start`         | Runs the built server on `PORT` (default 2567)                  |
+| `npm test`          | Vitest across all packages                                      |
+| `npm run test:e2e`  | Playwright end-to-end tests (stub until M0-5)                   |
+| `npm run lint`      | ESLint + Prettier check                                         |
+| `npm run format`    | Prettier write                                                  |
+| `npm run typecheck` | `tsc --noEmit` for the root configs and every package           |
+
+## Development
+
+`npm run dev` starts the game server in watch mode and the Vite dev server together. Open http://localhost:5173: the Boot scene joins the server's `hello` room and shows **connected**. Vite proxies `/colyseus/*` (HTTP matchmaking and the room WebSocket) to the server on `PORT` (default 2567), so the browser only talks to Vite.
+
+`npm run build` writes the client to `packages/client/dist`, which the server serves on its own port in production.
 
 ## Playing on a LAN
 
