@@ -45,6 +45,19 @@ export interface KekeNetSnapshot {
   lastCorrection: number;
 }
 
+/** A marker the minimap draws (render/minimap.ts), in world pixels. */
+export interface KekeMinimapMarker {
+  /** `van`, `loose`, `target`, `self` (later milestones add more). */
+  kind: string;
+  /** e.g. `van:0`, `item:12`, `self`. */
+  id: string;
+  x: number;
+  y: number;
+  color?: string;
+  /** Our own van or position. */
+  mine?: boolean;
+}
+
 export interface KekeHook {
   /** Active scene key, e.g. `Game`. */
   scene: string;
@@ -62,4 +75,6 @@ export interface KekeHook {
   net(): KekeNetSnapshot | null;
   /** Other players on the map, in join order; empty offline. */
   remotePlayers(): KekeRemoteSnapshot[];
+  /** Markers on the minimap at its last redraw (a few times a second). */
+  minimap(): KekeMinimapMarker[];
 }

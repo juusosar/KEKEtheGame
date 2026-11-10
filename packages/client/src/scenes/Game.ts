@@ -33,6 +33,8 @@ import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
+import { MinimapView } from '../render/MinimapView';
+import { buildMinimapMarkers, offlineMinimapWorld, readMinimapWorld, withSelfAt } from '../render/minimap';
 import type { PlaySceneData } from './Lobby';
 
 /** Draw order (§15.4): ground, walls, decor, characters, then `above` over them; nameplates; debug on top. */
@@ -60,6 +62,9 @@ export class GameScene extends Phaser.Scene {
   private predictor!: Predictor;
   private clock!: FixedStepClock;
   private lastMove: Vec2 = { x: 0, y: 0 };
+  private minimap: MinimapView | undefined;
+  /** Profile colour, for the offline minimap. */
+  private profileColor = '';
 
   // Online only.
   private room: Room | null = null;
@@ -109,6 +114,7 @@ export class GameScene extends Phaser.Scene {
     cam.setRoundPixels(true);
     cam.startFollow(this.local.body, true, renderConfig.cameraLerp, renderConfig.cameraLerp);
 
+    this.minimap = new MinimapView(this.model, this.theme);
     this.inputManager = new InputManager(this);
     this.clock = new FixedStepClock(inputStepSeconds(this.config));
 
@@ -144,6 +150,7 @@ export class GameScene extends Phaser.Scene {
     this.local.place(pos.x, pos.y, this.lastMove);
 
     if (!offline) this.updateRemotes(dt);
+    this.updateMinimap(dt);
     if (this.debug) this.updateDebug();
   }
 
@@ -191,6 +198,7 @@ export class GameScene extends Phaser.Scene {
     // Offline (and in a room until the first patch) the local player wears the saved profile (§13.1).
     const { profile } = loadProfile(browserStorage(), this.config.nicknameMaxLength);
     this.local.setLook(profile);
+    this.profileColor = profile.color;
     this.local.setLabel(profile.nickname);
     this.local.place(start.x, start.y, { x: 0, y: 0 });
   }
@@ -201,6 +209,19 @@ export class GameScene extends Phaser.Scene {
       { player: DEPTH.player, label: DEPTH.label, mapHeight: this.model.heightPx },
       withLabel,
     );
+  }
+
+  /** Minimap markers from the synced state (or the offline walk), with us at the predicted position. */
+  private updateMinimap(dt: number): void {
+    this.minimap?.update(dt, () => {
+      const at = this.predictor.state;
+      const room = this.room;
+      const world =
+        room === null
+          ? offlineMinimapWorld(this.profileColor, at)
+          : withSelfAt(readMinimapWorld(room.state, room.sessionId), at);
+      return buildMinimapMarkers(world, this.model);
+    });
   }
 
   // --- room -----------------------------------------------------------------------------------------
@@ -387,6 +408,8 @@ export class GameScene extends Phaser.Scene {
     for (const remote of this.remotes.values()) remote.avatar.destroy();
     this.remotes.clear();
     this.hideSpectateBanner();
+    this.minimap?.destroy();
+    this.minimap = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
   }
@@ -547,6 +570,7 @@ export class GameScene extends Phaser.Scene {
       zoneAt: (x, y) => model.zoneAt(x, y)?.id ?? null,
       net: () => this.netSnapshot(),
       remotePlayers: () => this.remoteSnapshots(),
+      minimap: () => (this.minimap?.markers ?? []).map((m) => ({ ...m })),
     };
     this.hook = hook;
     installHook(hook);
