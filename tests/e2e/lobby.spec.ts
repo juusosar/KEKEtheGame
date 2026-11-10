@@ -1,25 +1,13 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { players, row, test, toPlay } from './helpers';
 
 // M2-5: the Lobby (§13.1 step 4). After create or join, both players land in the lobby, see each other,
 // ready up, the host changes settings that the guest sees, and Start takes both to the Game scene.
 
-async function toPlay(page: Page, nickname: string): Promise<void> {
-  await page.goto('/');
-  await expect(page.locator('body')).toHaveAttribute('data-scene', 'title', { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Play' }).click();
-  await page.getByLabel('Nickname').fill(nickname);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.locator('body')).toHaveAttribute('data-scene', 'play');
-}
-
-const players = (page: Page) => page.getByRole('list', { name: 'Players' }).locator('li');
-const row = (page: Page, name: string) => players(page).filter({ hasText: name });
-
-test('host and guest meet in the lobby, ready up, change settings and start', async ({ browser }) => {
-  const host = await (await browser.newContext()).newPage();
-  const guest = await (await browser.newContext()).newPage();
+test('host and guest meet in the lobby, ready up, change settings and start', async ({ newPlayer }) => {
   const pageErrors: Error[] = [];
-  for (const page of [host, guest]) page.on('pageerror', (err) => pageErrors.push(err));
+  const host = await newPlayer(pageErrors);
+  const guest = await newPlayer(pageErrors);
 
   await toPlay(host, 'Hostess');
   await host.getByRole('button', { name: 'Create room' }).click();

@@ -73,6 +73,19 @@ Add `?debug=1` to the URL (http://localhost:5173/?debug=1 in dev) for the debug 
 
 On the host machine run `npm install && npm run build && npm start`. The server prints one line per network interface, like `Open http://192.168.1.20:2567 on any device on this network`; open that URL on any device on the same network. Set `PORT` to use another port.
 
+### LAN check (M2)
+
+The M2 goal is that 4 browser tabs, and 2 machines on one LAN, join one room by code and see each other move smoothly. `tests/e2e/multiplayer.spec.ts` covers the tabs automatically (2 and 4 players in separate browser contexts); the machines need a person:
+
+1. On machine A, run `npm install && npm run build && npm start` and note the `Open http://<lan-ip>:2567 …` line. On Windows, allow Node.js through the firewall on private networks when asked (or allow inbound TCP 2567).
+2. On machine A, open `http://localhost:2567/?debug=1`, press **Play**, pick a nickname, then **Create room**. The lobby shows a 4-letter room code.
+3. On machine B, open the `http://<lan-ip>:2567/?debug=1` URL from step 1. If it does not load, check that both machines are on the same network and that the firewall lets port 2567 in.
+4. On machine B, press **Play**, pick another nickname, type the code under **Room code** and press **Join**. Both lobbies now list both players.
+5. Press **Ready** on both, then **Start** on machine A. After the 3 s countdown, walk with WASD (or a gamepad) on one machine and watch the other: the avatar with that nickname moves with it, without jumps or rubber-banding. Swap roles and repeat.
+6. For four players, open two more tabs (or devices) the same way, give each its own nickname and join the same code. Open each tab fresh rather than duplicating one: a duplicated tab copies the reload token and resumes the original tab's player.
+
+With `?debug=1` the overlay's readout and `window.__KEKE__.net()` in the browser console show the netcode state; `lastCorrection` near 0 means the server agrees with the local prediction.
+
 ## Layout
 
 ```

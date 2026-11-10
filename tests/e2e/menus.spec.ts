@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { test, toPlay } from './helpers';
 
 // M2-4: Title → Profile → Play (§13.1). The menu scenes are HTML over the canvas, and each mirrors itself
 // to <body data-scene="…">. Once a room is entered, <body data-room="ABCD"> holds its code.
@@ -8,13 +9,6 @@ async function toProfile(page: Page): Promise<void> {
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'title', { timeout: 15_000 });
   await page.getByRole('button', { name: 'Play' }).click();
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'profile');
-}
-
-async function toPlay(page: Page, nickname: string): Promise<void> {
-  await toProfile(page);
-  await page.getByLabel('Nickname').fill(nickname);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.locator('body')).toHaveAttribute('data-scene', 'play');
 }
 
 test('the profile is picked on the Profile screen and kept in localStorage', async ({ page }) => {
@@ -54,12 +48,11 @@ test('an unknown room code shows an error and stays on Play', async ({ page }) =
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'play');
 });
 
-test('one player creates a room; others join it by code and from the room list', async ({ browser }) => {
-  const host = await (await browser.newContext()).newPage();
-  const byCode = await (await browser.newContext()).newPage();
-  const byList = await (await browser.newContext()).newPage();
+test('one player creates a room; others join it by code and from the room list', async ({ newPlayer }) => {
   const pageErrors: Error[] = [];
-  for (const page of [host, byCode, byList]) page.on('pageerror', (err) => pageErrors.push(err));
+  const host = await newPlayer(pageErrors);
+  const byCode = await newPlayer(pageErrors);
+  const byList = await newPlayer(pageErrors);
 
   // The list player opens Play first, so the new room has to arrive through the live listing.
   await toPlay(byList, 'Lister');
