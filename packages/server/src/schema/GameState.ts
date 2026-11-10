@@ -40,6 +40,23 @@ export const PlayerState = schema(
     target: t.uint32().default(0),
     /** Item points this player deposited this round (§5 tie-break, Timed ranking input). */
     deposited: t.uint16().default(0),
+    /**
+     * Round results (§5, M3-5), set when 'playing' ends and reset to 0 at each countdown.
+     * `place`: 1-based placement in the round just played (the team's place with Teams on; ties share
+     * the higher place); 0 = not ranked (spectated that round, or the round is still running).
+     */
+    place: t.uint8().default(0),
+    /** Placement points earned in the round just played (10, 7, 5, 3, then 1; `config.placementPoints`). */
+    roundPoints: t.uint8().default(0),
+    /** Placement points summed over this session's finished rounds. Reset at Start and in the lobby. */
+    sessionPoints: t.uint16().default(0),
+    /** Item points deposited over this session's finished rounds (§5 tie-break). */
+    sessionItemPoints: t.uint16().default(0),
+    /**
+     * Session standing after the last finished round (podium): most sessionPoints, then sessionItemPoints;
+     * the team's standing with Teams on. 0 = not ranked yet.
+     */
+    sessionPlace: t.uint8().default(0),
   },
   'PlayerState',
 );
@@ -82,6 +99,31 @@ export const VanState = schema(
 );
 export type VanState = SchemaType<typeof VanState>;
 
+/**
+ * One team's results with Teams on (§4.3, §5, M3-5). Keyed by String(team) ('1', '2') in `GameState.teams`.
+ * Created at Start when Teams is on; round fields set when 'playing' ends, reset at each countdown.
+ */
+export const TeamState = schema(
+  {
+    /** 1 or 2. */
+    team: t.uint8().default(0),
+    /** Placement in the round just played; 0 = not ranked (round running, or the team had no players). */
+    place: t.uint8().default(0),
+    /** The team's item points in the round just played (sum of its members' deposits). */
+    itemPoints: t.uint16().default(0),
+    /** Placement points the team earned in the round just played. */
+    roundPoints: t.uint8().default(0),
+    /** Placement points over this session's finished rounds. */
+    sessionPoints: t.uint16().default(0),
+    /** Item points over this session's finished rounds (tie-break). */
+    sessionItemPoints: t.uint16().default(0),
+    /** Session standing after the last finished round; 0 = not ranked yet. */
+    sessionPlace: t.uint8().default(0),
+  },
+  'TeamState',
+);
+export type TeamState = SchemaType<typeof TeamState>;
+
 /** Host settings (§13.1). */
 export const RoomSettingsState = schema(
   {
@@ -114,6 +156,8 @@ export const GameState = schema(
     items: t.map(ItemState),
     /** Vans in use this round with their banked item points (M3-4). */
     vans: t.map(VanState),
+    /** Team results with Teams on (M3-5); empty in free-for-all and in the lobby. */
+    teams: t.map(TeamState),
   },
   'GameState',
 );

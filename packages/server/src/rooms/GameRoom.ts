@@ -14,10 +14,14 @@ import {
   normalizeRoomCode,
   phaseSeconds,
   pickHost,
+  placementPointsFor,
+  rankSession,
+  rankTimedRound,
   sanitizeProfile,
   settingsUpdateSchema,
   shuffleTeams,
   teamForJoiner,
+  teamSideId,
   totalRounds,
   type GameConfig,
   type GameJoinOptions,
@@ -29,8 +33,9 @@ import {
   type Rng,
   type RosterEntry,
   type RoundPhase,
+  type SessionSide,
 } from '@keke/shared';
-import { GameState, PlayerState } from '../schema/GameState';
+import { GameState, PlayerState, TeamState } from '../schema/GameState';
 import { ItemSystem } from '../systems/items';
 import { MovementSystem } from '../systems/movement';
 
@@ -210,6 +215,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (!canStart(this.state.players.values())) return this.refuse(client, ClientMessage.start, 'not_ready');
     this.state.round = 1;
     this.state.totalRounds = totalRounds(this.state.settings.roundsPerMap);
+    this.resetSession(true);
     this.enterPhase(nextPhase('lobby', this.progress()));
   }
 
@@ -253,8 +259,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (phase === 'countdown') {
       this.admitSpectators();
       this.spawnPlayers();
+      this.clearRoundResults();
     }
     if (phase === 'playing') this.playingSince = this.clock.currentTime;
+    if (phase === 'roundResults') this.scoreRound();
     if (phase === 'lobby') this.resetToLobby();
     this.runSimulation(phase === 'playing');
 
@@ -284,6 +292,110 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     for (const p of active) p.van = vans.get(p.sessionId) ?? 0;
     this.movement.spawn(active);
     this.items.startRound(active);
+  }
+
+  // --- Round results and session score (§4.1, §5) ---------------------------------------------
+
+  /**
+   * The round clock ran out (or something ended 'playing'): rank the players who took part on the item
+   * points they deposited, give placement points and add both to the session totals. Items are frozen
+   * from here on (no inputs outside 'playing'), so `deposited` is final.
+   * Race mode (M6) ranks by delivery and "items you control"; until then it falls back to deposits.
+   */
+  private scoreRound(): void {
+    const teams = this.state.settings.teams;
+    const active = [...this.state.players.values()].filter((p) => !p.spectator);
+    const result = rankTimedRound(
+      active.map((p) => ({ id: p.sessionId, itemPoints: p.deposited, team: p.team })),
+      teams,
+    );
+    for (const placement of result.players) {
+      const player = this.state.players.get(placement.id);
+      if (!player) continue;
+      player.place = placement.place;
+      player.roundPoints = placementPointsFor(placement.place, this.config);
+      player.sessionPoints += player.roundPoints;
+      player.sessionItemPoints += placement.itemPoints;
+    }
+    if (teams) {
+      for (const side of result.standings) {
+        const team = this.teamState(side.id);
+        if (!team) continue;
+        team.place = side.place;
+        team.itemPoints = side.itemPoints;
+        team.roundPoints = placementPointsFor(side.place, this.config);
+        team.sessionPoints += team.roundPoints;
+        team.sessionItemPoints += side.itemPoints;
+      }
+    }
+    this.rankSessionStandings();
+  }
+
+  /**
+   * Session standings (§5): most placement points, then most item points. With Teams on the teams are
+   * ranked (members take their team's place) and a player without a team stands alone.
+   */
+  private rankSessionStandings(): void {
+    const teams = this.state.settings.teams;
+    const active = [...this.state.players.values()].filter((p) => !p.spectator);
+    const sides: SessionSide[] = [];
+    const sideOf = (p: PlayerState): string => (teams && p.team > 0 ? teamSideId(p.team) : p.sessionId);
+    if (teams) {
+      this.state.teams.forEach((t) => {
+        const hasMembers = active.some((p) => p.team === t.team);
+        if (hasMembers || t.sessionPoints > 0 || t.sessionItemPoints > 0) {
+          sides.push({ id: teamSideId(t.team), points: t.sessionPoints, itemPoints: t.sessionItemPoints });
+        }
+      });
+    }
+    for (const p of active) {
+      if (sideOf(p) === p.sessionId) {
+        sides.push({ id: p.sessionId, points: p.sessionPoints, itemPoints: p.sessionItemPoints });
+      }
+    }
+    const placeOf = new Map(rankSession(sides).map((s) => [s.id, s.place]));
+    this.state.teams.forEach((t) => (t.sessionPlace = placeOf.get(teamSideId(t.team)) ?? 0));
+    this.state.players.forEach((p) => (p.sessionPlace = p.spectator ? 0 : (placeOf.get(sideOf(p)) ?? 0)));
+  }
+
+  /** The TeamState for a `team:<n>` standings id, or undefined for a player side. */
+  private teamState(sideId: string): TeamState | undefined {
+    for (const team of [1, 2]) {
+      if (sideId === teamSideId(team)) return this.state.teams.get(String(team));
+    }
+    return undefined;
+  }
+
+  /** Countdown: the previous round's places and points are cleared; session totals stay. */
+  private clearRoundResults(): void {
+    this.state.players.forEach((p) => {
+      p.place = 0;
+      p.roundPoints = 0;
+    });
+    this.state.teams.forEach((t) => {
+      t.place = 0;
+      t.itemPoints = 0;
+      t.roundPoints = 0;
+    });
+  }
+
+  /** Start of a session (and back in the lobby): every total back to 0. At Start, Teams on gets both team entries. */
+  private resetSession(starting: boolean): void {
+    this.state.players.forEach((p) => {
+      p.place = 0;
+      p.roundPoints = 0;
+      p.sessionPoints = 0;
+      p.sessionItemPoints = 0;
+      p.sessionPlace = 0;
+    });
+    this.state.teams.clear();
+    if (starting && this.state.settings.teams) {
+      for (const n of [1, 2]) {
+        const team = new TeamState();
+        team.team = n;
+        this.state.teams.set(String(n), team);
+      }
+    }
   }
 
   /** Starts or stops the 20 Hz movement tick. Inputs queued outside 'playing' never run. */
@@ -328,6 +440,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   private resetToLobby(): void {
     this.items.reset();
+    this.resetSession(false);
     this.state.round = 0;
     this.state.totalRounds = 0;
     this.state.players.forEach((p) => {

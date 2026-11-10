@@ -95,6 +95,7 @@ export {
   type TimedPlayerScore,
   type TimedRoundResult,
 } from './rules/modes/timed';
+export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,
   OBJECT_LAYERS,
