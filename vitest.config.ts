@@ -1,8 +1,18 @@
 import { defineConfig } from 'vitest/config';
 
-// One Vitest run covers every workspace package; each package has its own vitest.config.ts.
+// One Vitest run covers every workspace package (each has its own vitest.config.ts)
+// plus repo-wide guard tests under tests/guards/.
 export default defineConfig({
   test: {
-    projects: ['packages/*'],
+    projects: [
+      'packages/*',
+      {
+        test: {
+          name: 'repo',
+          include: ['tests/guards/**/*.test.ts'],
+          environment: 'node',
+        },
+      },
+    ],
   },
 });

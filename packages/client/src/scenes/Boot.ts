@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import en from '../i18n/en.json';
+import { t } from '../i18n';
 import { joinHelloRoom } from '../net/connection';
 import { serverEndpoint } from '../net/endpoint';
 
@@ -25,7 +25,7 @@ export class BootScene extends Phaser.Scene {
       this.label.setPosition(size.width / 2, size.height / 2);
     });
 
-    this.setStatus('connecting', en['boot.connecting']);
+    this.setStatus('connecting', t('boot.connecting'));
     void this.connect();
   }
 
@@ -34,12 +34,12 @@ export class BootScene extends Phaser.Scene {
       const room = await joinHelloRoom(serverEndpoint(window.location, import.meta.env.DEV));
       // The server greets each client with a "hello" message; nothing to do with it yet.
       room.onMessage('hello', () => undefined);
-      room.onLeave(() => this.setStatus('disconnected', en['boot.disconnected']));
-      this.setStatus('connected', en['boot.connected']);
+      room.onLeave(() => this.setStatus('disconnected', t('boot.disconnected')));
+      this.setStatus('connected', t('boot.connected'));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[keke] could not join the hello room', err);
-      this.setStatus('error', en['boot.error'].replace('{message}', message));
+      this.setStatus('error', t('boot.error', { message }));
     }
   }
 
