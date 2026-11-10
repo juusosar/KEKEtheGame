@@ -128,6 +128,10 @@ describe('GameRoom round flow and scoring (integration)', () => {
   function endRound(room: GameRoom, players: Player[], deposits: number[]): void {
     expect(room.state.phase).toBe('playing');
     players.forEach((p, i) => (p.me.deposited = deposits[i] ?? 0));
+    // A deposit also banks the points in the deposit van; with Teams on the team score comes from there.
+    room.state.vans.forEach((van) => {
+      van.points = players.reduce((sum, p, i) => sum + (p.me.van === van.van ? (deposits[i] ?? 0) : 0), 0);
+    });
     room.advancePhase();
     expect(room.state.phase).toBe('roundResults');
   }
@@ -136,6 +140,23 @@ describe('GameRoom round flow and scoring (integration)', () => {
     const seq = ++p.seq;
     p.conn.send(ClientMessage.input, { seq, move: { x: 0, y: 0 }, aim: 0, buttons });
     await waitFor(() => p.me.ack === seq);
+  }
+
+  /** A real deposit: pick up the own target and teleport it to the own van. Returns the points scored. */
+  async function depositTarget(room: GameRoom, p: Player): Promise<number> {
+    const target = room.state.items.get(String(p.me.target));
+    if (!target) throw new Error('no target');
+    p.me.x = target.x;
+    p.me.y = target.y;
+    await press(p, Button.Interact);
+    await press(p);
+    expect(p.me.carrying).not.toBe(0);
+    const van = vanSpawn(map, p.me.van, playerHalfSize(config));
+    p.me.x = van.x;
+    p.me.y = van.y;
+    await press(p);
+    expect(p.me.deposited).toBeGreaterThan(0);
+    return p.me.deposited;
   }
 
   it('runs a 3-2-1 countdown, a timedRoundSeconds clock, and ranks the round when it hits 0', async () => {
@@ -160,19 +181,7 @@ describe('GameRoom round flow and scoring (integration)', () => {
     expect(a.me.place).toBe(0);
 
     // A real deposit: pick up the own target and walk it (teleport) to the own van.
-    const target = room.state.items.get(String(a.me.target));
-    if (!target) throw new Error('no target');
-    a.me.x = target.x;
-    a.me.y = target.y;
-    await press(a, Button.Interact);
-    await press(a);
-    expect(a.me.carrying).not.toBe(0);
-    const van = vanSpawn(map, a.me.van, playerHalfSize(config));
-    a.me.x = van.x;
-    a.me.y = van.y;
-    await press(a);
-    expect(a.me.deposited).toBeGreaterThan(0);
-    const points = a.me.deposited;
+    const points = await depositTarget(room, a);
 
     // Nobody ends the round: the clock does.
     await waitFor(() => room.state.phase === 'roundResults', (ROUND_SECONDS + 3) * 1000);
@@ -268,6 +277,30 @@ describe('GameRoom round flow and scoring (integration)', () => {
     room.advancePhase(); // podium
     room.advancePhase(); // lobby
     expect(room.state.teams.size).toBe(0);
+  });
+
+  it("keeps a teammate's deposits in the team score after they leave for good (M3 review F3)", async () => {
+    const { room, players } = await playingRoom(4, { teams: true });
+    const leaver = players.find((p) => p.me.team === 1);
+    if (!leaver) throw new Error('no team 1 player');
+    const leaverId = leaver.conn.sessionId;
+    const points = await depositTarget(room, leaver);
+    const van = room.state.vans.get(String(leaver.me.van));
+    await waitFor(() => van?.points === points);
+
+    await leaver.conn.leave(); // consented: the PlayerState goes at once
+    await waitFor(() => !room.state.players.has(leaverId));
+    const stayed = players.filter((p) => p !== leaver);
+    room.advancePhase(); // round results, nobody else scored
+
+    const team1 = room.state.teams.get('1');
+    const team2 = room.state.teams.get('2');
+    expect([team1?.place, team1?.itemPoints, team1?.roundPoints]).toEqual([1, points, 10]);
+    expect([team2?.place, team2?.itemPoints, team2?.roundPoints]).toEqual([2, 0, 7]);
+    for (const p of stayed) {
+      expect(p.me.place).toBe(p.me.team === 1 ? 1 : 2);
+      expect(p.me.sessionItemPoints).toBe(0); // personal deposits stay personal
+    }
   });
 
   it('does not rank a spectator, and ranks them from the next round with a fresh total', async () => {

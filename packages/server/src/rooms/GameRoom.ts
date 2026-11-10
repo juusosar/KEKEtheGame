@@ -20,6 +20,7 @@ import {
   playerHalfSize,
   rankSession,
   rankTimedRound,
+  teamPointsFromVans,
   sanitizeProfile,
   settingsUpdateSchema,
   shuffleTeams,
@@ -388,9 +389,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private scoreRound(): void {
     const teams = this.state.settings.teams;
     const active = [...this.state.players.values()].filter((p) => !p.spectator);
+    // Teams: the van's banked total, so a member who left for good still counts (§3.2, §4.3; M3 review F3).
     const result = rankTimedRound(
       active.map((p) => ({ id: p.sessionId, itemPoints: p.deposited, team: p.team })),
       teams,
+      teams ? teamPointsFromVans(this.state.vans.values()) : undefined,
     );
     for (const placement of result.players) {
       const player = this.state.players.get(placement.id);
