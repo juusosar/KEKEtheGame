@@ -33,6 +33,17 @@ export interface KekeCombatEvent {
   payload: unknown;
 }
 
+/** A projectile in flight (M4-3), at its server position from the last patch. */
+export interface KekeProjectileSnapshot {
+  id: number;
+  /** Weapon id that threw it. */
+  weapon: string;
+  /** Thrower's session id. */
+  owner: string;
+  x: number;
+  y: number;
+}
+
 /** A remote player as the Game scene draws them (online only). */
 export interface KekeRemoteSnapshot extends KekeCombatSnapshot {
   /** Session id (same as the lobby's data-player-id). */
@@ -163,6 +174,8 @@ export interface KekeHook {
   combatEvents(): KekeCombatEvent[];
   /** Spray vision clouds in the world now (M4-4), world pixels; empty offline. */
   sprayClouds(): { x: number; y: number; radiusPx: number }[];
+  /** Projectiles in flight at the last patch (M4-3); empty offline. */
+  projectiles(): KekeProjectileSnapshot[];
   /** Items in the world, by id; empty offline and in the lobby. */
   items(): KekeItemSnapshot[];
   /** Vans drawn on the dock, by slot. Offline: slot 1 only. */

@@ -147,6 +147,36 @@ export const TeamState = schema(
 );
 export type TeamState = SchemaType<typeof TeamState>;
 
+/**
+ * A projectile in flight (§7 thrown, M4-3; the champagne cork in M4-6). Keyed by String(id) in
+ * `GameState.projectiles`. Owned by the server ProjectileSystem: created on a throw, moved every tick,
+ * and kept for one more tick with `landed` at the impact point (so clients can draw the splash there).
+ */
+export const ProjectileState = schema(
+  {
+    /** Unique within the room; starts at 1. */
+    id: t.uint32().default(0),
+    /** Weapon id that threw it (sprite / FX key). */
+    weapon: t.string().default(''),
+    /** sessionId of the thrower (the blocker after a reflect). */
+    owner: t.string().default(''),
+    /** Position in pixels. */
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    /** Velocity in pixels per second (0 once landed), for client extrapolation. */
+    vx: t.float32().default(0),
+    vy: t.float32().default(0),
+    /** Collision radius of the projectile. */
+    radius: t.float32().default(0),
+    /** Splash / burst radius where it lands; 0 = none. */
+    areaRadius: t.float32().default(0),
+    /** True for the one tick after it hit something; x/y is then the impact point. */
+    landed: t.boolean().default(false),
+  },
+  'ProjectileState',
+);
+export type ProjectileState = SchemaType<typeof ProjectileState>;
+
 /** Host settings (§13.1). */
 export const RoomSettingsState = schema(
   {
@@ -181,6 +211,8 @@ export const GameState = schema(
     vans: t.map(VanState),
     /** Team results with Teams on (M3-5); empty in free-for-all and in the lobby. */
     teams: t.map(TeamState),
+    /** Projectiles in flight (M4-3). Emptied in the lobby and at each countdown. */
+    projectiles: t.map(ProjectileState),
   },
   'GameState',
 );

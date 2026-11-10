@@ -146,6 +146,18 @@ export {
   sprayTickDue,
   type SprayCloud,
 } from './rules/spray';
+export {
+  aimDirection,
+  areaTargets,
+  reflectFlight,
+  stepProjectile,
+  sweepHitTime,
+  wallHitTime,
+  type ProjectileCandidate,
+  type ProjectileFlight,
+  type ProjectileImpact,
+  type ProjectileStep,
+} from './rules/projectile';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,
