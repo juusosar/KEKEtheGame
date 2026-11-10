@@ -3,7 +3,9 @@ import { entryScene } from '../game/entryScene';
 import { t } from '../i18n';
 import { joinHelloRoom } from '../net/connection';
 import { serverEndpoint } from '../net/endpoint';
-import { ROOM_CODE_REGISTRY_KEY } from '../net/session';
+import { gameClient } from '../net/client';
+import { ROOM_CODE_REGISTRY_KEY, markRoom, resumeRoom } from '../net/session';
+import { AFTER_JOIN_SCENE } from './Play';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
 
@@ -28,12 +30,19 @@ export class BootScene extends Phaser.Scene {
       backgroundColor: 'rgba(0,0,0,0.6)',
       padding: { x: 6, y: 3 },
     });
-    this.scene.launch(entryScene(window.location.search));
-    this.scene.bringToTop();
     this.registry.events.on(`changedata-${ROOM_CODE_REGISTRY_KEY}`, () => this.render());
-
     this.setStatus('connecting', t('boot.connecting'));
     void this.connect();
+    void this.start();
+  }
+
+  /** After a reload inside the reconnect window, go straight back into the room; else the entry scene. */
+  private async start(): Promise<void> {
+    const entry = entryScene(window.location.search);
+    const resumed = entry === 'Title' ? await resumeRoom(gameClient()) : null;
+    if (resumed !== null) markRoom(this.registry, resumed);
+    this.scene.launch(resumed !== null ? AFTER_JOIN_SCENE : entry);
+    this.scene.bringToTop();
   }
 
   private async connect(): Promise<void> {

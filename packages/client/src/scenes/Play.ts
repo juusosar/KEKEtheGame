@@ -19,7 +19,7 @@ import {
   cleanCodeInput,
   waitForRoomCode,
 } from '../net/rooms';
-import { ROOM_CODE_REGISTRY_KEY, setCurrentRoom } from '../net/session';
+import { markRoom, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
 import { createMenuLayer, h } from '../ui/dom';
 import type { PlaySceneData } from './Lobby';
@@ -175,8 +175,7 @@ export class PlayScene extends Phaser.Scene {
       return;
     }
     setCurrentRoom({ room, code });
-    this.registry.set(ROOM_CODE_REGISTRY_KEY, code);
-    document.body.dataset['room'] = code;
+    markRoom(this.registry, { room, code });
     this.scene.start(AFTER_JOIN_SCENE);
   }
 
