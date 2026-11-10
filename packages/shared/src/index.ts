@@ -37,6 +37,45 @@ export {
   type InputQueueConfig,
 } from './rules/input';
 export { findSpawn, vanSpawn, type SpawnMap } from './rules/spawn';
+export { NORMAL_ITEM_VALUE, itemValue, type ItemRarity } from './rules/scoring';
+export {
+  ANY_ZONE,
+  eligibleSpawns,
+  modelCAssigner,
+  spawnsForItem,
+  type TargetAssigner,
+  type TargetConfig,
+  type TargetItemDef,
+  type TargetMap,
+  type TargetPlacement,
+  type TargetRequest,
+  type TargetSpawnPoint,
+} from './rules/targets';
+export {
+  addCarryPlayer,
+  assignTargets,
+  createItemWorld,
+  deposit,
+  despawnLooseItems,
+  drop,
+  findItem,
+  findCarryPlayer,
+  isCarrying,
+  pickup,
+  removeCarryPlayer,
+  setPlayerVan,
+  vanPointsOf,
+  type AssignTargetsContext,
+  type CarryPlayer,
+  type CarryRejection,
+  type CarryResult,
+  type DropReason,
+  type ItemEvent,
+  type ItemWorld,
+  type PickupKind,
+  type WorldItem,
+  type WorldItemState,
+} from './rules/carry';
 export {
   isTimedRoundOver,
   rankByItemPoints,
