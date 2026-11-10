@@ -161,6 +161,8 @@ export interface KekeHook {
   minimap(): KekeMinimapMarker[];
   /** The last 50 combat broadcasts this client received, oldest first; empty offline. */
   combatEvents(): KekeCombatEvent[];
+  /** Spray vision clouds in the world now (M4-4), world pixels; empty offline. */
+  sprayClouds(): { x: number; y: number; radiusPx: number }[];
   /** Items in the world, by id; empty offline and in the lobby. */
   items(): KekeItemSnapshot[];
   /** Vans drawn on the dock, by slot. Offline: slot 1 only. */

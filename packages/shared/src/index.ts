@@ -138,6 +138,14 @@ export {
   type Knockback,
   type MeleeCandidate,
 } from './rules/melee';
+export {
+  clearLine,
+  sprayCloud,
+  sprayPushPx,
+  sprayTargets,
+  sprayTickDue,
+  type SprayCloud,
+} from './rules/spray';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,

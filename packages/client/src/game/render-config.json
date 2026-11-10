@@ -26,5 +26,8 @@
   "koAlpha": 0.45,
   "protectedBlinkHz": 8,
   "hpBarWidthPx": 18,
-  "hpBarOffsetY": 19
+  "hpBarOffsetY": 19,
+  "sprayFxAlpha": 0.45,
+  "sprayCloudAlpha": 0.8,
+  "sprayCloudFadeSeconds": 0.5
 }
