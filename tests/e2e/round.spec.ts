@@ -1,12 +1,22 @@
 import { expect, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
-import { createRoom, game, joinRoom, players, test, toPlay, waitControlling } from './helpers';
+import {
+  E2E_COUNTDOWN_SECONDS,
+  createRoom,
+  game,
+  joinRoom,
+  players,
+  test,
+  toPlay,
+  waitControlling,
+} from './helpers';
 
 // M3-9: a whole Timed round, start to finish, with two players. The Round intro shows the 3-2-1, the
 // host picks up their target and brings it to their van through the debug teleport, both clients'
 // scoreboards and feeds show the deposit, then the debug end-phase skips the clock to the Round results
 // and the Session podium, and everyone is back in the lobby.
 // Needs the e2e server's KEKE_DEBUG=1 (playwright.config.ts): teleport and end phase are debug-only.
+// Phase windows are checked on both pages at once (forBoth), never one page after the other (M3 review F2).
 
 type WithHook = { __KEKE__?: KekeHook };
 
@@ -66,9 +76,13 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
   for (const page of [host, guest]) await expect(players(page)).toHaveCount(2);
   for (const page of [host, guest]) await page.getByRole('button', { name: 'Ready', exact: true }).click();
   await host.getByRole('button', { name: 'Start' }).click();
+  // Per-page checks run on both pages at once, so a slow page cannot eat the other's phase window.
+  const forBoth = (check: (page: Page) => Promise<void>) => Promise.all([host, guest].map(check));
 
-  // Round intro: map, mode, round 1 of 1 and the 3-2-1 on both screens.
-  for (const page of [host, guest]) {
+  // Round intro: map, mode, round 1 of 1 and the countdown on both screens. The intro only lasts the
+  // countdown, so both pages are checked at the same time (M3 review F2), not one after the other.
+  const countPattern = new RegExp(`^[1-${E2E_COUNTDOWN_SECONDS}]$`);
+  await forBoth(async (page) => {
     await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 10_000 });
     const intro = page.getByRole('dialog', { name: 'Get ready' });
     await expect(intro).toBeVisible();
@@ -76,14 +90,14 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
     await expect(intro.locator('.intro-mode')).toHaveText('Timed');
     await expect(intro.locator('.intro-round')).toHaveText('Round 1 of 1');
     const count = page.getByRole('timer', { name: 'Round starts in' });
-    await expect(count).toHaveAttribute('data-seconds', /^[1-3]$/);
-    await expect(count).toHaveText(/^[1-3]$/);
-  }
-  for (const page of [host, guest]) {
+    await expect(count).toHaveAttribute('data-seconds', countPattern);
+    await expect(count).toHaveText(countPattern);
+  });
+  await forBoth(async (page) => {
     await waitControlling(page);
     await expect(page.locator('#keke-intro')).toHaveCount(0);
     await expect(page.locator('body')).toHaveAttribute('data-phase', 'playing');
-  }
+  });
 
   const hostId = (await game(host)).net?.sessionId ?? '';
   const guestId = (await game(guest)).net?.sessionId ?? '';
@@ -116,7 +130,7 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
   expect((await game(host)).net?.carrying).toBe(0);
 
   // Both scoreboards and feeds show it.
-  for (const page of [host, guest]) {
+  await forBoth(async (page) => {
     const scores = page.getByRole('list', { name: 'Scores' });
     await expect(scores.locator(`li[data-player-id="${hostId}"]`)).toHaveAttribute(
       'data-points',
@@ -126,11 +140,11 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
     await expect(scores.locator(`li[data-player-id="${guestId}"]`)).toHaveAttribute('data-points', '0');
     await expect(scores.locator(`li[data-player-id="${guestId}"]`)).toHaveAttribute('data-place', '2');
     await expect(page.locator('#keke-hud-feed li[data-kind="deposit"]')).toHaveCount(1);
-  }
+  });
 
   // Skip the rest of the clock: Round results on both screens.
   expect(await endPhase(host)).toBe(true);
-  for (const page of [host, guest]) {
+  await forBoth(async (page) => {
     const results = page.getByRole('dialog', { name: /Round 1 results/ });
     await expect(results).toBeVisible();
     await expect(page.locator('body')).toHaveAttribute('data-phase', 'roundResults');
@@ -153,11 +167,11 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
     // One round per map: the podium is next.
     await expect(page.locator('#keke-results-next')).toHaveText(/^Podium in \d+ s$/);
     expect(Number(await page.locator('#keke-results-next').getAttribute('data-seconds'))).toBeGreaterThan(0);
-  }
+  });
 
   // Session podium, then everyone is back in the lobby.
   expect(await endPhase(host)).toBe(true);
-  for (const page of [host, guest]) {
+  await forBoth(async (page) => {
     const podium = page.getByRole('dialog', { name: 'Session podium' });
     await expect(podium).toBeVisible();
     const sides = podium.locator('li[data-side-id]');
@@ -165,12 +179,12 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
     await expect(sides.first()).toHaveAttribute('data-side-id', hostId);
     await expect(sides.first()).toHaveAttribute('data-place', '1');
     await expect(sides.first()).toContainText('Hostia');
-  }
+  });
   expect(await endPhase(host)).toBe(true);
-  for (const page of [host, guest]) {
+  await forBoth(async (page) => {
     await expect(page.locator('body')).toHaveAttribute('data-scene', 'lobby', { timeout: 10_000 });
     await expect(page.locator('#keke-round')).toHaveCount(0);
-  }
+  });
 
   expect(pageErrors).toEqual([]);
 });

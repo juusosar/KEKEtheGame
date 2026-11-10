@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { ConfigError, MapError } from '@keke/shared';
 import { DEFAULT_CLIENT_DIST, resolvePort } from './app';
 import { devBanner, lanBanner } from './lan';
+import { readConfigOverride, type ConfigOverride } from './configOverride';
 import { MapFileError } from './maps';
 import { startServer } from './start';
 
@@ -11,8 +12,12 @@ const port = resolvePort(process.env['PORT']);
 const dev = process.argv.includes('--dev');
 // Debug-only room messages (teleport, end phase) for the e2e server. Never set this on a real server.
 const debug = process.env['KEKE_DEBUG'] === '1';
+// Optional JSON merged over config.json (test servers only, e.g. the e2e countdown). Validated like config.json.
+const configPath = process.env['KEKE_CONFIG'];
+let override: ConfigOverride | undefined;
 try {
-  await startServer({ port, debug });
+  if (configPath) override = readConfigOverride(configPath);
+  await startServer({ port, debug, rawConfig: override?.raw });
 } catch (err) {
   if (err instanceof ConfigError || err instanceof MapError || err instanceof MapFileError) {
     console.error(`[keke] Refusing to start. ${err.message}`);
@@ -24,6 +29,8 @@ try {
 console.log(`[keke] Server listening on port ${port}`);
 if (debug)
   console.log('[keke] KEKE_DEBUG=1: debug room messages (teleport, end phase) are ON. Not for real games.');
+if (override)
+  console.log(`[keke] KEKE_CONFIG=${override.path}: overrides ${override.keys.join(', ') || 'nothing'}.`);
 for (const line of dev ? devBanner(port) : lanBanner(port)) console.log(line);
 if (!dev && !existsSync(DEFAULT_CLIENT_DIST)) {
   console.log(

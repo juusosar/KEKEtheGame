@@ -79,9 +79,20 @@ export async function remoteSeen(page: Page, nickname: string): Promise<{ x: num
   return found ? { x: found.x, y: found.y } : null;
 }
 
+/**
+ * The e2e server's countdown (tests/e2e/config.e2e.json, merged over config.json through KEKE_CONFIG in
+ * playwright.config.ts). Copied here because specs cannot import JSON from the shared package.
+ */
+export const E2E_COUNTDOWN_SECONDS = 6;
+
+/** How long to wait from Start until the round is playing: the countdown plus the scene switch. */
+export const UNTIL_PLAYING_MS = (E2E_COUNTDOWN_SECONDS + 10) * 1000;
+
 /** Waits for the countdown to end, i.e. until the local player is predicted and sends inputs. */
 export async function waitControlling(page: Page): Promise<void> {
-  await expect.poll(async () => (await game(page)).net?.controlling, { timeout: 10_000 }).toBe(true);
+  await expect
+    .poll(async () => (await game(page)).net?.controlling, { timeout: UNTIL_PLAYING_MS })
+    .toBe(true);
 }
 
 /**
