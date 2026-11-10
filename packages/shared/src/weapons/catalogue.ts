@@ -21,7 +21,7 @@ const positive = z.number().positive();
 const fraction = z.number().min(0).max(1);
 const degrees = z.number().positive().max(360);
 
-const meleeSchema = z
+export const meleeStatsSchema = z
   .object({
     damage: nonNegative,
     /** Reach from the body centre. */
@@ -119,7 +119,7 @@ const base = {
 };
 
 export const weaponSchema = z.discriminatedUnion('behaviour', [
-  z.object({ ...base, behaviour: z.literal('melee'), melee: meleeSchema }).strict(),
+  z.object({ ...base, behaviour: z.literal('melee'), melee: meleeStatsSchema }).strict(),
   z.object({ ...base, behaviour: z.literal('spray'), spray: spraySchema }).strict(),
   z.object({ ...base, behaviour: z.literal('thrown'), projectile: projectileSchema }).strict(),
   z.object({ ...base, behaviour: z.literal('trap'), trap: trapSchema }).strict(),
@@ -130,7 +130,7 @@ export const weaponSchema = z.discriminatedUnion('behaviour', [
       /** The first `shotUses` of `uses` fire `shot`; the rest are `melee` swings. */
       shotUses: z.number().int().positive(),
       shot: projectileSchema,
-      melee: meleeSchema,
+      melee: meleeStatsSchema,
     })
     .strict(),
   z.object({ ...base, behaviour: z.literal('charge'), charge: chargeSchema }).strict(),
@@ -197,7 +197,7 @@ export const weaponCatalogueSchema = z
 type RawWeapon = z.infer<typeof weaponSchema>;
 /** A weapon definition, discriminated on `behaviour`. `sprite` is always filled in. Frozen at load. */
 export type WeaponDef = Readonly<RawWeapon> & { readonly sprite: string };
-export type MeleeStats = z.infer<typeof meleeSchema>;
+export type MeleeStats = z.infer<typeof meleeStatsSchema>;
 export type ProjectileStats = z.infer<typeof projectileSchema>;
 export type SprayStats = z.infer<typeof spraySchema>;
 export type TrapStats = z.infer<typeof trapSchema>;

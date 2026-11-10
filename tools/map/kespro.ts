@@ -205,8 +205,9 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
   ],
 };
 
-const NPC_SPAWN_TILES: readonly (readonly [string, number, number])[] = [
-  ['security', 30, 9], // post at the staff-only door
+/** [type, x, y, post]: `post` makes the NPC stand guard there instead of patrolling (§8). */
+const NPC_SPAWN_TILES: readonly (readonly [string, number, number, boolean?])[] = [
+  ['security', 30, 9, true], // post at the staff-only door
   ['security', 85, 40], // entrance
   ['security', 76, 28],
   ['stocker', 40, 10],
@@ -531,8 +532,11 @@ export function buildKesproMap(
     spots.map(([x, y]) => point(centre(x), centre(y), '', [{ name: 'zone', type: 'string', value: zone }])),
   );
 
-  const npcSpawns = NPC_SPAWN_TILES.map(([type, x, y]) =>
-    point(centre(x), centre(y), type, [{ name: 'type', type: 'string', value: type }]),
+  const npcSpawns = NPC_SPAWN_TILES.map(([type, x, y, post]) =>
+    point(centre(x), centre(y), type, [
+      { name: 'type', type: 'string', value: type },
+      ...(post === true ? [{ name: 'post', type: 'bool', value: true } satisfies Property] : []),
+    ]),
   );
 
   const waypoints = NPC_WAYPOINT_TILES.map(([x, y], i) => point(centre(x), centre(y), `wp_${i + 1}`, []));

@@ -1,0 +1,69 @@
+{
+  "npcs": [
+    {
+      "id": "stocker",
+      "name": "Stocker",
+      "behaviour": "stocker",
+      "hp": 60,
+      "hitboxPx": 20,
+      "speedPxPerSecond": 80,
+      "count": { "base": 0, "per": { "players": 2, "add": 1 }, "min": 3 },
+      "wander": { "pauseSeconds": { "min": 1, "max": 4 } },
+      "retaliation": {
+        "seconds": 10,
+        "speedPxPerSecond": 140,
+        "cooldownSeconds": 0.8,
+        "melee": { "damage": 8, "rangePx": 30, "arcDegrees": 90, "knockbackPx": 16, "stunSeconds": 0 }
+      },
+      "stockCart": { "chancePerStop": 0.2, "seconds": 8, "lengthTiles": 2 }
+    },
+    {
+      "id": "security",
+      "name": "Security guard",
+      "behaviour": "security",
+      "hp": 120,
+      "hitboxPx": 22,
+      "speedPxPerSecond": 90,
+      "count": { "base": 2, "per": { "players": 6, "add": 1 }, "min": 0 },
+      "patrol": { "pauseSeconds": { "min": 1, "max": 3 } },
+      "chase": { "speedPxPerSecond": 150, "sightRangeTiles": 12, "loseSightSeconds": 4 },
+      "attack": {
+        "cooldownSeconds": 1,
+        "melee": { "damage": 15, "rangePx": 32, "arcDegrees": 90, "knockbackPx": 16, "stunSeconds": 0.5 }
+      }
+    },
+    {
+      "id": "forklift",
+      "name": "Forklift",
+      "behaviour": "forklift",
+      "hp": null,
+      "hitboxPx": 30,
+      "speedPxPerSecond": 110,
+      "count": { "base": 2, "min": 0 },
+      "cornerStopSeconds": 1,
+      "contact": {
+        "damage": 25,
+        "knockdownSeconds": 1,
+        "knockbackPx": 64,
+        "dropsCarried": true,
+        "hitCooldownSeconds": 1
+      },
+      "warning": { "beepIntervalSeconds": 0.8, "lightRadiusPx": 96 }
+    },
+    {
+      "id": "butcher",
+      "name": "Butcher",
+      "behaviour": "butcher",
+      "hp": 100,
+      "hitboxPx": 22,
+      "speedPxPerSecond": 100,
+      "count": { "base": 1, "min": 0 },
+      "guardZone": "behind_counter",
+      "homeZone": "meat_fish",
+      "attack": {
+        "cooldownSeconds": 1,
+        "melee": { "damage": 20, "rangePx": 34, "arcDegrees": 100, "knockbackPx": 24, "stunSeconds": 0 }
+      }
+    }
+  ]
+}

@@ -157,9 +157,19 @@ describe('loadMap: object layers', () => {
 
   it('reads NPC spawn types from a property or the object class', () => {
     expect(map.npcSpawns).toEqual([
-      { x: 144, y: 240, type: 'butcher' },
-      { x: 288, y: 200, type: 'security' },
+      { x: 144, y: 240, type: 'butcher', post: false },
+      { x: 288, y: 200, type: 'security', post: false },
     ]);
+  });
+
+  it('reads the optional NPC spawn post flag and rejects a non-boolean one', () => {
+    const raw = cloneFixture();
+    const objects = layerOf(raw, 'npc_spawns').objects as { properties?: unknown[] }[];
+    const guard = objects[1] as { properties?: unknown[] };
+    guard.properties = [{ name: 'post', type: 'bool', value: true }];
+    expect(loadMap(raw, 'test-map').npcSpawns[1]).toMatchObject({ type: 'security', post: true });
+    guard.properties = [{ name: 'post', type: 'string', value: 'yes' }];
+    expect(issuesOf(raw).join('\n')).toMatch(/npc_spawns #12: property "post" must be a boolean/);
   });
 
   it('reads NPC waypoints', () => {

@@ -7,6 +7,7 @@ export * from './profile';
 export * from './lobby';
 export * from './items';
 export * from './weapons';
+export * from './npcs';
 export {
   aabbOverlapsSolid,
   circleSeparation,
@@ -205,6 +206,19 @@ export {
   type WantedWorld,
   type WitnessContext,
 } from './rules/wanted';
+export {
+  advanceAlongPath,
+  findPath,
+  findTilePath,
+  isWalkableTile,
+  tileCentre,
+  tileOf,
+  walkableLine,
+  type PathOptions,
+  type PathStep,
+  type TilePathOptions,
+  type TilePoint,
+} from './rules/pathfinding';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,

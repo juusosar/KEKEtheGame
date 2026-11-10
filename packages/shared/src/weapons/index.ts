@@ -5,6 +5,7 @@ export {
   attackMode,
   getWeaponCatalogue,
   loadWeaponCatalogue,
+  meleeStatsSchema,
   weaponCatalogueSchema,
   weaponSchema,
   type AttackMode,
