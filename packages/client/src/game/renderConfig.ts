@@ -32,6 +32,18 @@ export interface RenderConfig {
   readonly vanOutlinePx: number;
   /** Period of the joke-item twinkle (§10.1: "a little sparkle so everyone notices them"), seconds. */
   readonly jokeTwinkleSeconds: number;
+  /** Rows in the HUD mini scoreboard before our own row is added (§13.2: top 5 + you). */
+  readonly hudMiniRows: number;
+  /** Event feed lines kept on screen at once. */
+  readonly hudFeedLines: number;
+  /** Seconds an event feed line stays. */
+  readonly hudFeedSeconds: number;
+  /** The round timer turns to its warning style at or below this many seconds. */
+  readonly hudTimerWarnSeconds: number;
+  /** Target arrow distance from the screen edge, CSS px. */
+  readonly hudArrowMarginPx: number;
+  /** How far the target arrow floats above an on-screen target, CSS px. */
+  readonly hudArrowHoverPx: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -59,6 +71,12 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const itemOutlinePx = num('itemOutlinePx', (n) => Number.isInteger(n) && n >= 0, 'an integer >= 0');
   const vanOutlinePx = num('vanOutlinePx', (n) => n >= 0, '>= 0');
   const jokeTwinkleSeconds = num('jokeTwinkleSeconds', (n) => n > 0, 'positive');
+  const hudMiniRows = num('hudMiniRows', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
+  const hudFeedLines = num('hudFeedLines', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
+  const hudFeedSeconds = num('hudFeedSeconds', (n) => n > 0, 'positive');
+  const hudTimerWarnSeconds = num('hudTimerWarnSeconds', (n) => n >= 0, '>= 0');
+  const hudArrowMarginPx = num('hudArrowMarginPx', (n) => n >= 0, '>= 0');
+  const hudArrowHoverPx = num('hudArrowHoverPx', (n) => n >= 0, '>= 0');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -77,6 +95,12 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     itemOutlinePx,
     vanOutlinePx,
     jokeTwinkleSeconds,
+    hudMiniRows,
+    hudFeedLines,
+    hudFeedSeconds,
+    hudTimerWarnSeconds,
+    hudArrowMarginPx,
+    hudArrowHoverPx,
   });
 }
 

@@ -4,7 +4,8 @@ import type { AimAssist } from './aim';
 import { inputConfig, type InputConfig } from './config';
 import type { InputDevice } from './device';
 import { InputFrameBuilder } from './frame';
-import type { GamepadSnapshot } from './gamepad';
+import { STANDARD, type GamepadSnapshot } from './gamepad';
+import { KEY_BINDINGS } from './keyboardMouse';
 
 /**
  * Phaser glue for §13.3: reads keyboard, mouse and the first connected gamepad (Phaser gamepad
@@ -89,6 +90,16 @@ export class InputManager {
       gamepad: this.readPad(),
       origin: this.origin,
     });
+  }
+
+  /**
+   * True while the scoreboard key (Tab) or pad View is held (§13.3). Read every frame by the HUD,
+   * also while the player is not simulated (countdown, spectating), so it does not go through `sample()`.
+   */
+  scoreboardHeld(): boolean {
+    if (this.keys.has(KEY_BINDINGS.scoreboard)) return true;
+    const pad = this.scene.input.gamepad?.getAll().find((p) => p.connected);
+    return pad?.buttons[STANDARD.buttons.view]?.pressed ?? false;
   }
 
   destroy(): void {
