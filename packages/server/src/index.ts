@@ -9,8 +9,10 @@ import { startServer } from './start';
 const port = resolvePort(process.env['PORT']);
 // `npm run dev` passes --dev: the page is then served by Vite, not by this server.
 const dev = process.argv.includes('--dev');
+// Debug-only room messages (teleport, end phase) for the e2e server. Never set this on a real server.
+const debug = process.env['KEKE_DEBUG'] === '1';
 try {
-  await startServer({ port });
+  await startServer({ port, debug });
 } catch (err) {
   if (err instanceof ConfigError || err instanceof MapError || err instanceof MapFileError) {
     console.error(`[keke] Refusing to start. ${err.message}`);
@@ -20,6 +22,8 @@ try {
 }
 
 console.log(`[keke] Server listening on port ${port}`);
+if (debug)
+  console.log('[keke] KEKE_DEBUG=1: debug room messages (teleport, end phase) are ON. Not for real games.');
 for (const line of dev ? devBanner(port) : lanBanner(port)) console.log(line);
 if (!dev && !existsSync(DEFAULT_CLIENT_DIST)) {
   console.log(

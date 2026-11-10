@@ -529,3 +529,138 @@
 .keke-hud .hud-arrow[data-kind='van']::before {
   border-left-color: #4fd1ff;
 }
+
+/* Round intro, results and podium panels (§13.1), see hud/RoundScreen.ts. Above the HUD (z 10). */
+.keke-round {
+  --keke-accent: #ff6a13;
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+  color: #f2f2f2;
+  text-shadow: 0 1px 0 #000;
+}
+.keke-round:empty {
+  display: none;
+}
+.keke-round .round-panel {
+  box-sizing: border-box;
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 18px 22px;
+  background: rgba(20, 20, 20, 0.9);
+  border-top: 6px solid var(--keke-accent);
+  border-radius: 6px;
+  text-align: center;
+}
+.keke-round h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+.keke-round .round-intro {
+  width: min(380px, calc(100vw - 32px));
+  background: rgba(20, 20, 20, 0.72);
+}
+.keke-round .round-intro p {
+  margin: 4px 0;
+}
+.keke-round .intro-map {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--keke-accent);
+}
+.keke-round .intro-count {
+  margin-top: 8px;
+  font:
+    800 84px/1 ui-monospace,
+    monospace;
+}
+.keke-round table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 15px;
+  text-align: left;
+}
+.keke-round th,
+.keke-round td {
+  padding: 5px 6px;
+}
+.keke-round th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #bdbdbd;
+  border-bottom: 1px solid #444;
+}
+.keke-round td.round-points {
+  color: #8be08b;
+  font-weight: 700;
+}
+.keke-round tr.me {
+  background: color-mix(in srgb, var(--keke-accent) 30%, transparent);
+}
+.keke-round tr.team-1 td.player strong {
+  color: #e53935;
+}
+.keke-round tr.team-2 td.player strong {
+  color: #3fa9f5;
+}
+.keke-round .members {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #bdbdbd;
+}
+.keke-round .swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+.keke-round .round-next {
+  margin: 8px 0 0;
+  color: #bdbdbd;
+}
+.keke-round .podium-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.keke-round .podium-list li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 10px;
+  font-size: 16px;
+}
+.keke-round .podium-list li .name {
+  flex: 1;
+  text-align: left;
+}
+.keke-round .podium-list li.place-1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffd54f;
+}
+.keke-round .podium-list li.place-2 {
+  font-size: 21px;
+  color: #e0e0e0;
+}
+.keke-round .podium-list li.place-3 {
+  font-size: 18px;
+  color: #d7a26b;
+}
+.keke-round .podium-list li.me {
+  background: color-mix(in srgb, var(--keke-accent) 30%, transparent);
+}
+/* The in-round HUD steps back while the results and podium are up. */
+body[data-phase='roundResults'] .keke-hud,
+body[data-phase='podium'] .keke-hud {
+  display: none;
+}

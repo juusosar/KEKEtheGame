@@ -23,6 +23,22 @@ export const ClientMessage = {
   input: 'input',
 } as const;
 
+/**
+ * Debug-only client → server messages (§17). The server registers them only when it runs with
+ * `KEKE_DEBUG=1` (the e2e server does); a normal server ignores them. Never enable that in production.
+ */
+export const DebugMessage = {
+  /** `{ x, y }` body centre in pixels: moves the sender. Phase 'playing', not spectating, not into a wall. */
+  teleport: 'debugTeleport',
+  /** No payload. Host only, any phase but 'lobby': ends the current phase now (short rounds in e2e). */
+  endPhase: 'debugEndPhase',
+} as const;
+
+export interface DebugTeleportMessage {
+  x: number;
+  y: number;
+}
+
 /** Server → client message types. */
 export const ServerMessage = {
   /** `LobbyErrorMessage`, sent to the client whose request was refused. */

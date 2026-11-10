@@ -3,7 +3,9 @@
 import { Room, ServerError, type AuthContext, type Client, type Delayed } from '@colyseus/core';
 import {
   ClientMessage,
+  DebugMessage,
   ServerMessage,
+  aabbOverlapsSolid,
   balanceTeams,
   canStart,
   assignVans,
@@ -15,6 +17,7 @@ import {
   phaseSeconds,
   pickHost,
   placementPointsFor,
+  playerHalfSize,
   rankSession,
   rankTimedRound,
   sanitizeProfile,
@@ -58,6 +61,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   protected abstract readonly config: GameConfig;
   /** The map this room simulates on; `gameRoomWithConfig` supplies it. */
   protected abstract readonly map: MapModel;
+  /** Debug-only messages (teleport, end phase) are accepted. Off unless the server runs with KEKE_DEBUG=1. */
+  protected readonly debug: boolean = false;
 
   override state = new GameState();
 
@@ -84,6 +89,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.onMessage(ClientMessage.start, (client) => this.handleStart(client));
     this.onMessage(ClientMessage.profile, (client, message: unknown) => this.handleProfile(client, message));
     this.onMessage(ClientMessage.input, (client, message: unknown) => this.handleInput(client, message));
+    if (this.debug) {
+      this.onMessage(DebugMessage.teleport, (client, message: unknown) =>
+        this.handleDebugTeleport(client, message),
+      );
+      this.onMessage(DebugMessage.endPhase, (client) => this.handleDebugEndPhase(client));
+    }
 
     this.movement = new MovementSystem(this.config, this.map);
     this.items = new ItemSystem(
@@ -239,6 +250,33 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     const player = this.state.players.get(client.sessionId);
     if (!player || player.spectator || this.state.phase !== 'playing') return;
     this.movement.receive(player, message);
+  }
+
+  // --- Debug messages (KEKE_DEBUG=1 only, §17) -----------------------------------------------------
+
+  /** Moves the sender's body to `{ x, y }`; e2e specs use it to script a pickup and a deposit. */
+  private handleDebugTeleport(client: Client, message: unknown): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player || player.spectator) return;
+    if (this.state.phase !== 'playing') return this.refuse(client, DebugMessage.teleport, 'wrong_phase');
+    const { x, y } = (message ?? {}) as { x?: unknown; y?: unknown };
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
+      return this.refuse(client, DebugMessage.teleport, 'invalid_payload');
+    }
+    if (aabbOverlapsSolid(this.map.collision, { x, y }, playerHalfSize(this.config))) {
+      return this.refuse(client, DebugMessage.teleport, 'invalid_payload');
+    }
+    player.x = x;
+    player.y = y;
+    player.vx = 0;
+    player.vy = 0;
+  }
+
+  /** Host only: ends the current phase now, so an e2e round does not take 180 s. */
+  private handleDebugEndPhase(client: Client): void {
+    if (client.sessionId !== this.state.hostId) return this.refuse(client, DebugMessage.endPhase, 'not_host');
+    if (this.state.phase === 'lobby') return this.refuse(client, DebugMessage.endPhase, 'wrong_phase');
+    this.advancePhase();
   }
 
   // --- Round state machine ---------------------------------------------------------------------
@@ -528,9 +566,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 export function gameRoomWithConfig(
   config: GameConfig,
   map: MapModel,
+  { debug = false }: { debug?: boolean } = {},
 ): typeof GameRoom & (new () => GameRoom) {
   return class ConfiguredGameRoom extends GameRoom {
     protected readonly config = config;
     protected readonly map = map;
+    protected override readonly debug = debug;
   };
 }
