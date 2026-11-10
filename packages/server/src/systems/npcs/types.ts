@@ -64,9 +64,9 @@ export interface NpcContext {
   readonly now: number;
   /** The room's NPC RNG (seeded): use it for every random choice. */
   readonly rng: Rng;
-  /** Round players with a body that is up (alive, not spectating, connected or not), in join order. */
+  /** Round players with a body that is up (alive, not spectating, connected), in join order. */
   players(): readonly PlayerState[];
-  /** A round player that is up, or undefined (left, KO'd, spectating). */
+  /** A round player that is up and connected, or undefined (left, KO'd, spectating, offline). */
   player(id: string): PlayerState | undefined;
   /** Players who are Wanted now (§8; what guards chase). */
   wantedPlayers(): readonly string[];
