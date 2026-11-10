@@ -26,12 +26,10 @@ export const meleeBehaviour: BehaviourModule = {
     if (!ctx.use(intent, def, mode)) return;
     const source = { kind: 'player', id: intent.player } as const;
     const origin = { x: intent.x, y: intent.y };
-    const candidates = ctx
-      .bodies()
-      .filter((p) => ctx.canHit(source, p.sessionId))
-      .map((p) => ({ id: p.sessionId, x: p.x, y: p.y }));
+    // Players and store workers alike (M5-3).
+    const candidates = ctx.targets(source);
     for (const id of meleeTargets(origin, intent.aim, candidates, stats, ctx.bodyRadius)) {
-      const target = ctx.player(id);
+      const target = ctx.position(id);
       if (!target) continue;
       ctx.hit({
         source,

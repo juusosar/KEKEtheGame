@@ -191,10 +191,8 @@ export class ProjectileSystem implements BehaviourModule {
 
   /** Bodies the owner's projectile can hit right now (others are passed through). */
   private candidates(ctx: CombatContext, owner: string): ProjectileCandidate[] {
-    return ctx
-      .bodies()
-      .filter((b) => ctx.canHit(source(owner), b.sessionId))
-      .map((b) => ({ id: b.sessionId, x: b.x, y: b.y }));
+    // Players and store workers alike (M5-3).
+    return ctx.targets(source(owner)).map((b) => ({ id: b.id, x: b.x, y: b.y }));
   }
 
   private defaultImpact(ctx: CombatContext, hit: ProjectileHit, reflected: () => boolean): void {
@@ -220,7 +218,7 @@ export class ProjectileSystem implements BehaviourModule {
     const aim = Math.atan2(hit.dir.y, hit.dir.x);
     const others = this.candidates(ctx, hit.owner).filter((c) => c.id !== direct);
     for (const id of areaTargets(hit.at, area.radiusPx, others, ctx.bodyRadius)) {
-      const target = ctx.player(id);
+      const target = ctx.position(id);
       if (!target) continue;
       ctx.hit({
         source: source(hit.owner),

@@ -44,6 +44,29 @@ export interface CombatHit extends HitSpec {
   readonly projectile?: number;
 }
 
+/** Something a player's weapon can hit right now: a round player or a store worker (M5-3). */
+export interface HitTarget {
+  readonly id: string;
+  readonly kind: 'player' | 'npc';
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * The NPC side of combat (M5-3; NpcSystem implements it). NPC ids never collide with player sessionIds in
+ * practice ('stocker_1' vs Colyseus ids); a player with the id wins.
+ */
+export interface NpcTargets {
+  /** NPCs that can take hits now (up, not invulnerable), with their body centres. */
+  bodies(): readonly { readonly id: string; readonly x: number; readonly y: number }[];
+  has(id: string): boolean;
+  canHit(source: HitSource, id: string): boolean;
+  /** Applies a hit (already through `adjustHit`) to an NPC. True when it landed. */
+  hit(hit: CombatHit): boolean;
+  push(id: string, dir: Vec2, px: number): void;
+  position(id: string): Vec2 | undefined;
+}
+
 export interface CombatContext {
   readonly config: GameConfig;
   readonly map: MapModel;
@@ -57,6 +80,13 @@ export interface CombatContext {
   combatant(id: string): Combatant | undefined;
   /** Round players with a body on the map (not spectators), alive or not, in join order. */
   bodies(): readonly PlayerState[];
+  /**
+   * Everything `source` can hit now: round players that pass `canHit`, then store workers (M5-3). Weapon
+   * modules pick their targets from this, so NPCs take hits from every weapon.
+   */
+  targets(source: HitSource): readonly HitTarget[];
+  /** Body centre of a round player or an NPC. */
+  position(id: string): Vec2 | undefined;
   /** Why `id` cannot attack now (KO, stun, cooldown), or null. */
   attackBlocked(id: string): AttackRejection | null;
   /**
@@ -71,7 +101,7 @@ export interface CombatContext {
    * `ko`), starts the shove and handles KO (item drop). Returns true when it landed.
    */
   hit(hit: CombatHit): boolean;
-  /** Shoves a round player `px` pixels along `dir`, without a hit (e.g. a spray push step). */
+  /** Shoves a round player (or an NPC) `px` pixels along `dir`, without a hit (e.g. a spray push step). */
   push(target: string, dir: Vec2, px: number): void;
   /**
    * Scatters the lying items within `halfWidth` of the segment from→to `px` pixels out of the line

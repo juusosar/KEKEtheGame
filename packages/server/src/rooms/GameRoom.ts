@@ -6,12 +6,18 @@ import {
   DebugMessage,
   ServerMessage,
   aabbOverlapsSolid,
+  applyWantedHits,
   balanceTeams,
   canStart,
   assignVans,
   createRng,
+  createWantedWorld,
   defaultThemeId,
+  expireWanted,
   generateRoomCode,
+  gridWithBlocked,
+  inWantedZone,
+  isWanted,
   nextPhase,
   normalizeRoomCode,
   phaseSeconds,
@@ -20,6 +26,12 @@ import {
   playerHalfSize,
   rankSession,
   rankTimedRound,
+  removeWantedPlayer,
+  updateWantedZones,
+  wantedEventToWire,
+  wantedHitsFromCombat,
+  wantedPlayers,
+  wantedSecondsLeft,
   teamPointsFromVans,
   sanitizeProfile,
   settingsUpdateSchema,
@@ -27,6 +39,7 @@ import {
   teamForJoiner,
   teamSideId,
   totalRounds,
+  type CombatEvent,
   type GameConfig,
   type GameJoinOptions,
   type GameMode,
@@ -38,11 +51,15 @@ import {
   type RosterEntry,
   type RoundPhase,
   type SessionSide,
+  type WantedEvent,
+  type WantedHit,
+  type WantedWorld,
 } from '@keke/shared';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
 import { CombatSystem } from '../systems/combat/CombatSystem';
 import { ItemSystem } from '../systems/items';
 import { MovementSystem } from '../systems/movement';
+import { NpcSystem } from '../systems/npcs/NpcSystem';
 
 /** Close/auth error code for a join with a missing or wrong room code. */
 export const WRONG_CODE_ERROR = 4404;
@@ -75,6 +92,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private movement!: MovementSystem;
   private items!: ItemSystem;
   private combat!: CombatSystem;
+  private npcs!: NpcSystem;
+  /** Wanted status per player this round (§8; M5-2 rules, wired in M5-3). */
+  private wanted: WantedWorld = createWantedWorld();
+  /** Landed combat events and NPC damage of the current tick, fed to the wanted rules at its end. */
+  private tickCombatEvents: CombatEvent[] = [];
+  private tickNpcHits: WantedHit[] = [];
   private simulation: Delayed | undefined;
   /** Clock time (ms) the 'playing' phase started; the round clock for item rules counts from here. */
   private playingSince = 0;
@@ -108,7 +131,13 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.debug ? this.handleDebugEndPhase(client) : this.refuse(client, DebugMessage.endPhase, 'debug_off'),
     );
 
-    this.movement = new MovementSystem(this.config, this.map);
+    // The live map: stock carts parked by stockers block movement like walls (M5-3). Items keep the
+    // static map (spawns and drops never depend on a cart that is gone a few seconds later).
+    const liveMap: MapModel = {
+      ...this.map,
+      collision: gridWithBlocked(this.map.collision, (tx, ty) => this.npcs.isCartTile(tx, ty)),
+    };
+    this.movement = new MovementSystem(this.config, liveMap);
     this.items = new ItemSystem(
       this.state,
       this.config,
@@ -120,7 +149,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.combat = new CombatSystem(
       this.state,
       this.config,
-      this.map,
+      liveMap,
       (event) => this.broadcast(event.type, event.payload),
       // §3.2/§3.3: a KO drops the carried item where the player fell (M3 review H1).
       {
@@ -129,9 +158,30 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         onScatterItems: (from, to, halfWidth, px) => this.items.scatter(from, to, halfWidth, px),
         // §7: a banana peel slip drops the carried item where the player slipped (M4-5).
         onDropCarried: (player, now) => this.items.dropCarried(player, now, 'slip'),
+        // Landed hits feed the wanted rules at the end of the tick (§8; M5-3).
+        onEvent: (event) => {
+          if (event.type === 'hit') this.tickCombatEvents.push(event);
+        },
       },
       randomSeed(),
     );
+    // Store workers (§8; M5-3): player weapons hit them through the combat system, their swings land
+    // through it too (blocks, KO item drops).
+    this.npcs = new NpcSystem(
+      this.state,
+      this.config,
+      liveMap,
+      (event) => this.broadcast(event.type, event.payload),
+      {
+        hitPlayer: (hit) => this.combat.externalHit(hit),
+        onNpcDamaged: (attacker, npc, damage) =>
+          this.tickNpcHits.push({ attacker, victim: { kind: 'npc', id: npc }, damage }),
+        wantedPlayers: () => wantedPlayers(this.wanted, this.roundSeconds()),
+        dropCarried: (player, reason) => this.items.dropCarried(player, this.roundSeconds(), reason),
+      },
+      randomSeed(),
+    );
+    this.combat.npcTargets = this.npcs;
     // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2).
     this.items.onPickup = (playerId) => this.combat.onPickup(playerId, 'item');
     // One state patch per simulation tick.
@@ -202,6 +252,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (player) {
       this.items.removePlayer(player, this.roundSeconds());
       this.combat.removePlayer(player);
+      this.npcs.removePlayer(player.sessionId);
+      this.wanted = removeWantedPlayer(this.wanted, player.sessionId);
     }
     this.state.players.delete(client.sessionId);
     this.movement.remove(client.sessionId);
@@ -376,6 +428,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.movement.spawn(active);
     this.items.startRound(active);
     this.combat.startRound(active);
+    this.npcs.startRound(active.length);
+    this.resetWanted();
   }
 
   // --- Round results and session score (§4.1, §5) ---------------------------------------------
@@ -512,9 +566,70 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         this.combat.afterFrame(player, frame, pressed);
       },
     });
+    // NPCs move (and swing) after the players and before player attacks resolve (M4 review H4).
+    this.npcs.tick(now);
     // Attacks resolve after everyone has moved this tick (M3 review H3).
     this.combat.tick(now);
     this.items.tick(now);
+    this.updateWanted(now);
+  }
+
+  /**
+   * End of a tick (§8; M5-2 rules): this tick's landed hits (player on player near a guard, any damage to
+   * an NPC), the wantedOnEnter zones and expiry; then the flags into PlayerState and the events out.
+   */
+  private updateWanted(now: number): void {
+    const hits = [...wantedHitsFromCombat(this.tickCombatEvents), ...this.tickNpcHits];
+    this.tickCombatEvents = [];
+    this.tickNpcHits = [];
+    const events: WantedEvent[] = [];
+    const round = [...this.state.players.values()].filter((p) => !p.spectator);
+    let result = applyWantedHits(
+      this.wanted,
+      hits,
+      {
+        guards: this.npcs.guards(),
+        positionOf: (id) => {
+          const p = this.state.players.get(id);
+          return p ? { x: p.x, y: p.y } : undefined;
+        },
+        grid: this.map.collision,
+      },
+      now,
+      this.config,
+    );
+    events.push(...result.events);
+    result = updateWantedZones(
+      result.world,
+      round.map((p) => ({ id: p.sessionId, inZone: p.alive && inWantedZone(this.map.zones, p.x, p.y) })),
+      now,
+      this.config,
+    );
+    events.push(...result.events);
+    result = expireWanted(result.world, now);
+    events.push(...result.events);
+    this.wanted = result.world;
+    for (const event of events) {
+      const wire = wantedEventToWire(event, now);
+      this.broadcast(wire.type, wire.payload);
+    }
+    for (const p of round) {
+      const wanted = isWanted(this.wanted, p.sessionId, now);
+      if (p.wanted !== wanted) p.wanted = wanted;
+      const left = wanted ? Math.min(255, Math.ceil(wantedSecondsLeft(this.wanted, p.sessionId, now))) : 0;
+      if (p.wantedIn !== left) p.wantedIn = left;
+    }
+  }
+
+  /** A new round or the lobby: nobody is Wanted. */
+  private resetWanted(): void {
+    this.wanted = createWantedWorld();
+    this.tickCombatEvents = [];
+    this.tickNpcHits = [];
+    this.state.players.forEach((p) => {
+      p.wanted = false;
+      p.wantedIn = 0;
+    });
   }
 
   /** Seconds since 'playing' started: the round clock the item rules use (loose-item despawn). */
@@ -532,6 +647,16 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     return this.combat.combatWorld;
   }
 
+  /** The room's NPC system, for tests. */
+  get npcSystem(): NpcSystem {
+    return this.npcs;
+  }
+
+  /** The current round's wanted world, for tests. */
+  get wantedWorld(): WantedWorld {
+    return this.wanted;
+  }
+
   /** Late joiners become players when the next round's countdown starts (§13.1). */
   private admitSpectators(): void {
     this.state.players.forEach((p) => {
@@ -544,6 +669,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private resetToLobby(): void {
     this.items.reset();
     this.combat.reset();
+    this.npcs.reset();
+    this.resetWanted();
     this.resetSession(false);
     this.state.round = 0;
     this.state.totalRounds = 0;
