@@ -25,6 +25,25 @@ export {
   type MovementState,
   type StepModifiers,
 } from './rules/movement';
+export {
+  MapError,
+  OBJECT_LAYERS,
+  TILE_LAYERS,
+  inOfficeTrigger,
+  loadMap,
+  zoneAt,
+  zonesAt,
+  type Bounds,
+  type MapCollisionGrid,
+  type ForkliftRoute,
+  type ItemSpawn,
+  type MapModel,
+  type NpcSpawn,
+  type NpcWaypoint,
+  type OfficeTrigger,
+  type VanSlot,
+  type Zone,
+} from './map';
 
 /** Clamps `value` into the inclusive range [min, max]. */
 export function clamp(value: number, min: number, max: number): number {
