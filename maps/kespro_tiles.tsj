@@ -1,0 +1,656 @@
+{
+  "type": "tileset",
+  "version": "1.10",
+  "name": "kespro_tiles",
+  "image": "../packages/client/public/assets/kespro_tiles.png",
+  "imagewidth": 256,
+  "imageheight": 128,
+  "tilewidth": 32,
+  "tileheight": 32,
+  "tilecount": 32,
+  "columns": 8,
+  "margin": 0,
+  "spacing": 0,
+  "tiles": [
+    {
+      "id": 0,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "floor_alt"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "floor_cold"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "floor_staff"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "floor_office"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "dock"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "asphalt"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "sidewalk"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "road"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "road_line"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "parking_line"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "entrance_mat"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "curtain"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "door"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "staff_door"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "wall"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "wall_window"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "rack"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "rack_top"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "pallet_stack"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "freezer"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "fridge"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "counter"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "checkout"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "trolley"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "car"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "crate"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "sign"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "hazard"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "office_desk"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "value": "tree"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "above",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    }
+  ]
+}

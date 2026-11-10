@@ -1,0 +1,175 @@
+{
+  "frames": {
+    "drive_down_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    },
+    "drive_down_1": {
+      "frame": {
+        "x": 66,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    },
+    "drive_up_0": {
+      "frame": {
+        "x": 132,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    },
+    "drive_up_1": {
+      "frame": {
+        "x": 198,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    },
+    "drive_left_0": {
+      "frame": {
+        "x": 264,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    },
+    "drive_left_1": {
+      "frame": {
+        "x": 330,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    },
+    "drive_right_0": {
+      "frame": {
+        "x": 396,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    },
+    "drive_right_1": {
+      "frame": {
+        "x": 0,
+        "y": 34,
+        "w": 64,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 32
+      }
+    }
+  },
+  "meta": {
+    "app": "tools/gen-placeholder-art.ts",
+    "version": "1",
+    "image": "forklift.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 460,
+      "h": 66
+    },
+    "scale": "1"
+  }
+}
