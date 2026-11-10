@@ -4,8 +4,9 @@
 // fizz burst, extinguisher cloud, banana slip, KO stars).
 //
 // Status per mode (M4-7): melee is complete (swing wedge, spark, damage number). thrown and shot get a
-// hand puff here; their projectiles fly and splat in projectiles.ts (M4-3 state). trap relies on the peel
-// state M4-5 adds. spray cones and clouds are sprayFx.ts (M4-4). charge draws a dust lane
+// hand puff here; their projectiles fly and splat in projectiles.ts (M4-3 state). trap: the peel is drawn
+// by peels.ts from M4-5's synced traps, a slip leaves the banana slip frame (HIT_FRAMES) and spins it over
+// the sliding body (combatFx). spray cones and clouds are sprayFx.ts (M4-4). charge draws a dust lane
 // along the dash.
 import type { AttackMessage, AttackMode, HitMessage, WeaponDef } from '@keke/shared';
 
@@ -127,7 +128,7 @@ export const ATTACK_FX: Record<AttackMode, AttackFxHandler> = {
   spray: () => [],
   // The egg or bottle in flight and its splat are drawn by projectiles.ts from M4-3's synced projectiles.
   thrown: (a, _def, cfg) => [puff('fizz_burst', hand(a, cfg), cfg, 0.35)],
-  // Placeholder: the peel on the floor is drawn from M4-5's synced traps.
+  // The peel on the floor is drawn by peels.ts from M4-5's synced traps.
   trap: () => [],
   // The cork pops at the bottle neck; the cork in flight is a projectile (M4-3 / M4-6).
   shot: (a, _def, cfg) => [puff('fizz_burst', hand(a, cfg), cfg, 0.6)],

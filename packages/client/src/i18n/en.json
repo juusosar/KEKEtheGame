@@ -103,6 +103,7 @@
   "hud.feed.stole": "{thief} stole {item} from {victim}",
   "hud.feed.hauling": "{name} is hauling a {item}",
   "hud.feed.deposit": "{name} banked {item} (+{points})",
+  "hud.feed.slip": "{name} slipped on a banana peel and dropped {item}",
   "hud.feed.ko": "{attacker} knocked out {victim}",
   "hud.feed.koWith": "{attacker} knocked out {victim} with {weapon}",
   "hud.feed.koAlone": "{victim} got knocked out",
