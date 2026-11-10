@@ -47,7 +47,18 @@ export const DebugMessage = {
    * Phase 'playing', not spectating, not KO'd. For e2e specs of one weapon.
    */
   giveWeapon: 'debugGiveWeapon',
+  /**
+   * `{ points }` a whole number 0..65535: sets the banked item points of the sender's van, as if they had
+   * been deposited (they do not count as the sender's own `deposited`). Phase 'playing', not spectating.
+   * Race e2e (M6-2): set `raceQuota - 1`, then one deposit packs the order box. Setting the quota or more
+   * packs nothing by itself; packing happens on a deposit.
+   */
+  vanPoints: 'debugVanPoints',
 } as const;
+
+export interface DebugVanPointsMessage {
+  points: number;
+}
 
 export interface DebugGiveWeaponMessage {
   weapon: string;

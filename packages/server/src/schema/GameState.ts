@@ -114,6 +114,13 @@ export const ItemState = schema(
     owner: t.string().default(''),
     /** sessionId carrying it ('' unless state is 'carried'). */
     carrier: t.string().default(''),
+    /**
+     * Race (§4.2, M6-2): the van slot that packed this order box (`itemId` 'order_box'); -1 for a normal
+     * item. A carrier whose `van` differs carries a stolen box.
+     */
+    packedVan: t.int8().default(-1),
+    /** Race: item points packed into this order box; 0 for a normal item. */
+    points: t.uint16().default(0),
   },
   'ItemState',
 );
@@ -128,6 +135,11 @@ export const VanState = schema(
     points: t.uint16().default(0),
     /** Team using this van (0 when teams are off). */
     team: t.uint8().default(0),
+    /**
+     * Race (§4.2, M6-2): "items you control": `points` plus the boxes this van packed that one of its
+     * players carries. Equals `points` in Timed. The race scoreboard sorts by it.
+     */
+    controlled: t.uint16().default(0),
   },
   'VanState',
 );
@@ -319,6 +331,13 @@ export const GameState = schema(
     npcs: t.map(NpcState),
     /** Stock carts parked in aisles right now (M5-3). */
     stockCarts: t.map(StockCartState),
+    /**
+     * Race (§4.2, M6-2): sessionId of the player who delivered a box and ended the round; '' while the
+     * round runs, when the time cap ended it, and in Timed. Reset at each countdown and in the lobby.
+     */
+    raceWinner: t.string().default(''),
+    /** Race: the winning box was packed by another van (stolen and delivered). */
+    raceStolen: t.boolean().default(false),
   },
   'GameState',
 );

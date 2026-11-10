@@ -200,6 +200,12 @@ export interface KekeHook {
    * change shows in `net().weapon` with the next patch. Returns true when asked; false offline.
    */
   giveWeapon(weapon: string): boolean;
+  /**
+   * Online: asks the server to set our van's banked item points (`DebugMessage.vanPoints`, phase
+   * 'playing', needs `KEKE_DEBUG=1`). Race e2e (M6-2): set `raceQuota - 1`, then one deposit packs the
+   * order box. Returns true when asked; false offline.
+   */
+  vanPoints(points: number): boolean;
   /** Zone id at a pixel position, or null. */
   zoneAt(x: number, y: number): string | null;
   /** Room and prediction state; null offline. */
