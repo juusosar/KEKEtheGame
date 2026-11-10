@@ -5,6 +5,7 @@ export { Button, buttonsOf, isPressed, type ButtonName, type InputFrame, type Ve
 export { ConfigError, configSchema, formatIssues, loadConfig, type GameConfig } from './config';
 export * from './profile';
 export * from './lobby';
+export * from './items';
 export {
   aabbOverlapsSolid,
   circleSeparation,
