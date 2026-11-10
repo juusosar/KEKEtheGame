@@ -47,10 +47,13 @@ export class MovementSystem {
 
   /**
    * A player's client reconnected: restart their seq check from their ack, so a reloaded page's first
-   * frames are not refused because the old socket's frames went further (M2 review F2).
+   * frames are not refused because the old socket's frames went further (M2 review F2), and forget the
+   * buttons held on the old page.
    */
   resume(player: PlayerState): void {
     this.queues.get(player.sessionId)?.rewind(player.ack);
+    // A button held when the old socket dropped counts as a new press on the new page (M3 review F6).
+    this.lastButtons.delete(player.sessionId);
   }
 
   /** Puts each player at their own van (`player.van`, set by the room before), at rest. */

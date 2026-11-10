@@ -82,11 +82,33 @@ export function rankByItemPoints(
 }
 
 /**
- * Ranks a finished Timed round. Pass only the players who took part (not spectators).
- * With `teams` on, a team's item points are the sum of its members' deposits and every member shares
- * the team's place; a player with team 0 still competes on their own. With `teams` off, `team` is ignored.
+ * A team's item points with Teams on: the points banked in its van (§3.2 deposits are banked, §4.3 a team
+ * shares one van and one item count). Sums vans per team in case a team ever has more than one; vans with
+ * team 0 (Teams off) are skipped. Pass the result to `rankTimedRound` as `teamItemPoints`.
  */
-export function rankTimedRound(players: readonly TimedPlayerScore[], teams: boolean): TimedRoundResult {
+export function teamPointsFromVans(
+  vans: Iterable<{ readonly team: number; readonly points: number }>,
+): Map<number, number> {
+  const totals = new Map<number, number>();
+  for (const van of vans) {
+    if (van.team > 0) totals.set(van.team, (totals.get(van.team) ?? 0) + van.points);
+  }
+  return totals;
+}
+
+/**
+ * Ranks a finished Timed round. Pass only the players who took part (not spectators).
+ * With `teams` on, every member shares the team's place, and a team's item points are
+ * `teamItemPoints.get(team)` when given (the van's banked total, so a member who left for good still
+ * counts: M3 review F3), else the sum of its present members' deposits. A team is ranked only while it
+ * has a member taking part. A player with team 0 still competes on their own. With `teams` off, `team`
+ * and `teamItemPoints` are ignored. Per-player `itemPoints` in the result stay personal.
+ */
+export function rankTimedRound(
+  players: readonly TimedPlayerScore[],
+  teams: boolean,
+  teamItemPoints?: ReadonlyMap<number, number>,
+): TimedRoundResult {
   const sideOf = (p: TimedPlayerScore): string => (teams && p.team > 0 ? teamSideId(p.team) : p.id);
   const totals = new Map<string, number>();
   const ids = new Set<string>();
@@ -96,6 +118,14 @@ export function rankTimedRound(players: readonly TimedPlayerScore[], teams: bool
     checkPoints(p.id, p.itemPoints);
     const side = sideOf(p);
     totals.set(side, (totals.get(side) ?? 0) + p.itemPoints);
+  }
+  if (teams && teamItemPoints) {
+    for (const p of players) {
+      const banked = p.team > 0 ? teamItemPoints.get(p.team) : undefined;
+      if (banked === undefined) continue;
+      checkPoints(teamSideId(p.team), banked);
+      totals.set(teamSideId(p.team), banked);
+    }
   }
   const standings = rankByItemPoints([...totals].map(([id, itemPoints]) => ({ id, itemPoints })));
   const placeOf = new Map(standings.map((s) => [s.id, s.place]));

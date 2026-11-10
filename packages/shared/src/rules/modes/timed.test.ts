@@ -5,6 +5,7 @@ import {
   isTimedRoundOver,
   rankByItemPoints,
   rankTimedRound,
+  teamPointsFromVans,
   teamSideId,
   type TimedPlayerScore,
 } from './timed';
@@ -161,5 +162,47 @@ describe('rankTimedRound, teams', () => {
   it('rejects duplicate players and bad points', () => {
     expect(() => rankTimedRound([p('a', 1, 1), p('a', 1, 2)], true)).toThrow(RangeError);
     expect(() => rankTimedRound([p('a', -2, 1)], true)).toThrow(RangeError);
+    expect(() => rankTimedRound([p('a', 1, 1)], true, new Map([[1, -1]]))).toThrow(RangeError);
+  });
+
+  it('takes team points from the van bank when given, so a member who left still counts (M3 review F3)', () => {
+    // Team 1 banked 5 (3 of them by a member who has left); only 'a' (2 deposited) is still here.
+    const banked = new Map([
+      [1, 5],
+      [2, 4],
+    ]);
+    const result = rankTimedRound([p('a', 2, 1), p('c', 4, 2), p('loner', 3, 0)], true, banked);
+    expect(result.standings).toEqual([
+      { id: teamSideId(1), itemPoints: 5, place: 1 },
+      { id: teamSideId(2), itemPoints: 4, place: 2 },
+      { id: 'loner', itemPoints: 3, place: 3 },
+    ]);
+    // Per-player item points stay personal.
+    expect(result.players.find((pl) => pl.id === 'a')?.itemPoints).toBe(2);
+    // A team missing from the map falls back to its members' sum; a team with nobody left is not ranked.
+    const partial = rankTimedRound([p('a', 2, 1), p('b', 1, 1)], true, new Map([[2, 9]]));
+    expect(partial.standings).toEqual([{ id: teamSideId(1), itemPoints: 3, place: 1 }]);
+    // Teams off: the map is ignored.
+    expect(rankTimedRound([p('a', 2, 1)], false, banked).standings).toEqual([
+      { id: 'a', itemPoints: 2, place: 1 },
+    ]);
+  });
+});
+
+describe('teamPointsFromVans', () => {
+  it('sums banked points per team and skips teamless vans', () => {
+    expect(
+      teamPointsFromVans([
+        { team: 1, points: 3 },
+        { team: 2, points: 4 },
+        { team: 0, points: 7 },
+        { team: 1, points: 1 },
+      ]),
+    ).toEqual(
+      new Map([
+        [1, 4],
+        [2, 4],
+      ]),
+    );
   });
 });
