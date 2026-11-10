@@ -35,6 +35,21 @@ export interface WorldItem {
   readonly carrier: string | null;
   /** Round time (s) it became loose. Set only while `state` is `loose`. */
   readonly looseSince: number | null;
+  /**
+   * Set only on a race-mode order box (§4.2, modes/race.ts). A box is carried, dropped, stolen and
+   * scattered like any item, but it cannot be deposited and never despawns.
+   */
+  readonly box?: OrderBox;
+}
+
+/** What an order box holds (§4.2): the banked points of the van that packed it. */
+export interface OrderBox {
+  /** Van whose items were packed. "Items you control" counts the box for this van only. */
+  readonly van: number;
+  /** Item points packed into the box (the van's banked total when it reached the quota). */
+  readonly points: number;
+  /** The player whose deposit reached the quota (they picked the box up). */
+  readonly packedBy: string;
 }
 
 export interface CarryPlayer {
@@ -61,8 +76,8 @@ export interface ItemWorld {
 /** 'slip': stepped on a banana peel (§7, M4-5). 'forklift': run over by a forklift (§8, M5-5). */
 export type DropReason = 'drop' | 'ko' | 'disconnect' | 'slip' | 'forklift';
 
-/** How a pickup relates to target ownership (§3.1). */
-export type PickupKind = 'own_target' | 'other_target' | 'loose';
+/** How a pickup relates to target ownership (§3.1). 'box': a race-mode order box (§4.2). */
+export type PickupKind = 'own_target' | 'other_target' | 'loose' | 'box';
 
 export type ItemEvent =
   | { readonly type: 'targetAssigned'; readonly player: string; readonly item: WorldItem }
@@ -87,7 +102,13 @@ export type ItemEvent =
 
 /** Why an action was refused. The world is unchanged when this is set. */
 export type CarryRejection =
-  'unknown_player' | 'unknown_item' | 'already_carrying' | 'item_carried' | 'not_carrying';
+  | 'unknown_player'
+  | 'unknown_item'
+  | 'already_carrying'
+  | 'item_carried'
+  | 'not_carrying'
+  /** An order box cannot be deposited into a van (§4.2). */
+  | 'box_not_depositable';
 
 export interface CarryResult {
   readonly world: ItemWorld;
@@ -218,8 +239,13 @@ export function pickup(world: ItemWorld, playerId: string, itemId: number): Carr
   if (!item) return reject(world, 'unknown_item');
   if (item.state === 'carried') return reject(world, 'item_carried');
 
-  const kind: PickupKind =
-    item.state === 'loose' ? 'loose' : item.owner === playerId ? 'own_target' : 'other_target';
+  const kind: PickupKind = item.box
+    ? 'box'
+    : item.state === 'loose'
+      ? 'loose'
+      : item.owner === playerId
+        ? 'own_target'
+        : 'other_target';
   const targetOwner = kind === 'other_target' ? item.owner : null;
   const carried: WorldItem = { ...item, state: 'carried', owner: null, carrier: playerId, looseSince: null };
   const players = world.players.map((p) => {
@@ -284,6 +310,7 @@ export function deposit(
   if (!player) return reject(world, 'unknown_player');
   const item = player.carrying != null ? findItem(world, player.carrying) : undefined;
   if (!item) return reject(world, 'not_carrying');
+  if (item.box) return reject(world, 'box_not_depositable');
   const points = itemValue(item.rarity, config);
   const vanTotal = vanPointsOf(world, player.van) + points;
   return {
@@ -299,7 +326,10 @@ export function deposit(
   };
 }
 
-/** Removes loose items that have lain for `looseItemDespawnSeconds` or longer (§3.1). Targets never despawn. */
+/**
+ * Removes loose items that have lain for `looseItemDespawnSeconds` or longer (§3.1). Targets and
+ * order boxes never despawn (a lying box stays until someone picks it up, §4.2).
+ */
 export function despawnLooseItems(
   world: ItemWorld,
   now: number,
@@ -307,7 +337,10 @@ export function despawnLooseItems(
 ): CarryResult {
   const expired = world.items.filter(
     (i) =>
-      i.state === 'loose' && i.looseSince != null && now - i.looseSince >= config.looseItemDespawnSeconds,
+      i.state === 'loose' &&
+      !i.box &&
+      i.looseSince != null &&
+      now - i.looseSince >= config.looseItemDespawnSeconds,
   );
   if (expired.length === 0) return { world, events: [] };
   const gone = new Set(expired.map((i) => i.id));
