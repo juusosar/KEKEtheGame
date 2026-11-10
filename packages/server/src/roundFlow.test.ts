@@ -9,21 +9,21 @@ import {
   playerHalfSize,
   vanSpawn,
 } from '@keke/shared';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createGameServer } from './app';
 import { loadThemeMap } from './maps';
-import type { GameRoom } from './rooms/GameRoom';
+import { GameRoom } from './rooms/GameRoom';
 import type { GameState, PlayerState } from './schema/GameState';
 
 // Own port: other integration files use 2568, 2571, 2572, 2574 and 2575, and test files run in parallel.
 const PORT = 2576;
 
-const ROUND_SECONDS = 2;
+// The first test does a real pickup and deposit (three acked round trips) inside the round, so leave room.
+const ROUND_SECONDS = 4;
 const config = loadConfig({
   ...loadConfig(),
-  // Long enough that the 5 ms waitFor poll sees the countdown phase even on a busy test machine
-  // (at 0.05 s a slow poll could miss it and time out waiting for 'countdown').
-  countdownSeconds: 0.3,
+  // Short phases are never polled for: the test records every phase the room enters (M3 review F4).
+  countdownSeconds: 0.05,
   timedRoundSeconds: ROUND_SECONDS,
   roundResultsSeconds: 60,
   podiumSeconds: 60,
@@ -42,7 +42,22 @@ describe('GameRoom round flow and scoring (integration)', () => {
   let colyseus: ColyseusTestServer;
   const open: Conn[] = [];
 
+  /** Every phase each room entered, with the clock it showed on entry, in order. */
+  const entered = new Map<GameRoom, { phase: string; secondsLeft: number }[]>();
+
   beforeAll(async () => {
+    // Record phases from the room itself instead of polling for them: a short phase such as the
+    // countdown can begin and end between two polls when the test worker stalls (M3 review F4).
+    const enterPhase = (GameRoom.prototype as unknown as { enterPhase: (phase: string) => void }).enterPhase;
+    vi.spyOn(
+      GameRoom.prototype as unknown as { enterPhase: (phase: string) => void },
+      'enterPhase',
+    ).mockImplementation(function (this: GameRoom, phase: string) {
+      enterPhase.call(this, phase);
+      const list = entered.get(this) ?? [];
+      list.push({ phase: this.state.phase, secondsLeft: this.state.secondsLeft });
+      entered.set(this, list);
+    });
     // boot() ignores its port argument for a Server instance, so listen here instead.
     const server = createGameServer({ config, map });
     await server.listen(PORT);
@@ -53,6 +68,7 @@ describe('GameRoom round flow and scoring (integration)', () => {
     await colyseus.cleanup();
   });
   afterAll(async () => {
+    vi.restoreAllMocks();
     await colyseus.shutdown();
   });
 
@@ -133,10 +149,14 @@ describe('GameRoom round flow and scoring (integration)', () => {
     guest.send(ClientMessage.ready, { ready: true });
     await waitFor(() => [...room.state.players.values()].every((p) => p.ready));
     host.send(ClientMessage.start);
-    await waitFor(() => room.state.phase === 'countdown');
-    expect(room.state.secondsLeft).toBe(Math.ceil(config.countdownSeconds));
     await waitFor(() => room.state.phase === 'playing');
-    expect(room.state.secondsLeft).toBe(ROUND_SECONDS);
+    expect(entered.get(room)).toEqual([
+      { phase: 'countdown', secondsLeft: Math.ceil(config.countdownSeconds) },
+      { phase: 'playing', secondsLeft: ROUND_SECONDS },
+    ]);
+    // The clock may already have ticked by the time we look: only check it is running down from the top.
+    expect(room.state.secondsLeft).toBeGreaterThan(0);
+    expect(room.state.secondsLeft).toBeLessThanOrEqual(ROUND_SECONDS);
     expect(a.me.place).toBe(0);
 
     // A real deposit: pick up the own target and walk it (teleport) to the own van.
@@ -155,7 +175,8 @@ describe('GameRoom round flow and scoring (integration)', () => {
     const points = a.me.deposited;
 
     // Nobody ends the round: the clock does.
-    await waitFor(() => room.state.phase === 'roundResults', (ROUND_SECONDS + 2) * 1000);
+    await waitFor(() => room.state.phase === 'roundResults', (ROUND_SECONDS + 3) * 1000);
+    expect(entered.get(room)?.map((e) => e.phase)).toEqual(['countdown', 'playing', 'roundResults']);
     expect(room.state.secondsLeft).toBe(config.roundResultsSeconds);
     expect([a.me.place, a.me.roundPoints, a.me.sessionPoints, a.me.sessionItemPoints]).toEqual([
       1,
@@ -176,7 +197,7 @@ describe('GameRoom round flow and scoring (integration)', () => {
     b.conn.send(ClientMessage.input, { seq: ++b.seq, move: { x: 1, y: 0 }, aim: 0, buttons: 0 });
     await new Promise((r) => setTimeout(r, 150));
     expect({ x: b.me.x, y: b.me.y, ack: b.me.ack }).toEqual(frozen);
-  });
+  }, 15_000);
 
   it('gives tied players the higher place and its points, and others placementPointsOther', async () => {
     const { room, players } = await playingRoom(6);

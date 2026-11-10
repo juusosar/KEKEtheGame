@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectSettled, game } from './helpers';
+import { expectSettled, game, waitControlling } from './helpers';
 
 // M2-6: a reload inside the server's reconnect window (§15.3) puts the player back into the same
 // room with the same session, skipping the menus. <body data-session> holds our session id.
@@ -49,7 +49,7 @@ test('a solo round: the server acks our moves, and a reload mid-round returns to
   await expect(body).toHaveAttribute('data-scene', 'game', { timeout: 10_000 });
 
   // Countdown, then the round: we control the player once the phase is 'playing'.
-  await expect.poll(async () => (await game(page)).net?.controlling, { timeout: 10_000 }).toBe(true);
+  await waitControlling(page);
   const start = await game(page);
 
   await page.locator('canvas').click({ position: { x: 5, y: 5 } });
@@ -68,7 +68,7 @@ test('a solo round: the server acks our moves, and a reload mid-round returns to
   await page.reload();
   await expect(body).toHaveAttribute('data-scene', 'game', { timeout: 15_000 });
   await expect(body).toHaveAttribute('data-session', session);
-  await expect.poll(async () => (await game(page)).net?.controlling, { timeout: 10_000 }).toBe(true);
+  await waitControlling(page);
   // Same spot as before the reload (the server kept our body), give or take the last unacked step.
   const resumed = await game(page);
   expect(Math.abs(resumed.player.x - after.player.x)).toBeLessThan(8);
