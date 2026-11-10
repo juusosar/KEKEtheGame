@@ -37,6 +37,16 @@ export {
 } from './rules/input';
 export { findSpawn, vanSpawn, type SpawnMap } from './rules/spawn';
 export {
+  isTimedRoundOver,
+  rankByItemPoints,
+  rankTimedRound,
+  teamSideId,
+  type PlayerPlacement,
+  type Ranked,
+  type TimedPlayerScore,
+  type TimedRoundResult,
+} from './rules/modes/timed';
+export {
   MapError,
   OBJECT_LAYERS,
   TILE_LAYERS,
