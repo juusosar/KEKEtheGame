@@ -22,5 +22,10 @@
   "coldRoomSpeedMultiplier": 0.9,
   "jokeItemChance": 0.08,
   "jokeItemValue": 2,
-  "hpRegenPerSec": 0
+  "hpRegenPerSec": 0,
+  "nicknameMaxLength": 16,
+  "maxRoundsPerMap": 3,
+  "countdownSeconds": 3,
+  "roundResultsSeconds": 10,
+  "podiumSeconds": 15
 }

@@ -33,6 +33,11 @@ export const configSchema = z
     jokeItemChance: fraction,
     jokeItemValue: positiveInt,
     hpRegenPerSec: nonNegative,
+    nicknameMaxLength: positiveInt,
+    maxRoundsPerMap: positiveInt,
+    countdownSeconds: nonNegative,
+    roundResultsSeconds: nonNegative,
+    podiumSeconds: nonNegative,
   })
   .strict();
 
