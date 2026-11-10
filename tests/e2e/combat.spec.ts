@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
-<<<<<<< HEAD
 import {
+  aimMouse,
   createRoom,
   game,
   joinRoom,
@@ -11,9 +11,6 @@ import {
   toPlay,
   waitControlling,
 } from './helpers';
-=======
-import { aimMouse, createRoom, game, joinRoom, players, test, toPlay, waitControlling } from './helpers';
->>>>>>> origin/main
 
 // M4-2: melee in a real round. Two players stand next to each other in the store (debug teleport), the
 // host aims at the guest with the mouse and clicks: one fist swing lands on the server, both clients see
