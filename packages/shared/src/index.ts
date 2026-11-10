@@ -181,6 +181,30 @@ export {
   type Peel,
   type PeelCandidate,
 } from './rules/trap';
+export {
+  applyWantedHits,
+  createWantedWorld,
+  expireWanted,
+  findWanted,
+  inWantedZone,
+  isWanted,
+  markWanted,
+  removeWantedPlayer,
+  updateWantedZones,
+  wantedHitsFromCombat,
+  wantedPlayers,
+  wantedSecondsLeft,
+  witnessingGuard,
+  type WantedConfig,
+  type WantedEntry,
+  type WantedEvent,
+  type WantedHit,
+  type WantedReason,
+  type WantedResult,
+  type WantedWatcher,
+  type WantedWorld,
+  type WitnessContext,
+} from './rules/wanted';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,
