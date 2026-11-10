@@ -155,6 +155,15 @@ export class CombatSystem {
     return !this.running || player.alive;
   }
 
+  /**
+   * True when the player may pick up or drop an item: may act, and not stunned or sliding (M4 review F4).
+   * A slip drops the carried item; without this a mashed E took it straight back. Deposits stay automatic
+   * for a stunned body (a player shoved into their van still banks).
+   */
+  canPickUp(player: PlayerState): boolean {
+    return this.canAct(player) && (!this.running || (!player.stunned && !player.sliding));
+  }
+
   /** Combat speed multiplier from synced state only, the same numbers the client predicts with (H1). */
   speedMultiplier(player: PlayerState): number {
     const block = player.blocking ? (this.weapons.get(player.weapon)?.block?.moveSpeedMultiplier ?? 1) : 1;

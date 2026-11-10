@@ -8,29 +8,14 @@
 // and shoves them `pushPxPerSecond × tickSeconds` away from the sprayer.
 import type { Vec2 } from '../types';
 import type { SprayStats } from '../weapons/catalogue';
-import { isSolidTile, type CollisionGrid } from './collision';
+import { clearLine, type CollisionGrid } from './collision';
 import { inMeleeArc, type MeleeCandidate } from './melee';
 
 /** Small slack for comparing round-clock times that are sums of float steps. */
 const TIME_EPSILON = 1e-6;
 
-/**
- * True when nothing solid lies on the straight line from `a` to `b`: sampled every quarter tile, so a
- * spray cannot reach through a shelf or a wall. Both end tiles count too (a body is never inside a wall).
- */
-export function clearLine(grid: CollisionGrid, a: Vec2, b: Vec2): boolean {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dist = Math.hypot(dx, dy);
-  const steps = Math.max(1, Math.ceil(dist / (grid.tileSize / 4)));
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const tx = Math.floor((a.x + dx * t) / grid.tileSize);
-    const ty = Math.floor((a.y + dy * t) / grid.tileSize);
-    if (isSolidTile(grid, tx, ty)) return false;
-  }
-  return true;
-}
+// clearLine moved to collision.ts (M4 review F3: every hit needs a clear line); re-exported here.
+export { clearLine } from './collision';
 
 /**
  * Ids of the candidates one spray tick from `origin` along `aim` reaches, nearest first (ties keep input
