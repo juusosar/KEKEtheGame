@@ -346,25 +346,33 @@ export class CombatFx {
     }
   }
 
+  /** KO stars over a KO'd body, the banana slip frame over a sliding one (M4-5 `sliding`). */
   private drawKoStars(body: FxBody, now: number): void {
     let stars = this.koStars.get(body.id);
-    const show = body.visible && !body.combat.alive;
-    if (!show) {
+    const frame = !body.visible
+      ? null
+      : !body.combat.alive
+        ? 'ko_stars'
+        : body.combat.sliding
+          ? 'banana_slip'
+          : null;
+    if (frame === null) {
       stars?.setVisible(false);
       return;
     }
     if (!this.scene.textures.exists('fx')) return;
     if (!stars) {
       stars = this.scene.add
-        .sprite(0, 0, 'fx', 'ko_stars')
+        .sprite(0, 0, 'fx', frame)
         .setDepth(this.depth + 1)
         .setScale(0.6);
       this.koStars.set(body.id, stars);
     }
+    if (stars.frame.name !== frame) stars.setFrame(frame);
     stars
       .setVisible(true)
       .setPosition(body.pos.x, body.pos.y - renderConfig.koStarsOffsetY)
-      .setRotation(now * renderConfig.koStarsSpinHz * Math.PI * 2);
+      .setRotation(now * renderConfig.koStarsSpinHz * (frame === 'banana_slip' ? 4 : 1) * Math.PI * 2);
   }
 
   private drawStatus(body: FxBody): void {

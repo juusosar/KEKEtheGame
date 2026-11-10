@@ -43,6 +43,16 @@ describe('feedLine', () => {
   });
 });
 
+describe('slip drops', () => {
+  it('announces a slip and stays quiet for other drops', () => {
+    expect(feedLine('drop', { player: 'a', item: voi, reason: 'slip' }, ctx)).toEqual({
+      kind: 'slip',
+      text: 'Juuso slipped on a banana peel and dropped Paulig Juhla Mokka 500 g',
+    });
+    expect(feedLine('drop', { player: 'a', item: voi, reason: 'drop' }, ctx)).toBeNull();
+  });
+});
+
 describe('combatFeedLine', () => {
   const combatCtx = {
     weapons: getWeaponCatalogue(),
