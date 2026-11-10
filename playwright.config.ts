@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
 const port = Number(process.env['E2E_PORT'] ?? 2568);
 const baseURL = `http://localhost:${port}`;
 /** Specs that open 3 or more pages. */
-const HEAVY = /multiplayer\.spec\.ts/;
+const HEAVY = /(multiplayer|teamRace)\.spec\.ts/;
 
 export default defineConfig({
   testDir: 'tests/e2e',
