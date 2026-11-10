@@ -2,8 +2,16 @@
 // an owner-colour outline), items carried above their carrier's head, the joke-item twinkle, and the
 // painted vans on the loading dock with a parking bay in the owner's (or team's) colour.
 // The Game scene feeds it the synced state on each patch (sync) and the drawn positions each frame (draw).
-import { getItemCatalogue, type ItemCatalogue, type MapModel, type ThemeId, type Vec2 } from '@keke/shared';
+import {
+  ORDER_BOX_ITEM_ID,
+  getItemCatalogue,
+  type ItemCatalogue,
+  type MapModel,
+  type ThemeId,
+  type Vec2,
+} from '@keke/shared';
 import Phaser from 'phaser';
+import { t } from '../i18n';
 import type { WorldItemView, WorldVanView, WorldView } from '../net/worldView';
 import type { KekeItemSnapshot, KekeVanSnapshot } from './hookTypes';
 import { renderConfig } from './renderConfig';
@@ -27,6 +35,9 @@ export interface WorldDepths {
 }
 
 const ITEMS_ATLAS = 'items';
+/** Race order box (M6-3): its own atlas with one frame (M1-1 art), not a catalogue item. */
+const BOX_ATLAS = 'order_box';
+const BOX_FRAME = 'order_box';
 const VAN_ATLAS = 'van';
 const SPARKLE_KEY = 'keke_sparkle';
 /** The 4 outline copies of an item sprite: left, right, up, down. */
@@ -49,11 +60,12 @@ class ItemSprite {
 
   constructor(
     scene: Phaser.Scene,
+    readonly atlas: string,
     frame: string,
     readonly joke: boolean,
   ) {
-    this.copies = OUTLINE_DIRS.map(() => scene.add.image(0, 0, ITEMS_ATLAS, frame).setVisible(false));
-    this.main = scene.add.image(0, 0, ITEMS_ATLAS, frame);
+    this.copies = OUTLINE_DIRS.map(() => scene.add.image(0, 0, atlas, frame).setVisible(false));
+    this.main = scene.add.image(0, 0, atlas, frame);
     this.sparkle = joke ? scene.add.image(0, 0, SPARKLE_KEY).setAlpha(0) : null;
   }
 
@@ -144,21 +156,27 @@ export class WorldRenderer {
 
     const seen = new Set<number>();
     for (const view of world.items) {
-      const frame = this.catalogue.get(view.itemId)?.sprite;
-      if (frame === undefined || !this.scene.textures.get(ITEMS_ATLAS).has(frame)) {
+      const box = view.itemId === ORDER_BOX_ITEM_ID;
+      const atlas = box ? BOX_ATLAS : ITEMS_ATLAS;
+      const frame = box ? BOX_FRAME : this.catalogue.get(view.itemId)?.sprite;
+      if (
+        frame === undefined ||
+        !this.scene.textures.exists(atlas) ||
+        !this.scene.textures.get(atlas).has(frame)
+      ) {
         this.warnOnce(`item ${view.itemId} has no sprite`);
         continue;
       }
       seen.add(view.id);
       let drawn = this.items.get(view.id);
-      if (drawn && drawn.sprite.main.frame.name !== frame) {
+      if (drawn && (drawn.sprite.atlas !== atlas || drawn.sprite.main.frame.name !== frame)) {
         drawn.sprite.destroy();
         drawn = undefined;
       }
       if (!drawn) {
         drawn = {
           view,
-          sprite: new ItemSprite(this.scene, frame, view.rarity === 'joke'),
+          sprite: new ItemSprite(this.scene, atlas, frame, !box && view.rarity === 'joke'),
           x: view.x,
           y: view.y,
         };
@@ -183,7 +201,7 @@ export class WorldRenderer {
 
   /** Offline walk (`?scene=game`): the local player's van in slot 1, framed in their colour. */
   showOfflineVan(color: string): void {
-    this.syncVans([{ van: 0, points: 0, team: 0 }], () => color);
+    this.syncVans([{ van: 0, points: 0, team: 0, controlled: 0 }], () => color);
   }
 
   /**
@@ -218,7 +236,10 @@ export class WorldRenderer {
     return [...this.items.values()].map(({ view, sprite, x, y }) => ({
       id: view.id,
       itemId: view.itemId,
-      name: this.catalogue.get(view.itemId)?.name ?? view.itemId,
+      name:
+        view.itemId === ORDER_BOX_ITEM_ID
+          ? t('item.orderBox')
+          : (this.catalogue.get(view.itemId)?.name ?? view.itemId),
       rarity: view.rarity,
       state: view.state,
       x,
@@ -229,6 +250,8 @@ export class WorldRenderer {
       carrier: view.carrier,
       frame: String(sprite.main.frame.name),
       outline: sprite.outline ?? null,
+      packedVan: view.packedVan,
+      points: view.points,
     }));
   }
 
@@ -239,6 +262,7 @@ export class WorldRenderer {
       x: slot.x,
       y: slot.y,
       points: view.points,
+      controlled: view.controlled,
       team: view.team,
       frame: String(sprite.frame.name),
       outline: outline ?? null,

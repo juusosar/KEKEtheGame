@@ -813,3 +813,65 @@ body[data-phase='roundResults'] .keke-hud,
 body[data-phase='podium'] .keke-hud {
   display: none;
 }
+
+/* Race mode (M6-3, §4.2): quota bar, office arrow, box feed lines and the results banner. */
+.keke-hud .hud-quota {
+  position: relative;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.62);
+  border-left: 4px solid #c8a165;
+}
+.keke-hud .hud-quota-bar {
+  height: 8px;
+  margin-bottom: 4px;
+  background: #333;
+  border: 1px solid #111;
+}
+.keke-hud .hud-quota-fill {
+  height: 100%;
+  background: #c8a165;
+  transition: width 160ms linear;
+}
+.keke-hud .hud-quota-text {
+  font:
+    700 13px/1.2 ui-monospace,
+    monospace;
+}
+.keke-hud .hud-quota[data-state='deliver'],
+.keke-hud .hud-quota[data-state='stolen'] {
+  border-left-color: #ffe14d;
+  animation: keke-quota-deliver 0.9s ease-in-out infinite alternate;
+}
+.keke-hud .hud-quota[data-state='stolen'] {
+  border-left-color: #ff5a4f;
+}
+@keyframes keke-quota-deliver {
+  to {
+    background: rgba(80, 60, 0, 0.75);
+  }
+}
+.keke-hud .hud-carry.box {
+  border-left-color: #c8a165;
+}
+.keke-hud .hud-arrow[data-kind='office']::before {
+  border-left-color: #ffe14d;
+}
+.keke-hud .hud-feed li.feed-box {
+  border-right: 3px solid #ff5a4f;
+}
+.keke-hud .hud-feed li.feed-packed {
+  border-right: 3px solid #c8a165;
+}
+.keke-hud .hud-feed li.feed-delivery {
+  border-right: 3px solid #ffe14d;
+  font-weight: 700;
+}
+.keke-round .results-race {
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: #ffe14d;
+}
+.keke-round .results-race[data-outcome='timeUp'] {
+  color: #d6d6d6;
+}

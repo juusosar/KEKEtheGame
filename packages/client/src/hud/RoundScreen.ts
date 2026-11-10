@@ -3,6 +3,8 @@
 //   #keke-intro          Round intro, phase 'countdown': map, mode, round n of N and the 3-2-1
 //     #keke-intro-count  role timer, data-seconds
 //   #keke-results        Round results, phase 'roundResults'
+//     .results-race                         race only (M6-3): data-outcome delivered|stolen|timeUp,
+//                                           data-winner (session id, '' at the time cap)
 //     .results-teams tr[data-team]          (Teams on) place, items, points, total, members
 //     .results-players tr[data-player-id]   cells .place .player .team .items .round-points .session
 //     #keke-results-next                    data-seconds until the next round (or the podium)
@@ -12,7 +14,7 @@
 import { getTheme, defaultThemeId } from '@keke/shared';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
-import type { PodiumRow, ResultRow, ResultTeamRow, RoundScreenModel } from './roundScreens';
+import type { PodiumRow, RaceOutcome, ResultRow, ResultTeamRow, RoundScreenModel } from './roundScreens';
 
 const modeLabel = (mode: string): string => t(`lobby.mode.${mode}` as MessageKey);
 const teamName = (team: number): string => t('hud.score.team', { team });
@@ -106,6 +108,7 @@ export class RoundScreen {
         'aria-labelledby': 'keke-results-title',
       },
       h('h2', { id: 'keke-results-title' }, title),
+      model.race ? raceBanner(model.race) : null,
       model.teams && model.teamRows.length > 0 ? this.teamTable(model.teamRows) : null,
       this.playerTable(model.rows, model.teams),
       next,
@@ -214,6 +217,24 @@ export class RoundScreen {
       ),
     );
   }
+}
+
+function raceBanner(race: RaceOutcome): HTMLElement {
+  const text =
+    race.outcome === 'timeUp'
+      ? t('round.results.race.timeUp')
+      : t(race.outcome === 'stolen' ? 'round.results.race.stolen' : 'round.results.race.delivered', {
+          name: race.name,
+        });
+  return h(
+    'p',
+    {
+      class: `results-race${race.mine ? ' me' : ''}`,
+      'data-outcome': race.outcome,
+      'data-winner': race.winner,
+    },
+    text,
+  );
 }
 
 function placeText(place: number): string {

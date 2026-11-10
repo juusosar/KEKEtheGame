@@ -2,13 +2,16 @@
 // zoom, and e2e specs find each part by id or role instead of reading pixels.
 //
 //   #keke-hud            root, pointer-events none
-//   #keke-hud-arrow      target arrow at the screen edge (data-kind target|van)
+//   #keke-hud-arrow      target arrow at the screen edge (data-kind target|van|office)
 //   #keke-hud-target     target card: icon, name, description, zone
 //   #keke-hud-carry      carry slot
+//   #keke-hud-quota      race only (M6-3): role meter "Order quota", data-points, data-quota, data-state
+//                        collecting|deliver|stolen
 //   #keke-hud-timer      round timer, role timer, data-seconds
 //   #keke-hud-scores     mini scoreboard (top 5 + you): li[data-player-id][data-place][data-points]
 //   #keke-hud-board      full scoreboard while Tab / pad View is held: tr[data-player-id]
-//   #keke-hud-feed       event feed, role log (li[data-kind] steal|joke|deposit|slip|runover|hit|ko|wanted)
+//   #keke-hud-feed       event feed, role log (li[data-kind] steal|joke|deposit|slip|runover|hit|ko|wanted|
+//                        box|packed|delivery)
 //   #keke-hud-combat     bottom-centre: HP bar and weapon slot (M4-7)
 //   #keke-hud-hp         role meter "Health", data-hp, data-max, data-level ok|warn|low
 //   #keke-hud-weapon     region "Weapon", data-weapon (id), data-uses (number, or 'inf'), class .new after a roll
@@ -24,11 +27,18 @@ import { h } from '../ui/dom';
 import { placeArrow } from './edgeArrow';
 import type { CombatHudModel } from './combatHud';
 import type { FeedLine } from './feed';
-import { formatClock, miniRows, type HudItem, type HudModel, type HudPlayerRow } from './hudState';
+import {
+  formatClock,
+  miniRows,
+  type HudItem,
+  type HudModel,
+  type HudPlayerRow,
+  type HudRace,
+} from './hudState';
 
 export interface HudDeps {
-  /** Image URL for an `items` atlas frame, or null when it cannot be drawn. */
-  iconFor(sprite: string): string | null;
+  /** Image URL for a frame of `atlas` (`items`, or `order_box`), or null when it cannot be drawn. */
+  iconFor(sprite: string, atlas: string): string | null;
   /** Image URL for a `weapons` atlas frame, or null when it cannot be drawn. */
   weaponIconFor(sprite: string): string | null;
 }
@@ -56,6 +66,10 @@ export class Hud {
   private readonly carryIcon: HTMLImageElement;
   private readonly carryName: HTMLElement;
   private readonly timer: HTMLElement;
+  private readonly quota: HTMLElement;
+  private readonly quotaFill: HTMLElement;
+  private readonly quotaText: HTMLElement;
+  private quotaKey = '';
   private readonly scores: HTMLOListElement;
   private readonly board: HTMLElement;
   private readonly boardBody: HTMLTableSectionElement;
@@ -104,6 +118,22 @@ export class Hud {
       { id: 'keke-hud-carry', class: 'hud-carry', 'aria-label': t('hud.carry'), hidden: true },
       h('div', { class: 'hud-slot' }, this.carryIcon),
       h('div', { class: 'hud-text' }, h('span', { class: 'hud-label' }, t('hud.carry')), this.carryName),
+    );
+
+    this.quotaFill = h('div', { class: 'hud-quota-fill' });
+    this.quotaText = h('span', { class: 'hud-quota-text' });
+    this.quota = h(
+      'div',
+      {
+        id: 'keke-hud-quota',
+        class: 'hud-quota',
+        role: 'meter',
+        'aria-label': t('hud.quota'),
+        'aria-valuemin': 0,
+        hidden: true,
+      },
+      h('div', { class: 'hud-quota-bar' }, this.quotaFill),
+      this.quotaText,
     );
 
     this.timer = h('div', {
@@ -185,7 +215,7 @@ export class Hud {
     this.root = h(
       'div',
       { id: 'keke-hud', class: 'keke-hud', 'aria-label': t('hud.label') },
-      h('div', { class: 'hud-left' }, this.target, this.carry),
+      h('div', { class: 'hud-left' }, this.target, this.carry, this.quota),
       this.timer,
       h('div', { class: 'hud-right' }, this.scores, this.feed),
       this.combat,
@@ -201,6 +231,7 @@ export class Hud {
     this.model = model;
     this.renderTarget(model.target);
     this.renderCarry(model);
+    this.renderQuota(model.race);
     this.renderTimer(model.secondsLeft);
     this.renderScores(model);
     if (this.boardOpen) this.renderBoard(model);
@@ -225,7 +256,16 @@ export class Hud {
     this.arrow.hidden = false;
     if (this.arrow.dataset['kind'] !== dest.kind) {
       this.arrow.dataset['kind'] = dest.kind;
-      this.arrow.setAttribute('aria-label', t(dest.kind === 'van' ? 'hud.arrow.van' : 'hud.arrow.target'));
+      this.arrow.setAttribute(
+        'aria-label',
+        t(
+          dest.kind === 'van'
+            ? 'hud.arrow.van'
+            : dest.kind === 'office'
+              ? 'hud.arrow.office'
+              : 'hud.arrow.target',
+        ),
+      );
     }
     this.arrow.dataset['onScreen'] = String(at.onScreen);
     this.arrow.style.transform = `translate(${at.x.toFixed(1)}px, ${at.y.toFixed(1)}px) rotate(${at.angle.toFixed(3)}rad)`;
@@ -365,7 +405,7 @@ export class Hud {
   // --- parts ----------------------------------------------------------------------------------------
 
   private setIcon(img: HTMLImageElement, item: HudItem | null): void {
-    const src = item ? this.deps.iconFor(item.sprite) : null;
+    const src = item ? this.deps.iconFor(item.sprite, item.atlas) : null;
     if (src === null) {
       img.hidden = true;
       img.removeAttribute('src');
@@ -407,8 +447,33 @@ export class Hud {
     else this.carry.dataset['itemId'] = item.itemId;
     this.carry.classList.toggle('empty', item === null);
     this.carry.classList.toggle('joke', item?.rarity === 'joke');
+    this.carry.classList.toggle('box', item?.box != null);
     this.setIcon(this.carryIcon, item);
     this.carryName.textContent = item === null ? t('hud.carry.empty') : item.name;
+  }
+
+  /** Race (§4.2): our van's progress to the next order box, or the delivery call while carrying one. */
+  private renderQuota(race: HudRace | null): void {
+    this.quota.hidden = race === null;
+    if (race === null) {
+      this.quotaKey = '';
+      return;
+    }
+    const state = !race.carryingBox ? 'collecting' : race.stolen ? 'stolen' : 'deliver';
+    const key = JSON.stringify([race.points, race.quota, state]);
+    if (key === this.quotaKey) return;
+    this.quotaKey = key;
+    this.quota.dataset['points'] = String(race.points);
+    this.quota.dataset['quota'] = String(race.quota);
+    this.quota.dataset['state'] = state;
+    this.quota.setAttribute('aria-valuemax', String(race.quota));
+    this.quota.setAttribute('aria-valuenow', String(Math.min(race.points, race.quota)));
+    const fill = race.quota > 0 ? Math.min(1, race.points / race.quota) : 0;
+    this.quotaFill.style.width = `${(fill * 100).toFixed(1)}%`;
+    this.quotaText.textContent =
+      state === 'collecting'
+        ? t('hud.quota.value', { points: race.points, quota: race.quota })
+        : t(state === 'stolen' ? 'hud.quota.stolen' : 'hud.quota.deliver');
   }
 
   private renderTimer(seconds: number | null): void {

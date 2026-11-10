@@ -257,3 +257,39 @@ describe('forklift markers (M5-7)', () => {
     expect(markers.some((m) => m.kind === 'forklift')).toBe(false);
   });
 });
+
+describe('race markers (M6-3)', () => {
+  const raceMap: MinimapMap = { ...map, office: { x: 3696, y: 1280 } };
+  const raceState = (items: Record<string, object>, mode = 'race') => ({
+    ...state({ items }),
+    settings: { mode, teams: false },
+  });
+
+  it('marks the office in race mode only', () => {
+    const race = buildMinimapMarkers(readMinimapWorld(raceState({}), 'a'), raceMap);
+    expect(race.filter((m) => m.kind === 'office')).toEqual([
+      { kind: 'office', id: 'office', x: 3696, y: 1280 },
+    ]);
+    const timed = buildMinimapMarkers(readMinimapWorld(raceState({}, 'timed'), 'a'), raceMap);
+    expect(timed.some((m) => m.kind === 'office')).toBe(false);
+  });
+
+  it('marks a lying box as a box (not a loose item) and a carried one on its carrier, for everyone', () => {
+    const lying = { '9': { id: 9, itemId: 'order_box', state: 'loose', x: 700, y: 600, carrier: '' } };
+    const lyingMarkers = buildMinimapMarkers(readMinimapWorld(raceState(lying), 'a'), raceMap);
+    expect(kinds(lyingMarkers)).toContain('box:item:9');
+    expect(kinds(lyingMarkers)).not.toContain('loose:item:9');
+
+    const carried = { '9': { id: 9, itemId: 'order_box', state: 'carried', x: 0, y: 0, carrier: 'b' } };
+    const markers = buildMinimapMarkers(readMinimapWorld(raceState(carried), 'a'), raceMap);
+    expect(markers.find((m) => m.kind === 'carrier')).toMatchObject({ id: 'carrier:b', x: 400, y: 500 });
+    expect(markers.some((m) => m.kind === 'box')).toBe(false);
+  });
+
+  it('keeps our own carrier ring on our predicted position', () => {
+    const carried = { '9': { id: 9, itemId: 'order_box', state: 'carried', x: 0, y: 0, carrier: 'a' } };
+    const world = withSelfAt(readMinimapWorld(raceState(carried), 'a'), { x: 123, y: 456 });
+    const ring = buildMinimapMarkers(world, raceMap).find((m) => m.kind === 'carrier');
+    expect(ring).toMatchObject({ x: 123, y: 456 });
+  });
+});

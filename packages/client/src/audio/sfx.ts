@@ -3,7 +3,8 @@
 // and wires the volume, keeping `play(name, volume)` as the call sites' API.
 // Every call is counted (also when audio is unavailable or blocked), so e2e specs can latch on the count.
 
-export type SfxName = 'wantedAlarm' | 'wantedAlarmFar' | 'wantedRefresh' | 'forkliftBeep';
+export type SfxName =
+  'wantedAlarm' | 'wantedAlarmFar' | 'wantedRefresh' | 'forkliftBeep' | 'boxPacked' | 'delivery';
 
 /** Master gain for the placeholder sounds (no settings screen until M7). */
 const MASTER = 0.25;
@@ -25,6 +26,10 @@ const SOUNDS: Record<SfxName, Tone> = {
   wantedRefresh: { freqs: [990], stepSeconds: 0.08, type: 'square', gain: 0.4 },
   // Reversing-forklift style beep.
   forkliftBeep: { freqs: [1250], stepSeconds: 0.12, type: 'sine', gain: 0.6 },
+  // Race (M6-3): our order box is packed, a rising triad.
+  boxPacked: { freqs: [523, 659, 784], stepSeconds: 0.1, type: 'triangle', gain: 0.6 },
+  // Race: a box was delivered and the round ends, a short fanfare.
+  delivery: { freqs: [523, 659, 784, 1047], stepSeconds: 0.12, type: 'square', gain: 0.5 },
 };
 
 export class Sfx {
@@ -34,6 +39,8 @@ export class Sfx {
     wantedAlarmFar: 0,
     wantedRefresh: 0,
     forkliftBeep: 0,
+    boxPacked: 0,
+    delivery: 0,
   };
 
   /** Plays `name` at `volume` (0..1). Silent volumes are skipped and not counted. */

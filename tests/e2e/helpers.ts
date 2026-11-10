@@ -196,3 +196,33 @@ export function nearButcherCounter(at: { x: number; y: number }, margin = 64): b
   const z = BEHIND_COUNTER;
   return at.x > z.x - margin && at.x < z.x + z.w + margin && at.y > z.y - margin && at.y < z.y + z.h + margin;
 }
+
+/**
+ * Asks the server to move us next to `at`, trying spots around it until one is free of walls (the
+ * hook checks the map locally), then waits until our predicted body is there.
+ */
+export async function teleportNear(page: Page, at: { x: number; y: number }, reach: number): Promise<void> {
+  const spot = await page.evaluate(
+    ({ x, y, reach }) => {
+      const keke = (globalThis as WithHook).__KEKE__;
+      if (!keke) throw new Error('window.__KEKE__ is missing');
+      const offsets: [number, number][] = [[0, 0]];
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        offsets.push([Math.cos(a) * reach, Math.sin(a) * reach]);
+      }
+      for (const [dx, dy] of offsets) {
+        if (keke.teleport(x + dx, y + dy)) return { x: x + dx, y: y + dy };
+      }
+      return null;
+    },
+    { ...at, reach },
+  );
+  expect(spot, 'a free spot next to the destination').not.toBeNull();
+  await expect
+    .poll(async () => {
+      const p = (await game(page)).player;
+      return Math.hypot(p.x - (spot?.x ?? 0), p.y - (spot?.y ?? 0));
+    })
+    .toBeLessThan(2);
+}

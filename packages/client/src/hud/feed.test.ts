@@ -1,6 +1,6 @@
 import { getItemCatalogue, getWeaponCatalogue } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
-import { combatFeedLine, feedLine, npcFeedLine, type FeedContext } from './feed';
+import { combatFeedLine, feedLine, npcFeedLine, raceFeedLine, type FeedContext } from './feed';
 
 const names: Record<string, string> = { a: 'Juuso', b: 'Mikko' };
 const ctx: FeedContext = { catalogue: getItemCatalogue('kespro'), nameOf: (id) => names[id] ?? id };
@@ -186,5 +186,68 @@ describe('store workers and Wanted in the feed (M5-7)', () => {
     expect(npcFeedLine('wanted', wanted('a', true), npcCtx)).toBeNull();
     expect(npcFeedLine('wantedEnded', { player: 'a' }, npcCtx)).toBeNull();
     expect(npcFeedLine('wanted', null, npcCtx)).toBeNull();
+  });
+});
+
+describe('race feed lines (M6-3)', () => {
+  const box = { id: 8, itemId: 'order_box', rarity: 'normal', x: 0, y: 0 };
+  const vans: Record<string, number> = { a: 0, b: 1 };
+  const race: FeedContext = {
+    ...ctx,
+    race: {
+      boxVan: (id) => (id === 8 ? 1 : undefined),
+      vanOf: (id) => vans[id] ?? -1,
+      vanName: (van) => (van === 1 ? 'Mikko' : 'Juuso'),
+    },
+  };
+
+  it('announces a box snatched from another van', () => {
+    expect(feedLine('pickup', { player: 'a', item: box, kind: 'box', targetOwner: null }, race)).toEqual({
+      kind: 'box',
+      text: 'Juuso snatched Mikko’s order box!',
+    });
+  });
+
+  it('stays quiet when a player picks their own box back up, or without race names', () => {
+    expect(feedLine('pickup', { player: 'b', item: box, kind: 'box', targetOwner: null }, race)).toBeNull();
+    expect(feedLine('pickup', { player: 'a', item: box, kind: 'box', targetOwner: null }, ctx)).toBeNull();
+  });
+
+  it('names the box in slip lines', () => {
+    expect(feedLine('drop', { player: 'a', item: box, reason: 'slip' }, race)?.text).toBe(
+      'Juuso slipped on a banana peel and dropped Order box',
+    );
+  });
+
+  const rctx = { me: 'a', nameOf: (id: string) => names[id] ?? id, vanName: () => 'Juuso' };
+
+  it('announces packing, ours in its own words', () => {
+    const packed = { player: 'b', van: 1, box, points: 7 };
+    expect(raceFeedLine('boxPacked', packed, rctx)).toEqual({
+      kind: 'packed',
+      text: 'Mikko packed an order box (7 items)',
+    });
+    expect(raceFeedLine('boxPacked', { ...packed, player: 'a' }, rctx)?.text).toBe(
+      'Your order box is packed: take it to the office!',
+    );
+  });
+
+  it('announces deliveries, stolen ones with the victim', () => {
+    const delivery = { player: 'b', van: 1, box, packedVan: 1, points: 6, stolen: false };
+    expect(raceFeedLine('delivery', delivery, rctx)).toEqual({
+      kind: 'delivery',
+      text: 'Mikko delivered the order box!',
+    });
+    expect(raceFeedLine('delivery', { ...delivery, packedVan: 0, stolen: true }, rctx)?.text).toBe(
+      'Mikko delivered Juuso’s stolen order box!',
+    );
+    expect(raceFeedLine('delivery', { ...delivery, player: 'a' }, rctx)?.text).toBe(
+      'You delivered the order box!',
+    );
+  });
+
+  it('ignores other types and malformed messages', () => {
+    expect(raceFeedLine('pickup', { player: 'a' }, rctx)).toBeNull();
+    expect(raceFeedLine('delivery', null, rctx)).toBeNull();
   });
 });

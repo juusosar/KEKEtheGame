@@ -114,10 +114,14 @@ export interface KekeItemSnapshot {
   owner: string;
   /** Session id carrying it ('' unless state is 'carried'). */
   carrier: string;
-  /** Frame in the 'items' atlas. */
+  /** Frame in the 'items' atlas (the 'order_box' atlas for an order box). */
   frame: string;
   /** Outline colour `#RRGGBB` (owner or team colour), null for none. */
   outline: string | null;
+  /** Race (M6-3): van slot that packed this order box (itemId 'order_box'); -1 for a normal item. */
+  packedVan: number;
+  /** Race: item points in this order box; 0 for a normal item. */
+  points: number;
 }
 
 /** A van on the loading dock (M3-6). */
@@ -129,8 +133,10 @@ export interface KekeVanSnapshot {
   /** Van centre in pixels (the deposit point). */
   x: number;
   y: number;
-  /** Item points banked this round. */
+  /** Item points banked this round (race: quota progress, back to 0 at each packing). */
   points: number;
+  /** Race (M6-3): items this van controls (banked + its own boxes its players carry); = points in Timed. */
+  controlled: number;
   /** 0 when teams are off. */
   team: number;
   /** Frame in the 'van' atlas (`slot_<index>`). */
@@ -139,9 +145,15 @@ export interface KekeVanSnapshot {
   outline: string | null;
 }
 
+/** A race broadcast this client received (M6-3): `boxPacked` or `delivery` with its payload. */
+export interface KekeRaceEvent {
+  type: string;
+  payload: unknown;
+}
+
 /** A marker the minimap draws (render/minimap.ts), in world pixels. */
 export interface KekeMinimapMarker {
-  /** `van`, `loose`, `target`, `self` (later milestones add more). */
+  /** `van`, `loose`, `target`, `self`, `forklift`; race: `office`, `box`, `carrier`. */
   kind: string;
   /** e.g. `van:0`, `item:12`, `self`. */
   id: string;
@@ -243,6 +255,8 @@ export interface KekeHook {
   items(): KekeItemSnapshot[];
   /** Vans drawn on the dock, by slot. Offline: slot 1 only. */
   vans(): KekeVanSnapshot[];
+  /** Race broadcasts received (`boxPacked`, `delivery`), last 50, oldest first; empty offline. */
+  raceEvents(): KekeRaceEvent[];
   /** Banana peels on the floor (M4-5), by id; empty offline. */
   traps(): KekeTrapSnapshot[];
   /** Store workers in the synced state (M5-3), by id; empty offline. What is drawn is `npcSprites()`. */

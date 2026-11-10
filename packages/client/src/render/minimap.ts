@@ -1,7 +1,7 @@
 // Minimap model (§13.2): what the corner map shows and where, as plain data. No DOM or Phaser here, so
 // the marker rules are unit-tested; MinimapView.ts draws the result onto a canvas.
 //
-// Adding a marker later (office and box carriers in M6; forklifts came in M5-7):
+// Adding a marker later (forklifts came in M5-7; the race office, order boxes and box carriers in M6-3):
 //   1. add its kind to MARKER_STYLES (shape, size, draw order),
 //   2. write a MinimapLayer that turns the synced state (`world.state`) into markers of that kind,
 //   3. append the layer to the list passed to buildMinimapMarkers (or to DEFAULT_LAYERS).
@@ -57,10 +57,13 @@ export interface MarkerStyle {
 
 /** Marker kinds and how they look. Later milestones add their kinds here (see the header). */
 export const MARKER_STYLES = {
+  office: { shape: 'square', size: 11, z: 0.5, color: '#FFE14D' },
   van: { shape: 'square', size: 7, z: 1, color: '#9E9E9E' },
   loose: { shape: 'circle', size: 4, z: 2, color: '#F5F5F5' },
   forklift: { shape: 'square', size: 6, z: 2.5, color: '#FF9800', pulse: true },
   target: { shape: 'diamond', size: 9, z: 3, color: '#FFD600', pulse: true },
+  box: { shape: 'square', size: 7, z: 3.4, color: '#C8A165' },
+  carrier: { shape: 'circle', size: 10, z: 3.5, color: '#C8A165', pulse: true },
   self: { shape: 'triangle', size: 8, z: 4, color: '#FFFFFF' },
 } as const satisfies Record<string, MarkerStyle>;
 
@@ -100,7 +103,11 @@ export interface MinimapPlayer {
 
 export interface MinimapItem {
   readonly id: number;
+  /** Catalogue id, or 'order_box' (race). */
+  readonly itemId: string;
   readonly state: string;
+  /** Session id carrying it ('' unless carried). */
+  readonly carrier: string;
   readonly x: number;
   readonly y: number;
 }
@@ -113,6 +120,8 @@ export interface MinimapWorld {
   readonly items: readonly MinimapItem[];
   /** Van slots in use this round (keys of `state.vans`). */
   readonly vans: readonly number[];
+  /** Room setting `mode` ('timed' offline). */
+  readonly mode: string;
   /** The room state as synced (null offline), for layers this module does not read yet. */
   readonly state: unknown;
 }
@@ -143,7 +152,9 @@ export function readMinimapWorld(state: unknown, mySessionId: string): MinimapWo
     if (!isBag(value)) continue;
     items.push({
       id: num(value, 'id', Number(key)),
+      itemId: str(value, 'itemId'),
       state: str(value, 'state'),
+      carrier: str(value, 'carrier'),
       x: num(value, 'x'),
       y: num(value, 'y'),
     });
@@ -156,7 +167,9 @@ export function readMinimapWorld(state: unknown, mySessionId: string): MinimapWo
   }
   vans.sort((a, b) => a - b);
 
-  return { me: players.find((p) => p.id === mySessionId) ?? null, players, items, vans, state };
+  const settings = s['settings'];
+  const mode = isBag(settings) ? str(settings, 'mode', 'timed') : 'timed';
+  return { me: players.find((p) => p.id === mySessionId) ?? null, players, items, vans, mode, state };
 }
 
 /** The offline walk (`?scene=game`): just us at van slot 1, no items. */
@@ -173,7 +186,7 @@ export function offlineMinimapWorld(color: string, at: Vec): MinimapWorld {
     x: at.x,
     y: at.y,
   };
-  return { me, players: [me], items: [], vans: [0], state: null };
+  return { me, players: [me], items: [], vans: [0], mode: 'timed', state: null };
 }
 
 // --- layers -----------------------------------------------------------------------------------------
@@ -182,7 +195,11 @@ export function offlineMinimapWorld(color: string, at: Vec): MinimapWorld {
 export interface MinimapMap {
   /** 0-based van slot → van centre (MapModel.vanSlots). */
   readonly vanSlots: readonly Vec[];
+  /** Race: centre of the office trigger (MapModel.officeTrigger bounds). */
+  readonly office?: Vec;
 }
+
+const ORDER_BOX = 'order_box';
 
 export type MinimapLayer = (world: MinimapWorld, map: MinimapMap) => MinimapMarker[];
 
@@ -212,7 +229,7 @@ export const vanLayer: MinimapLayer = (world, map) => {
 export const looseLayer: MinimapLayer = (world) => {
   const target = world.me?.target ?? 0;
   return world.items
-    .filter((item) => item.state === 'loose' && item.id !== target)
+    .filter((item) => item.state === 'loose' && item.id !== target && item.itemId !== ORDER_BOX)
     .map((item) => ({ kind: 'loose', id: `item:${item.id}`, x: item.x, y: item.y }));
 };
 
@@ -231,6 +248,32 @@ export const forkliftLayer: MinimapLayer = (world) =>
     .filter((n) => n.behaviour === 'forklift')
     .map((n) => ({ kind: 'forklift', id: `npc:${n.id}`, x: n.x, y: n.y }));
 
+/** Race (§4.2): the office, the delivery goal, for everyone. */
+export const officeLayer: MinimapLayer = (world, map) =>
+  world.mode === 'race' && map.office
+    ? [{ kind: 'office', id: 'office', x: map.office.x, y: map.office.y }]
+    : [];
+
+/**
+ * Race (§4.2): order boxes for everyone, lying ones where they lie and carried ones on their carrier
+ * ("box carriers are marked on the minimap for all players"). Our own position while carrying is the
+ * self marker on top of the carrier ring.
+ */
+export const boxLayer: MinimapLayer = (world) => {
+  const out: MinimapMarker[] = [];
+  for (const item of world.items) {
+    if (item.itemId !== ORDER_BOX) continue;
+    if (item.state === 'carried') {
+      const carrier = world.players.find((p) => p.id === item.carrier);
+      const at = carrier ?? item;
+      out.push({ kind: 'carrier', id: `carrier:${item.carrier}`, x: at.x, y: at.y });
+    } else {
+      out.push({ kind: 'box', id: `item:${item.id}`, x: item.x, y: item.y });
+    }
+  }
+  return out;
+};
+
 /** Where we are. */
 export const selfLayer: MinimapLayer = (world) => {
   const me = world.me;
@@ -241,10 +284,12 @@ export const selfLayer: MinimapLayer = (world) => {
 };
 
 export const DEFAULT_LAYERS: readonly MinimapLayer[] = [
+  officeLayer,
   vanLayer,
   looseLayer,
   forkliftLayer,
   targetLayer,
+  boxLayer,
   selfLayer,
 ];
 
