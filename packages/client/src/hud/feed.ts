@@ -5,6 +5,10 @@ import {
   CombatEventMessage,
   ItemEventMessage,
   NpcEventMessage,
+  ORDER_BOX_ITEM_ID,
+  RaceEventMessage,
+  type BoxPackedMessage,
+  type DeliveryMessage,
   type DepositMessage,
   type DropMessage,
   type HitMessage,
@@ -20,7 +24,8 @@ import { t } from '../i18n';
 import { isBag } from '../net/lobbyView';
 import { weaponName } from './combatHud';
 
-export type FeedKind = 'steal' | 'joke' | 'deposit' | 'slip' | 'runover' | 'hit' | 'ko' | 'wanted';
+export type FeedKind =
+  'steal' | 'joke' | 'deposit' | 'slip' | 'runover' | 'hit' | 'ko' | 'wanted' | 'box' | 'packed' | 'delivery';
 
 export interface FeedLine {
   kind: FeedKind;
@@ -36,10 +41,23 @@ export interface FeedContext {
   catalogue: Pick<ItemCatalogue, 'get'>;
   /** Nickname for a session id; the id itself when unknown. */
   nameOf(sessionId: string): string;
+  /**
+   * Race (M6-3): who an order box belongs to, for "X snatched Y's order box". `boxVan` is the van that
+   * packed world item `id` (undefined when unknown), `vanOf` a player's van, `vanName` the van's owner as
+   * shown (nickname, or the team name with Teams on).
+   */
+  race?: RaceNames;
+}
+
+export interface RaceNames {
+  boxVan(itemId: number): number | undefined;
+  vanOf(sessionId: string): number;
+  vanName(van: number): string;
 }
 
 function itemName(item: unknown, ctx: FeedContext): { name: string; joke: boolean } | null {
   if (!isBag(item) || typeof item['itemId'] !== 'string') return null;
+  if (item['itemId'] === ORDER_BOX_ITEM_ID) return { name: t('item.orderBox'), joke: false };
   const def = ctx.catalogue.get(item['itemId']);
   return { name: def?.name ?? item['itemId'], joke: (def?.rarity ?? item['rarity']) === 'joke' };
 }
@@ -53,6 +71,15 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
 
   if (type === ItemEventMessage.pickup) {
     const pickup = message as unknown as PickupMessage;
+    if (pickup.kind === 'box') {
+      // Picking your own side's box back up is not news; grabbing someone else's is (§4.2).
+      const race = ctx.race;
+      const id = isBag(message['item']) ? message['item']['id'] : undefined;
+      const packedVan = race && typeof id === 'number' ? race.boxVan(id) : undefined;
+      if (!race || packedVan === undefined || packedVan < 0) return null;
+      if (race.vanOf(pickup.player) === packedVan) return null;
+      return { kind: 'box', text: t('hud.feed.boxGrabStolen', { name, owner: race.vanName(packedVan) }) };
+    }
     if (pickup.kind === 'other_target' && typeof pickup.targetOwner === 'string') {
       return {
         kind: 'steal',
@@ -197,3 +224,38 @@ export function npcFeedLine(
 
 /** Store worker and Wanted message types the feed listens to. */
 export const NPC_FEED_MESSAGES = [NpcEventMessage.npcKo, NpcEventMessage.wanted] as const;
+
+export interface RaceFeedContext {
+  /** Our session id: our own packing gets its own line. */
+  me: string;
+  /** Nickname for a session id; the id itself when unknown. */
+  nameOf(sessionId: string): string;
+  /** A van's owner as shown (nickname, or the team name with Teams on). */
+  vanName(van: number): string;
+}
+
+/** One feed line for a race broadcast (M6-3): a box packed at the quota, or the winning delivery. */
+export function raceFeedLine(type: string, message: unknown, ctx: RaceFeedContext): FeedLine | null {
+  if (!isBag(message) || typeof message['player'] !== 'string') return null;
+  if (type === RaceEventMessage.boxPacked) {
+    const packed = message as unknown as BoxPackedMessage;
+    if (packed.player === ctx.me) return { kind: 'packed', text: t('hud.feed.boxPackedYou') };
+    const points = typeof packed.points === 'number' ? packed.points : 0;
+    return { kind: 'packed', text: t('hud.feed.boxPacked', { name: ctx.nameOf(packed.player), points }) };
+  }
+  if (type === RaceEventMessage.delivery) {
+    const delivery = message as unknown as DeliveryMessage;
+    const name = delivery.player === ctx.me ? t('hud.feed.you') : ctx.nameOf(delivery.player);
+    if (delivery.stolen === true && typeof delivery.packedVan === 'number') {
+      return {
+        kind: 'delivery',
+        text: t('hud.feed.deliveryStolen', { name, owner: ctx.vanName(delivery.packedVan) }),
+      };
+    }
+    return { kind: 'delivery', text: t('hud.feed.delivery', { name }) };
+  }
+  return null;
+}
+
+/** Race message types the feed listens to (M6-3). */
+export const RACE_FEED_MESSAGES = [RaceEventMessage.boxPacked, RaceEventMessage.delivery] as const;

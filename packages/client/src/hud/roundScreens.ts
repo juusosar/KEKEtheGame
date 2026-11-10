@@ -48,6 +48,17 @@ export interface PodiumRow {
   mine: boolean;
 }
 
+/** Race results banner (§4.2, M6-3): who delivered, or that the 240 s cap ended the round. */
+export interface RaceOutcome {
+  outcome: 'delivered' | 'stolen' | 'timeUp';
+  /** Deliverer's session id ('' at the time cap). */
+  winner: string;
+  /** Deliverer's nickname ('' at the time cap). */
+  name: string;
+  /** We (or our team) delivered. */
+  mine: boolean;
+}
+
 export type RoundScreenModel =
   | { kind: 'none' }
   | { kind: 'intro'; seconds: number; round: number; totalRounds: number; mode: GameMode }
@@ -61,6 +72,8 @@ export type RoundScreenModel =
       teams: boolean;
       rows: ResultRow[];
       teamRows: ResultTeamRow[];
+      /** Race mode only. */
+      race: RaceOutcome | null;
     }
   | { kind: 'podium'; seconds: number; teams: boolean; rows: PodiumRow[] };
 
@@ -120,6 +133,21 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
         mine: team === myTeam,
       }))
       .sort((a, b) => byPlace(a.place, b.place) || a.team - b.team);
+    let race: RaceOutcome | null = null;
+    if (lobby.settings.mode === 'race') {
+      const winner = typeof s['raceWinner'] === 'string' ? s['raceWinner'] : '';
+      const deliverer = lobby.players.find((p) => p.id === winner);
+      const mine =
+        winner !== '' &&
+        (winner === lobby.me?.id ||
+          (teams && myTeam > 0 && deliverer !== undefined && deliverer.team === myTeam));
+      race = {
+        outcome: winner === '' ? 'timeUp' : s['raceStolen'] === true ? 'stolen' : 'delivered',
+        winner,
+        name: deliverer?.nickname ?? '',
+        mine,
+      };
+    }
     return {
       kind: 'results',
       seconds,
@@ -129,6 +157,7 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       teams,
       rows,
       teamRows,
+      race,
     };
   }
 

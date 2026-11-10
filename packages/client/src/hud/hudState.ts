@@ -3,16 +3,22 @@
 // Every field is read defensively like net/lobbyView: create()/join() resolve before the first patch,
 // and fields added by later milestones (session totals from the round flow) may not exist yet.
 import {
+  ORDER_BOX_ITEM_ID,
   rankTimedRound,
   teamPointsFromVans,
   teamSideId,
   vanCentre,
   type ItemCatalogue,
+  type GameMode,
   type ItemRarity,
   type RoundPhase,
   type Vec2,
 } from '@keke/shared';
+import { t } from '../i18n';
 import { isBag, mapEntries, num, readLobby, str, type Bag } from '../net/lobbyView';
+
+/** Atlas of the order box icon (M6-3); every other item is a frame in the `items` atlas. */
+export const ORDER_BOX_ATLAS = 'order_box';
 
 /** An item the HUD shows: the world item joined with its catalogue entry (M3-1). */
 export interface HudItem {
@@ -26,11 +32,15 @@ export interface HudItem {
   desc: string;
   /** Catalogue zone id (`any` for joke items). */
   zone: string;
-  /** Frame in the `items` atlas. */
+  /** Frame in `atlas`. */
   sprite: string;
+  /** `items`, or `order_box` for the race order box. */
+  atlas: string;
   rarity: ItemRarity;
   x: number;
   y: number;
+  /** Race (M6-3): the order box's packing van and points; null for a normal item. */
+  box: { packedVan: number; points: number } | null;
 }
 
 export interface HudPlayerRow {
@@ -39,7 +49,10 @@ export interface HudPlayerRow {
   color: string;
   /** 0 = no team. */
   team: number;
-  /** Item points deposited this round (`PlayerState.deposited`). */
+  /**
+   * Item points this round: deposited (`PlayerState.deposited`) in Timed; in Race the items their van
+   * controls (`VanState.controlled`: banked + own boxes carried), which the race ranks on (§4.2).
+   */
   points: number;
   /** Live placement this round: own in free-for-all, the team's with teams on. Ties share. */
   place: number;
@@ -57,10 +70,25 @@ export interface HudTeamRow {
   place: number;
 }
 
-export type ArrowKind = 'target' | 'van';
+export type ArrowKind = 'target' | 'van' | 'office';
+
+/** Race HUD (§4.2, M6-3): our van's progress to the next order box. */
+export interface HudRace {
+  /** Our van's banked points (back to 0 at each packing). */
+  points: number;
+  /** `raceQuota`. */
+  quota: number;
+  /** Items our van controls (banked + our side's own boxes carried). */
+  controlled: number;
+  /** We carry an order box (ours or a stolen one): bring it to the office. */
+  carryingBox: boolean;
+  /** The box we carry was packed by another van. */
+  stolen: boolean;
+}
 
 export interface HudModel {
   phase: RoundPhase;
+  mode: GameMode;
   teams: boolean;
   /** True once our own player is in the synced state. */
   synced: boolean;
@@ -69,8 +97,13 @@ export interface HudModel {
   target: HudItem | null;
   /** What we hold, or null. */
   carried: HudItem | null;
-  /** Where the arrow points, in world pixels: the target, or our van while carrying (§13.2). */
+  /**
+   * Where the arrow points, in world pixels (§13.2): the target, our van while carrying an item, or the
+   * office while carrying an order box (race).
+   */
   arrow: { kind: ArrowKind; at: Vec2 } | null;
+  /** Race mode, in a round, not spectating: quota progress; else null. */
+  race: HudRace | null;
   /** Whole seconds left in the round while it is running, else null. */
   secondsLeft: number | null;
   /** Players in the round (not spectators), best place first. */
@@ -85,11 +118,32 @@ export interface HudContext {
   catalogue: Pick<ItemCatalogue, 'get'>;
   /** The map's van slots in slot order (`MapModel.vanSlots`). */
   vanSlots: readonly Vec2[];
+  /** Race: centre of the office trigger (the arrow's goal while carrying a box); none = no office arrow. */
+  office?: Vec2;
+  /** Race quota (`GameConfig.raceQuota`); defaults to 6. */
+  raceQuota?: number;
 }
+
+const DEFAULT_RACE_QUOTA = 6;
 
 function readItem(value: unknown, catalogue: HudContext['catalogue']): HudItem | null {
   if (!isBag(value)) return null;
   const itemId = str(value, 'itemId');
+  if (itemId === ORDER_BOX_ITEM_ID) {
+    return {
+      id: num(value, 'id'),
+      itemId,
+      name: t('item.orderBox'),
+      desc: t('item.orderBox.desc'),
+      zone: '',
+      sprite: ORDER_BOX_ITEM_ID,
+      atlas: ORDER_BOX_ATLAS,
+      rarity: 'normal',
+      x: num(value, 'x'),
+      y: num(value, 'y'),
+      box: { packedVan: num(value, 'packedVan', -1), points: num(value, 'points') },
+    };
+  }
   const def = catalogue.get(itemId);
   const rarity = str(value, 'rarity', def?.rarity ?? 'normal');
   return {
@@ -99,9 +153,11 @@ function readItem(value: unknown, catalogue: HudContext['catalogue']): HudItem |
     desc: def?.desc ?? '',
     zone: def?.zone ?? '',
     sprite: def?.sprite ?? itemId,
+    atlas: 'items',
     rarity: rarity === 'joke' ? 'joke' : 'normal',
     x: num(value, 'x'),
     y: num(value, 'y'),
+    box: null,
   };
 }
 
@@ -122,17 +178,30 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
   const itemById = (id: number): HudItem | null =>
     id === 0 ? null : readItem(items.get(String(id)), ctx.catalogue);
 
+  const race = lobby.settings.mode === 'race';
   const inRound = lobby.players.filter((p) => !p.spectator);
+  const vanBags = mapEntries(s['vans']).map(([key, v]) => {
+    const bag: Bag = isBag(v) ? v : {};
+    const points = Math.max(0, num(bag, 'points'));
+    return {
+      van: num(bag, 'van', Number(key) || 0),
+      team: num(bag, 'team'),
+      points,
+      controlled: Math.max(0, num(bag, 'controlled', points)),
+    };
+  });
+  const vanOf = (id: string): (typeof vanBags)[number] | undefined => {
+    const van = num(extra.get(id) ?? {}, 'van', -1);
+    return van < 0 ? undefined : vanBags.find((v) => v.van === van);
+  };
+  // Race ranks on "items you control" per van (§4.2; teammates share one); Timed on deposits.
   const scores = inRound.map((p) => ({
     id: p.id,
-    itemPoints: Math.max(0, num(extra.get(p.id) ?? {}, 'deposited')),
+    itemPoints: race ? (vanOf(p.id)?.controlled ?? 0) : Math.max(0, num(extra.get(p.id) ?? {}, 'deposited')),
     team: p.team,
   }));
-  // Teams: the van's banked total, as the server ranks it (M3 review F3).
-  const vans = mapEntries(s['vans']).map(([, v]) => ({
-    team: isBag(v) ? num(v, 'team') : 0,
-    points: isBag(v) ? Math.max(0, num(v, 'points')) : 0,
-  }));
+  // Teams: the van's banked total, as the server ranks it (M3 review F3); in Race what the van controls.
+  const vans = vanBags.map((v) => ({ team: v.team, points: race ? v.controlled : v.points }));
   const ranked = rankTimedRound(scores, teams, teams ? teamPointsFromVans(vans) : undefined);
   const placeOf = new Map(ranked.players.map((r) => [r.id, r.place]));
   const pointsOf = new Map(scores.map((r) => [r.id, r.itemPoints]));
@@ -173,21 +242,37 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
   const target = inPlay && carried === null ? itemById(num(meBag, 'target')) : null;
 
   let arrow: HudModel['arrow'] = null;
-  if (carried !== null) {
+  if (carried?.box && ctx.office) {
+    arrow = { kind: 'office', at: { x: ctx.office.x, y: ctx.office.y } };
+  } else if (carried !== null) {
     const van = vanCentre(ctx.vanSlots, num(meBag, 'van', -1));
     if (van) arrow = { kind: 'van', at: { x: van.x, y: van.y } };
   } else if (target !== null) {
     arrow = { kind: 'target', at: { x: target.x, y: target.y } };
   }
 
+  let raceHud: HudRace | null = null;
+  if (race && inPlay) {
+    const van = lobby.me ? vanOf(lobby.me.id) : undefined;
+    raceHud = {
+      points: van?.points ?? 0,
+      quota: ctx.raceQuota ?? DEFAULT_RACE_QUOTA,
+      controlled: van?.controlled ?? 0,
+      carryingBox: carried?.box != null,
+      stolen: carried?.box != null && carried.box.packedVan !== num(meBag, 'van', -1),
+    };
+  }
+
   return {
     phase: lobby.phase,
+    mode: lobby.settings.mode,
     teams,
     synced: lobby.synced,
     spectator,
     target,
     carried,
     arrow,
+    race: raceHud,
     secondsLeft: lobby.phase === 'playing' ? Math.max(0, Math.ceil(num(s, 'secondsLeft'))) : null,
     rows,
     teamRows,
