@@ -48,6 +48,7 @@ import { PeelRenderer } from '../game/peels';
 import { NpcRenderer } from '../game/npcs';
 import { hearingVolume, npcMelee, npcTypeFromId } from '../game/npcLook';
 import { WorldRenderer } from '../game/worldItems';
+import { playerBodyOutline } from '../game/worldLayout';
 import { ProjectileRenderer } from '../game/projectiles';
 import { Hud } from '../hud/Hud';
 import { readCombatHud, weaponName } from '../hud/combatHud';
@@ -430,6 +431,7 @@ export class GameScene extends Phaser.Scene {
     if (me === null) return;
     this.sequence?.sync(me.ack);
     this.local.setLook(me);
+    this.local.setOutline(playerBodyOutline(me.team, view.teams));
     this.local.setLabel(me.nickname);
     this.local.setVisible(isOnMap(me, view.phase));
 
@@ -475,6 +477,7 @@ export class GameScene extends Phaser.Scene {
       }
       remote.buffer.push(now, p.x, p.y);
       remote.avatar.setLook(p);
+      remote.avatar.setOutline(playerBodyOutline(p.team, view.teams));
       remote.avatar.setConnected(p.connected);
       remote.avatar.setLabel(p.connected ? p.nickname : t('game.reconnecting', { name: p.nickname }));
       remote.avatar.setWanted(wanted.has(p.id));
@@ -956,6 +959,8 @@ export class GameScene extends Phaser.Scene {
       carrying: mine?.carrying ?? 0,
       target: mine?.target ?? 0,
       deposited: mine?.deposited ?? 0,
+      team: me?.team ?? 0,
+      outline: this.local.outline,
       ...this.combatSnapshot(room.sessionId),
     };
   }
@@ -992,6 +997,8 @@ export class GameScene extends Phaser.Scene {
         serverX: p.x,
         serverY: p.y,
         connected: p.connected,
+        team: p.team,
+        outline: remote.avatar.outline,
         ...this.combatSnapshot(p.id),
       });
     }

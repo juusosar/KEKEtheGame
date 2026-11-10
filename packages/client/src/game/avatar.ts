@@ -13,6 +13,14 @@ export interface AvatarLook {
   hat: string;
 }
 
+/** The 4 outline copies of the body: left, right, up, down (as world items, M3-6). */
+const OUTLINE_DIRS: readonly { x: number; y: number }[] = [
+  { x: -1, y: 0 },
+  { x: 1, y: 0 },
+  { x: 0, y: -1 },
+  { x: 0, y: 1 },
+];
+
 /** Below this many pixels per render frame a remote player counts as standing (patch jitter). */
 const WALK_EPSILON_PX = 0.05;
 
@@ -32,6 +40,9 @@ export class Avatar {
   private wantedIcon: Phaser.GameObjects.Text | null = null;
   private wanted = false;
   private visible = true;
+  /** Team-colour outline (§4.3, M6-4): tint-filled copies of the body drawn just behind it; made on first use. */
+  private outlineCopies: Phaser.GameObjects.Sprite[] = [];
+  private outlineColor: string | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -69,6 +80,46 @@ export class Avatar {
       this.hat.setTexture(this.scene.textures.exists(key) ? key : `hat_${HAT_IDS[0]}`);
     }
     this.look = look;
+  }
+
+  /** Team-colour outline around the body (`#RRGGBB`), or null for none. Cheap to call every frame. */
+  setOutline(color: string | null): void {
+    const next =
+      color !== null && /^#[0-9a-f]{6}$/i.test(color) && renderConfig.playerOutlinePx > 0 ? color : null;
+    if (next === this.outlineColor) return;
+    this.outlineColor = next;
+    if (next !== null && this.outlineCopies.length === 0) {
+      this.outlineCopies = OUTLINE_DIRS.map(() =>
+        this.scene.add.sprite(0, 0, 'body').setOrigin(0.5, renderConfig.playerOriginY),
+      );
+    }
+    const fill = next === null ? 0 : Phaser.Display.Color.HexStringToColor(next).color;
+    for (const copy of this.outlineCopies) {
+      if (next !== null) copy.setTintFill(fill);
+    }
+    this.applyAlpha();
+    this.syncOutline();
+  }
+
+  /** Current outline colour (debug hook), null for none. */
+  get outline(): string | null {
+    return this.outlineColor;
+  }
+
+  /** Puts the outline copies on the body's frame, angle and position, one layer below it. */
+  private syncOutline(): void {
+    const on = this.outlineColor !== null && this.visible;
+    const w = renderConfig.playerOutlinePx;
+    this.outlineCopies.forEach((copy, i) => {
+      copy.setVisible(on);
+      if (!on) return;
+      const dir = OUTLINE_DIRS[i] ?? { x: 0, y: 0 };
+      copy
+        .setFrame(this.body.frame.name)
+        .setAngle(this.body.angle)
+        .setPosition(this.body.x + dir.x * w, this.body.y + dir.y * w)
+        .setDepth(this.body.depth - 0.00005);
+    });
   }
 
   /** Nameplate text (nickname, plus a note while reconnecting). */
@@ -145,6 +196,7 @@ export class Avatar {
     const alpha = this.connectedAlpha * this.combat.alpha;
     this.body.setAlpha(alpha);
     this.hat.setAlpha(alpha);
+    for (const copy of this.outlineCopies) copy.setAlpha(alpha);
     this.label?.setAlpha(this.connectedAlpha);
   }
 
@@ -154,6 +206,7 @@ export class Avatar {
     this.body.setVisible(visible);
     this.hat.setVisible(visible);
     this.label?.setVisible(visible);
+    this.syncOutline();
   }
 
   /**
@@ -181,6 +234,7 @@ export class Avatar {
     this.hat.setFrame(this.body.frame.name);
     this.label?.setPosition(Math.round(x), Math.round(y - renderConfig.nameplateOffsetY - this.labelLift));
     this.placeWanted(x, y);
+    this.syncOutline();
   }
 
   get currentFacing(): Facing {
@@ -192,5 +246,6 @@ export class Avatar {
     this.hat.destroy();
     this.label?.destroy();
     this.wantedIcon?.destroy();
+    for (const copy of this.outlineCopies) copy.destroy();
   }
 }

@@ -18,6 +18,14 @@ export function playerOutlineColor(player: OutlinePlayer, teams: boolean): strin
 }
 
 /**
+ * Outline around a player's own body (§4.3, M6-4): the team colour with Teams on, none otherwise (the
+ * body is already tinted in the player's own colour, and hats stay individual).
+ */
+export function playerBodyOutline(team: number, teams: boolean): string | null {
+  return teams ? (teamColor(team) ?? null) : null;
+}
+
+/**
  * §3.1: every target is outlined in its owner's colour, for everyone. Loose and carried items have no
  * owner, so no outline. Undefined while the owner is not (yet) in the roster.
  */

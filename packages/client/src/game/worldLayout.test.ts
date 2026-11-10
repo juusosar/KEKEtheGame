@@ -5,6 +5,7 @@ import {
   carriedItemCentreY,
   itemOutlineColor,
   nameplateLift,
+  playerBodyOutline,
   playerOutlineColor,
   twinkle,
   vanFrame,
@@ -25,6 +26,13 @@ describe('outlines', () => {
     expect(playerOutlineColor(a, true)).toBe(TEAM_COLORS[0]);
     expect(playerOutlineColor(b, true)).toBe(TEAM_COLORS[1]);
     expect(playerOutlineColor({ ...a, team: 0 }, true)).toBe('#111111');
+  });
+
+  it('outlines a body in the team colour only with Teams on (§4.3, M6-4)', () => {
+    expect(playerBodyOutline(1, true)).toBe(TEAM_COLORS[0]);
+    expect(playerBodyOutline(2, true)).toBe(TEAM_COLORS[1]);
+    expect(playerBodyOutline(0, true)).toBeNull();
+    expect(playerBodyOutline(1, false)).toBeNull();
   });
 
   it('outlines only targets, in the owner colour (§3.1)', () => {

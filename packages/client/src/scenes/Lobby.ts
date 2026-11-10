@@ -4,6 +4,7 @@ import {
   GAME_MODES,
   ServerMessage,
   loadConfig,
+  teamColor,
   type GameMode,
   type LobbySettingsUpdate,
 } from '@keke/shared';
@@ -267,6 +268,9 @@ export class LobbyScene extends Phaser.Scene {
 
     const swatch = h('span', { class: 'swatch-dot', 'aria-hidden': 'true' });
     swatch.style.background = p.color || '#888';
+    // Teams (§4.3, M6-4): a ring in the team colour, as the outline drawn round the body in a round.
+    const ring = teams ? teamColor(p.team) : undefined;
+    if (ring) swatch.style.boxShadow = `0 0 0 2px ${ring}`;
     const state = p.spectator ? '' : p.ready ? t('lobby.state.ready') : t('lobby.state.notReady');
 
     return h(
