@@ -4,7 +4,7 @@
 import { gridWithBlocked, type MapModel, type NpcEventWire, type Vec2, type WantedHit } from '@keke/shared';
 import type { PlayerState } from '../../schema/GameState';
 import { config, frame, kesproMap, setup as combatSetup, TICK, type Setup } from '../combat/testKit';
-import { NpcSystem } from './NpcSystem';
+import { NpcSystem, type NpcHooks } from './NpcSystem';
 import type { NpcBehaviourModule } from './types';
 
 export interface NpcSetup extends Setup {
@@ -19,7 +19,12 @@ export interface NpcSetup extends Setup {
 export function npcSetup(
   players: number,
   at?: (i: number) => Vec2,
-  options: { modules?: NpcBehaviourModule[]; roundPlayers?: number; seed?: number } = {},
+  options: {
+    modules?: NpcBehaviourModule[];
+    roundPlayers?: number;
+    seed?: number;
+    hooks?: Partial<NpcHooks>;
+  } = {},
 ): NpcSetup {
   const base = combatSetup(players, at);
   const npcEvents: NpcEventWire[] = [];
@@ -41,6 +46,7 @@ export function npcSetup(
       onNpcDamaged: (attacker, npc, damage) =>
         npcHits.push({ attacker, victim: { kind: 'npc', id: npc }, damage }),
       wantedPlayers: () => wanted,
+      ...options.hooks,
     },
     options.seed ?? 7,
     options.modules,

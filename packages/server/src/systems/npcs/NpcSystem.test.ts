@@ -29,7 +29,7 @@ function hitsOn(events: CombatEventWire[], target: string): HitMessage[] {
 }
 
 describe('NpcSystem', () => {
-  it('spawns the planned NPCs that have a behaviour module, at full HP', () => {
+  it('spawns the planned NPCs that have a behaviour module (here stockers only), at full HP', () => {
     const s = npcSetup(2, undefined, { modules: [createStockerBehaviour()] });
     const ids = [...s.state.npcs.keys()];
     expect(ids).toHaveLength(npcCount(stocker.count, 2));
