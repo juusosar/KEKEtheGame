@@ -123,3 +123,20 @@ describe('reflectFlight', () => {
     expect(back.travelledPx).toBe(0);
   });
 });
+
+describe('areaTargets with a grid (M4 review F3)', () => {
+  const wall = gridFrom(['....', '.#..', '....']);
+  const open = gridFrom(['....', '....', '....']);
+  // A soda bursting just before the wall tile (1, 1); the body is in the next aisle, 52 px away.
+  const centre = { x: 24, y: 48 };
+  const body = { id: 'b', x: 76, y: 48 };
+
+  it('does not splash through a wall', () => {
+    expect(areaTargets(centre, 64, [body], 10)).toEqual(['b']);
+    expect(areaTargets(centre, 64, [body], 10, wall)).toEqual([]);
+  });
+
+  it('splashes the same body with the wall gone', () => {
+    expect(areaTargets(centre, 64, [body], 10, open)).toEqual(['b']);
+  });
+});

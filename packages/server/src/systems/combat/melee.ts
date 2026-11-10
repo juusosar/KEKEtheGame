@@ -28,7 +28,7 @@ export const meleeBehaviour: BehaviourModule = {
     const origin = { x: intent.x, y: intent.y };
     // Players and store workers alike (M5-3).
     const candidates = ctx.targets(source);
-    for (const id of meleeTargets(origin, intent.aim, candidates, stats, ctx.bodyRadius)) {
+    for (const id of meleeTargets(origin, intent.aim, candidates, stats, ctx.bodyRadius, ctx.map.collision)) {
       const target = ctx.position(id);
       if (!target) continue;
       ctx.hit({

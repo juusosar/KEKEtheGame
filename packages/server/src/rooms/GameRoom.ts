@@ -560,9 +560,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         return { speedMultiplier: carry * this.combat.speedMultiplier(player) };
       },
       afterFrame: (player, frame, pressed) => {
-        // A KO'd player can neither pick up nor attack until the respawn (§3.3).
+        // A KO'd player can neither pick up nor attack until the respawn (§3.3); a stunned or sliding
+        // one cannot pick up or drop either (M4 review F4), but still deposits at the van.
         if (!this.combat.canAct(player)) return;
-        this.items.afterFrame(player, pressed, now);
+        this.items.afterFrame(player, pressed, now, this.combat.canPickUp(player));
         this.combat.afterFrame(player, frame, pressed);
       },
     });

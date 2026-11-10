@@ -210,6 +210,40 @@ describe('thrown weapons (M4-3)', () => {
     expect(a.weaponUses).toBe(1);
   });
 
+  it('soda: the burst does not reach through a wall into the next aisle (M4 review F3)', () => {
+    // Find a wall one tile thick with 4 open tiles to its left and 2 to its right, over 3 rows.
+    const grid = map.collision;
+    const open = (tx: number, ty: number) => !grid.isSolid(tx, ty);
+    let found: { tx: number; ty: number } | null = null;
+    for (let ty = 2; ty < grid.height - 2 && !found; ty++) {
+      for (let tx = 5; tx < grid.width - 3 && !found; tx++) {
+        const rowsOk = [-1, 0, 1].every(
+          (dy) =>
+            !open(tx, ty + dy) &&
+            [1, 2, 3, 4].every((dx) => open(tx - dx, ty + dy)) &&
+            [1, 2].every((dx) => open(tx + dx, ty + dy)),
+        );
+        if (rowsOk) found = { tx, ty };
+      }
+    }
+    if (!found) throw new Error('no thin wall on the map');
+    const t = grid.tileSize;
+    const base = vanSpawn(map, 0, playerHalfSize(config));
+    const wallLeft = found.tx * t;
+    const y = found.ty * t + t / 2;
+    // Thrower 3.5 tiles left of the wall; the victim's centre 10 px past the wall's right face.
+    const s = setup([
+      [wallLeft - 3.5 * t - base.x, y - base.y],
+      [wallLeft + t + 10 - base.x, y - base.y],
+    ]);
+    const [a, b] = s.players as [PlayerState, PlayerState];
+    give(s, a, 'soda_bottle');
+    throwOne(s, a);
+    idle(s, 0.8);
+    expect(s.events.some((e) => e.type === 'attack')).toBe(true);
+    expect(b.hp, 'no splash through the wall').toBe(MAX);
+  });
+
   it('respects the cooldown: one throw per press, a press during the cooldown is lost', () => {
     const s = setup([[0, 0]]);
     const [a] = s.players as [PlayerState];
