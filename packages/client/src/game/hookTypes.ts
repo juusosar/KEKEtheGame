@@ -43,6 +43,59 @@ export interface KekeNetSnapshot {
   ack: number;
   /** Pixels the last reconcile moved our prediction (0 = the server agreed). */
   lastCorrection: number;
+  /** Our 0-based van slot (-1 before the first round); its map `index` is van + 1. */
+  van: number;
+  /** World item id we carry, 0 = none. */
+  carrying: number;
+  /** World item id of our target, 0 = none (while carrying our own target, or no spawn free). */
+  target: number;
+  /** Item points we deposited this round. */
+  deposited: number;
+}
+
+/** A world item as the Game scene draws it (M3-6). */
+export interface KekeItemSnapshot {
+  /** World item id (`net().target` / `net().carrying` point at these). */
+  id: number;
+  /** Catalogue id. */
+  itemId: string;
+  /** Catalogue name, as shown. */
+  name: string;
+  rarity: 'normal' | 'joke';
+  state: 'target' | 'loose' | 'carried';
+  /** Drawn centre: on the floor, or above the carrier's drawn head while carried. */
+  x: number;
+  y: number;
+  /** Position from the server (for a carried item, the carrier's server position). */
+  serverX: number;
+  serverY: number;
+  /** Session id whose target it is ('' unless state is 'target'). */
+  owner: string;
+  /** Session id carrying it ('' unless state is 'carried'). */
+  carrier: string;
+  /** Frame in the 'items' atlas. */
+  frame: string;
+  /** Outline colour `#RRGGBB` (owner or team colour), null for none. */
+  outline: string | null;
+}
+
+/** A van on the loading dock (M3-6). */
+export interface KekeVanSnapshot {
+  /** 0-based slot, as in PlayerState.van. */
+  van: number;
+  /** Map van slot `index` (van + 1), painted on the van. */
+  index: number;
+  /** Van centre in pixels (the deposit point). */
+  x: number;
+  y: number;
+  /** Item points banked this round. */
+  points: number;
+  /** 0 when teams are off. */
+  team: number;
+  /** Frame in the 'van' atlas (`slot_<index>`). */
+  frame: string;
+  /** Parking bay colour `#RRGGBB` (owner or team colour), null for none. */
+  outline: string | null;
 }
 
 /** A marker the minimap draws (render/minimap.ts), in world pixels. */
@@ -77,4 +130,8 @@ export interface KekeHook {
   remotePlayers(): KekeRemoteSnapshot[];
   /** Markers on the minimap at its last redraw (a few times a second). */
   minimap(): KekeMinimapMarker[];
+  /** Items in the world, by id; empty offline and in the lobby. */
+  items(): KekeItemSnapshot[];
+  /** Vans drawn on the dock, by slot. Offline: slot 1 only. */
+  vans(): KekeVanSnapshot[];
 }

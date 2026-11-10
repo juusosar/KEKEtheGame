@@ -26,12 +26,14 @@ import type { KekeNetSnapshot, KekeRemoteSnapshot } from '../game/hookTypes';
 import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
+import { WorldRenderer } from '../game/worldItems';
 import { t } from '../i18n';
 import { InputManager, STANDARD } from '../input';
 import { SnapshotBuffer } from '../net/interpolation';
 import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
+import { readWorld, type WorldView } from '../net/worldView';
 import { browserStorage, loadProfile } from '../profile/storage';
 import { MinimapView } from '../render/MinimapView';
 import { buildMinimapMarkers, offlineMinimapWorld, readMinimapWorld, withSelfAt } from '../render/minimap';
@@ -65,12 +67,15 @@ export class GameScene extends Phaser.Scene {
   private minimap: MinimapView | undefined;
   /** Profile colour, for the offline minimap. */
   private profileColor = '';
+  /** Items and vans (M3-6). */
+  private world!: WorldRenderer;
 
   // Online only.
   private room: Room | null = null;
   private code = '';
   private sequence: InputSequence | null = null;
   private view: GameView | null = null;
+  private worldView: WorldView | null = null;
   private controlling = false;
   private remotes = new Map<string, Remote>();
   private spectatorCycle = new SpectatorCycle(renderConfig.spectatorCycleSeconds);
@@ -106,7 +111,8 @@ export class GameScene extends Phaser.Scene {
 
     createManifestAnimations(this);
     this.createTilemap(raw);
-    this.createLocalPlayer();
+    const profile = this.createLocalPlayer();
+    this.createWorld(profile.color);
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.model.widthPx, this.model.heightPx);
@@ -125,7 +131,7 @@ export class GameScene extends Phaser.Scene {
     if (this.room !== null) this.joinRoom(this.room);
   }
 
-  override update(_time: number, deltaMs: number): void {
+  override update(time: number, deltaMs: number): void {
     if (this.leaving) return;
     const dt = Math.min(deltaMs / 1000, renderConfig.maxFrameSeconds);
     const offline = this.room === null;
@@ -151,6 +157,7 @@ export class GameScene extends Phaser.Scene {
 
     if (!offline) this.updateRemotes(dt);
     this.updateMinimap(dt);
+    this.world.draw((id) => this.drawnPosition(id), time / 1000);
     if (this.debug) this.updateDebug();
   }
 
@@ -161,6 +168,7 @@ export class GameScene extends Phaser.Scene {
     this.code = '';
     this.sequence = null;
     this.view = null;
+    this.worldView = null;
     this.controlling = false;
     this.remotes = new Map();
     this.spectatorCycle = new SpectatorCycle(renderConfig.spectatorCycleSeconds);
@@ -188,7 +196,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createLocalPlayer(): void {
+  private createLocalPlayer(): { color: string } {
     // Offline: van slot 1. In a room the first state patch moves us to the server's spawn.
     const spawn = vanSpawn(this.model, 0, playerHalfSize(this.config));
     const start = { x: spawn.x, y: spawn.y, vx: 0, vy: 0 };
@@ -201,6 +209,33 @@ export class GameScene extends Phaser.Scene {
     this.profileColor = profile.color;
     this.local.setLabel(profile.nickname);
     this.local.place(start.x, start.y, { x: 0, y: 0 });
+    return profile;
+  }
+
+  private createWorld(offlineColor: string): void {
+    this.world = new WorldRenderer(this, this.model, this.theme.id, {
+      van: DEPTH.decor + 0.5,
+      item: DEPTH.player - 0.5,
+      carried: DEPTH.player + 0.6,
+    });
+    // Offline walk: our van in slot 1, where we start. In a room the state says which vans exist.
+    if (this.room === null) this.world.showOfflineVan(offlineColor);
+  }
+
+  /** Items and vans from the synced state, plus nameplates lifted over carried items. */
+  private syncWorld(state: unknown, view: GameView): void {
+    const world = readWorld(state);
+    this.worldView = world;
+    this.world.sync(world, view.players);
+    this.local.setLabelLift(this.world.nameplateLift(view.me?.id ?? ''));
+    for (const [id, remote] of this.remotes) remote.avatar.setLabelLift(this.world.nameplateLift(id));
+  }
+
+  /** Where a player is drawn this frame (predicted for us, interpolated for others); undefined if not drawn. */
+  private drawnPosition(sessionId: string): Vec2 | undefined {
+    const body =
+      sessionId === this.room?.sessionId ? this.local.body : this.remotes.get(sessionId)?.avatar.body;
+    return body?.visible ? { x: body.x, y: body.y } : undefined;
   }
 
   private newAvatar(withLabel: boolean): Avatar {
@@ -316,6 +351,7 @@ export class GameScene extends Phaser.Scene {
       remote.avatar.destroy();
       this.remotes.delete(id);
     }
+    this.syncWorld(room.state, view);
   }
 
   private updateRemotes(dt: number): void {
@@ -407,6 +443,7 @@ export class GameScene extends Phaser.Scene {
     this.unsubscribe = [];
     for (const remote of this.remotes.values()) remote.avatar.destroy();
     this.remotes.clear();
+    this.world.destroy();
     this.hideSpectateBanner();
     this.minimap?.destroy();
     this.minimap = undefined;
@@ -418,6 +455,7 @@ export class GameScene extends Phaser.Scene {
     const room = this.room;
     if (room === null) return null;
     const me = this.view?.me ?? null;
+    const mine = this.worldView?.players.get(room.sessionId);
     return {
       code: this.code,
       sessionId: room.sessionId,
@@ -428,6 +466,10 @@ export class GameScene extends Phaser.Scene {
       pendingInputs: this.predictor.pendingCount,
       ack: me?.ack ?? 0,
       lastCorrection: this.predictor.lastCorrection,
+      van: mine?.van ?? -1,
+      carrying: mine?.carrying ?? 0,
+      target: mine?.target ?? 0,
+      deposited: mine?.deposited ?? 0,
     };
   }
 
@@ -571,6 +613,8 @@ export class GameScene extends Phaser.Scene {
       net: () => this.netSnapshot(),
       remotePlayers: () => this.remoteSnapshots(),
       minimap: () => (this.minimap?.markers ?? []).map((m) => ({ ...m })),
+      items: () => this.world.itemSnapshots(),
+      vans: () => this.world.vanSnapshots(),
     };
     this.hook = hook;
     installHook(hook);

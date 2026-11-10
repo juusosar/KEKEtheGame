@@ -5,9 +5,21 @@ import {
   DEFAULT_NICKNAME,
   HAT_IDS,
   PLAYER_COLORS,
+  TEAM_COLORS,
   sanitizeNickname,
   sanitizeProfile,
+  teamColor,
 } from './profile';
+
+describe('teamColor', () => {
+  it('gives teams 1 and 2 their own colours and nothing to anyone else', () => {
+    expect(teamColor(1)).toBe(TEAM_COLORS[0]);
+    expect(teamColor(2)).toBe(TEAM_COLORS[1]);
+    expect(teamColor(0)).toBeUndefined();
+    expect(teamColor(3)).toBeUndefined();
+    expect(TEAM_COLORS[0]).not.toBe(TEAM_COLORS[1]);
+  });
+});
 
 describe('sanitizeProfile', () => {
   it('keeps a valid profile', () => {
