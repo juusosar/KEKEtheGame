@@ -1,9 +1,11 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Server } from '@colyseus/core';
+import { LobbyRoom, Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
+import { ROOM_NAMES, loadConfig, type GameConfig } from '@keke/shared';
 import express from 'express';
+import { gameRoomWithConfig } from './rooms/GameRoom';
 import { HelloRoom } from './rooms/HelloRoom';
 
 /** Default port from §16; override with the PORT env var. */
@@ -18,10 +20,15 @@ export const DEFAULT_CLIENT_DIST = fileURLToPath(new URL('../../client/dist', im
 export interface GameServerOptions {
   /** Folder with the built client to serve on `/`. */
   clientDist?: string;
+  /** Validated game config. Defaults to the bundled shared/data/config.json. */
+  config?: GameConfig;
 }
 
 /** Colyseus + Express on one HTTP server: rooms, matchmaking and the static client on a single port. */
-export function createGameServer({ clientDist = DEFAULT_CLIENT_DIST }: GameServerOptions = {}): Server {
+export function createGameServer({
+  clientDist = DEFAULT_CLIENT_DIST,
+  config = loadConfig(),
+}: GameServerOptions = {}): Server {
   const server = new Server({
     transport: new WebSocketTransport(),
     greet: false,
@@ -41,6 +48,10 @@ export function createGameServer({ clientDist = DEFAULT_CLIENT_DIST }: GameServe
     },
   });
   server.define('hello', HelloRoom);
+  // Join by code: the room puts its code in metadata, and filterBy matches `{ code }` join options against it.
+  server.define(ROOM_NAMES.game, gameRoomWithConfig(config)).filterBy(['code']).enableRealtimeListing();
+  // Built-in room list (§15.1): clients join it to get "rooms", "+" and "-" updates.
+  server.define(ROOM_NAMES.lobby, LobbyRoom);
   return server;
 }
 
