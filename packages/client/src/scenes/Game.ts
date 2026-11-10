@@ -23,6 +23,7 @@ import Phaser from 'phaser';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { Avatar } from '../game/avatar';
 import { CombatFx } from '../game/combatFx';
+import { SprayFx } from '../game/sprayFx';
 import { isDebugEnabled } from '../game/debugFlag';
 import { placeZoneLabels } from '../game/debugLayout';
 import { installHook, removeHook, type KekeHook } from '../game/hook';
@@ -100,6 +101,7 @@ export class GameScene extends Phaser.Scene {
   private icons = new Map<string, string | null>();
   /** Swings, hit flashes, stun rings and HP bars (M4-2); online only. */
   private combatFx: CombatFx | undefined;
+  private sprayFx: SprayFx | undefined;
   private combat = new Map<string, CombatPlayerView>();
 
   private debug = false;
@@ -199,6 +201,7 @@ export class GameScene extends Phaser.Scene {
     this.roundScreen = undefined;
     this.icons = new Map();
     this.combatFx = undefined;
+    this.sprayFx = undefined;
     this.combat = new Map();
   }
 
@@ -404,9 +407,15 @@ export class GameScene extends Phaser.Scene {
   private createCombatFx(room: Room): void {
     const fx = new CombatFx(this, DEPTH.fx, getWeaponCatalogue(), this.config.maxHp);
     this.combatFx = fx;
+    // Spray cones under the labels; vision clouds over everything in the world, nameplates too (M4-4).
+    const spray = new SprayFx(this, DEPTH.fx, DEPTH.label + 1, getWeaponCatalogue(), renderConfig);
+    this.sprayFx = spray;
     for (const type of Object.values(CombatEventMessage)) {
       this.unsubscribe.push(
-        room.onMessage(type, (message: unknown) => fx.onEvent(type, message, this.time.now / 1000)),
+        room.onMessage(type, (message: unknown) => {
+          fx.onEvent(type, message, this.time.now / 1000);
+          spray.onEvent(type, message, this.time.now / 1000);
+        }),
       );
     }
   }
@@ -425,6 +434,10 @@ export class GameScene extends Phaser.Scene {
     add(room.sessionId, this.local);
     for (const [id, remote] of this.remotes) add(id, remote.avatar);
     fx.draw(now, bodies);
+    this.sprayFx?.draw(now, (id) => {
+      const avatar = id === room.sessionId ? this.local : this.remotes.get(id)?.avatar;
+      return avatar?.body.visible ? { x: avatar.body.x, y: avatar.body.y } : undefined;
+    });
   }
 
   // --- HUD (§13.2) -----------------------------------------------------------------------------------
@@ -564,6 +577,8 @@ export class GameScene extends Phaser.Scene {
     this.roundScreen = undefined;
     this.combatFx?.destroy();
     this.combatFx = undefined;
+    this.sprayFx?.destroy();
+    this.sprayFx = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
     delete document.body.dataset['phase'];
@@ -758,6 +773,7 @@ export class GameScene extends Phaser.Scene {
       items: () => this.world.itemSnapshots(),
       vans: () => this.world.vanSnapshots(),
       combatEvents: () => this.combatFx?.events() ?? [],
+      sprayClouds: () => this.sprayFx?.clouds(this.time.now / 1000) ?? [],
     };
     this.hook = hook;
     installHook(hook);

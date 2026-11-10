@@ -56,6 +56,12 @@ export interface RenderConfig {
   readonly hpBarWidthPx: number;
   /** HP bar height above the player's position, px (just under the nameplate). */
   readonly hpBarOffsetY: number;
+  /** Opacity of the spray cone drawn while someone sprays (M4-4), 0..1. */
+  readonly sprayFxAlpha: number;
+  /** Opacity at the centre of a spray vision cloud (§7 extinguisher "blocks vision slightly"), 0..1. */
+  readonly sprayCloudAlpha: number;
+  /** A vision cloud fades out over its last this-many seconds. */
+  readonly sprayCloudFadeSeconds: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -95,6 +101,9 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const protectedBlinkHz = num('protectedBlinkHz', (n) => n > 0, 'positive');
   const hpBarWidthPx = num('hpBarWidthPx', (n) => n > 0, 'positive');
   const hpBarOffsetY = num('hpBarOffsetY', () => true, 'a number');
+  const sprayFxAlpha = num('sprayFxAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
+  const sprayCloudAlpha = num('sprayCloudAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
+  const sprayCloudFadeSeconds = num('sprayCloudFadeSeconds', (n) => n >= 0, '>= 0');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -125,6 +134,9 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     protectedBlinkHz,
     hpBarWidthPx,
     hpBarOffsetY,
+    sprayFxAlpha,
+    sprayCloudAlpha,
+    sprayCloudFadeSeconds,
   });
 }
 
