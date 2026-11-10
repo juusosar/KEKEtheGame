@@ -47,7 +47,7 @@ import {
 } from '@keke/shared';
 import type { GameState, PlayerState } from '../../schema/GameState';
 import { defaultCombatModules } from './modules';
-import type { BehaviourModule, CombatContext, CombatHit, FrameIntent } from './types';
+import type { BehaviourModule, CombatContext, CombatHit, FrameIntent, HitTarget, NpcTargets } from './types';
 
 export type CombatBroadcast = (event: CombatEventWire) => void;
 
@@ -58,6 +58,8 @@ export interface CombatHooks {
   onScatterItems?(from: Vec2, to: Vec2, halfWidth: number, px: number): void;
   /** A hit makes the player drop their carried item (banana peel slip, M4-5). */
   onDropCarried?(player: PlayerState, now: number): void;
+  /** Every combat event after it was applied (the room feeds landed hits to the wanted rules, M5-3). */
+  onEvent?(event: CombatEvent): void;
 }
 
 export class CombatSystem {
@@ -70,6 +72,8 @@ export class CombatSystem {
   private now = 0;
   private intents: FrameIntent[] = [];
   private readonly shoves = new Map<string, Knockback>();
+  /** Store workers weapons can hit (M5-3); the room sets it after creating its NpcSystem. */
+  npcTargets: NpcTargets | null = null;
 
   constructor(
     private readonly state: GameState,
@@ -182,6 +186,15 @@ export class CombatSystem {
     return true;
   }
 
+  /**
+   * A hit from outside the weapon modules (an NPC's swing, a forklift; M5-3). Goes through every module's
+   * `adjustHit` (a raised pan softens an NPC's melee too). True when it landed.
+   */
+  externalHit(hit: CombatHit): boolean {
+    if (!this.running) return false;
+    return this.landHit(hit);
+  }
+
   /** Step 1 of a tick: respawns due, regen, and the timed flags into the schema. */
   beginTick(now: number): void {
     if (!this.running) return;
@@ -251,7 +264,9 @@ export class CombatSystem {
       bodies: () => this.bodies(),
       attackBlocked: (id) => attackBlocked(this.world, id, this.now),
       use: (intent, def, mode, amount) => this.use(intent, def, mode, amount),
-      canHit: (source, target, allowSelf) => canHit(this.world, source, target, this.now, allowSelf),
+      canHit: (source, target, allowSelf) => this.canHitAny(source, target, allowSelf),
+      targets: (source) => this.targets(source),
+      position: (id) => this.position(id),
       hit: (h) => this.landHit(h),
       push: (target, dir, px) => this.push(target, dir, px),
       scatterItems: (from, to, halfWidth, px) => this.hooks.onScatterItems?.(from, to, halfWidth, px),
@@ -260,6 +275,37 @@ export class CombatSystem {
         if (p) this.hooks.onDropCarried?.(p, this.now);
       },
     };
+  }
+
+  /** A target id that is not a round player but a store worker. */
+  private npcId(id: string): boolean {
+    return !findCombatant(this.world, id) && (this.npcTargets?.has(id) ?? false);
+  }
+
+  private canHitAny(source: HitSource, target: string, allowSelf?: boolean): boolean {
+    if (this.npcId(target)) return this.npcTargets?.canHit(source, target) ?? false;
+    return canHit(this.world, source, target, this.now, allowSelf);
+  }
+
+  private targets(source: HitSource): HitTarget[] {
+    const out: HitTarget[] = [];
+    for (const b of this.bodies()) {
+      if (canHit(this.world, source, b.sessionId, this.now)) {
+        out.push({ id: b.sessionId, kind: 'player', x: b.x, y: b.y });
+      }
+    }
+    for (const n of this.npcTargets?.bodies() ?? []) {
+      if (!findCombatant(this.world, n.id) && this.npcTargets?.canHit(source, n.id)) {
+        out.push({ id: n.id, kind: 'npc', x: n.x, y: n.y });
+      }
+    }
+    return out;
+  }
+
+  private position(id: string): Vec2 | undefined {
+    const p = findCombatant(this.world, id) ? this.state.players.get(id) : undefined;
+    if (p) return { x: p.x, y: p.y };
+    return this.npcTargets?.position(id);
   }
 
   private bodies(): PlayerState[] {
@@ -290,6 +336,7 @@ export class CombatSystem {
       if (m.adjustHit) adjusted = m.adjustHit(this.context(), adjusted);
     }
     if (adjusted === null) return false;
+    if (this.npcId(adjusted.target)) return this.npcTargets?.hit(adjusted) ?? false;
     const { delivery: _delivery, knockback, projectile: _projectile, ...hitSpec } = adjusted;
     const result = applyHit(this.world, hitSpec, this.now, this.weapons, this.config);
     if (result.rejected) return false;
@@ -299,6 +346,10 @@ export class CombatSystem {
   }
 
   private push(target: string, dir: Vec2, px: number): void {
+    if (this.npcId(target)) {
+      this.npcTargets?.push(target, dir, px);
+      return;
+    }
     if (!findCombatant(this.world, target)) return;
     const shove = startKnockback(dir, px, this.config);
     if (shove) this.shoves.set(target, shove);
@@ -329,6 +380,7 @@ export class CombatSystem {
     this.sync();
     for (const event of result.events) {
       this.sideEffects(event);
+      this.hooks.onEvent?.(event);
       this.broadcast(combatEventToWire(event, this.now));
     }
   }

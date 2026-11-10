@@ -84,6 +84,13 @@ export const PlayerState = schema(
     respawnIn: t.uint8().default(0),
     /** Slipped on a banana peel (M4-5): sliding without control (also `stunned`) until the slide ends. */
     sliding: t.boolean().default(false),
+    /**
+     * Wanted status (§8; M5-3): security guards chase this player. Mirrored every tick from the room's
+     * WantedWorld; false in the lobby and at each countdown. Draw the ❗ above players with this set.
+     */
+    wanted: t.boolean().default(false),
+    /** Whole seconds of Wanted left, rounded up; 0 when not Wanted (held at full while in staff_only). */
+    wantedIn: t.uint8().default(0),
   },
   'PlayerState',
 );
@@ -205,6 +212,67 @@ export const TrapState = schema(
 );
 export type TrapState = SchemaType<typeof TrapState>;
 
+/**
+ * A store worker or hazard (§8; M5-3). Keyed by `id` in `GameState.npcs`. Created at each countdown from
+ * the round's NPC plan (only for behaviours the server runs), removed in the lobby. Owned by NpcSystem.
+ */
+export const NpcState = schema(
+  {
+    /** Stable for the round: `<type>_<n>` from planNpcs, e.g. 'stocker_2'. */
+    id: t.string().default(''),
+    /** npcs.json id ('stocker', 'security', 'forklift', 'butcher'); sprite key via the catalogue. */
+    type: t.string().default(''),
+    /** NpcBehaviour, the same as the catalogue entry's. */
+    behaviour: t.string().default(''),
+    /** Body centre in pixels. */
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    /** Facing, radians (0 = +x, clockwise): the walk direction, or toward the player it attacks. */
+    aim: t.float32().default(0),
+    /** Walking this tick (walk anim vs idle anim). */
+    moving: t.boolean().default(false),
+    /** 0..maxHp; 0 while KO'd. Invulnerable NPCs (forklifts) have hp = maxHp = 0. */
+    hp: t.uint16().default(0),
+    maxHp: t.uint16().default(0),
+    /** False while KO'd: the body lies where it fell and cannot be hit, until the respawn. */
+    alive: t.boolean().default(true),
+    /** Whole seconds to the respawn while KO'd, rounded up; 0 while up. */
+    respawnIn: t.uint8().default(0),
+    /** Knocked down or stunned (pallet jack, rolling pin): does not move or attack. */
+    stunned: t.boolean().default(false),
+    /**
+     * What the behaviour is doing, for animation and FX. Common: 'idle', 'ko'. Stocker: 'walk' (to an aisle
+     * waypoint), 'stock' (restocking a shelf), 'angry' (retaliating against `target`). Later behaviours
+     * add their own (see the M5-3 handoff).
+     */
+    mode: t.string().default('idle'),
+    /** sessionId of the player this NPC is after (retaliation, chase); '' when none. */
+    target: t.string().default(''),
+  },
+  'NpcState',
+);
+export type NpcState = SchemaType<typeof NpcState>;
+
+/**
+ * A stock cart parked in an aisle (§8 stocker; M5-3). Keyed by String(id) in `GameState.stockCarts`.
+ * Its tiles block movement like walls (shared `gridWithBlocked` + `rectCovers`) until it is removed.
+ */
+export const StockCartState = schema(
+  {
+    /** Unique within the round, from 1. */
+    id: t.uint32().default(0),
+    /** NPC id of the stocker that parked it. */
+    npc: t.string().default(''),
+    /** Top-left tile and size in tiles (one of w, h is 1; the other is npcs.json `stockCart.lengthTiles`). */
+    tx: t.uint16().default(0),
+    ty: t.uint16().default(0),
+    w: t.uint8().default(1),
+    h: t.uint8().default(1),
+  },
+  'StockCartState',
+);
+export type StockCartState = SchemaType<typeof StockCartState>;
+
 /** Host settings (§13.1). */
 export const RoomSettingsState = schema(
   {
@@ -243,6 +311,10 @@ export const GameState = schema(
     projectiles: t.map(ProjectileState),
     /** Banana peels on the floor this round (M4-5). */
     traps: t.map(TrapState),
+    /** Store workers and forklifts this round (M5-3). Emptied in the lobby, refilled at each countdown. */
+    npcs: t.map(NpcState),
+    /** Stock carts parked in aisles right now (M5-3). */
+    stockCarts: t.map(StockCartState),
   },
   'GameState',
 );

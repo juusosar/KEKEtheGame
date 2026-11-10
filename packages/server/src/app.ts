@@ -6,7 +6,9 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import {
   HEALTH_PATH,
   ROOM_NAMES,
+  checkNpcMap,
   defaultThemeId,
+  getNpcCatalogue,
   getTheme,
   loadConfig,
   type GameConfig,
@@ -47,6 +49,11 @@ export function createGameServer({
   map = loadThemeMap(getTheme(defaultThemeId)),
   debug = false,
 }: GameServerOptions = {}): Server {
+  // §8: refuse to start when the map cannot host the NPCs in npcs.json (M5-1 handoff).
+  const npcProblems = checkNpcMap(getNpcCatalogue(), map);
+  if (npcProblems.length > 0) {
+    throw new Error(`The map cannot host the store workers:\n${npcProblems.join('\n')}`);
+  }
   const server = new Server({
     transport: new WebSocketTransport(),
     greet: false,

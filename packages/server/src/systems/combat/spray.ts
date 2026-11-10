@@ -36,14 +36,11 @@ export function createSprayBehaviour(): BehaviourModule {
 
       const source = { kind: 'player', id: intent.player } as const;
       const origin = { x: intent.x, y: intent.y };
-      const candidates = ctx
-        .bodies()
-        .filter((p) => ctx.canHit(source, p.sessionId))
-        .map((p) => ({ id: p.sessionId, x: p.x, y: p.y }));
+      const candidates = ctx.targets(source);
       const pushPx = sprayPushPx(stats);
       const ids = sprayTargets(origin, intent.aim, candidates, stats, ctx.bodyRadius, ctx.map.collision);
       for (const id of ids) {
-        const target = ctx.player(id);
+        const target = ctx.position(id);
         if (!target) continue;
         const dir = knockbackDirection(origin, target, intent.aim);
         if (stats.damagePerTick > 0 || stats.slow) {

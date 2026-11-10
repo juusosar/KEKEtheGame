@@ -15,6 +15,7 @@ import {
   loadMap,
   playerHalfSize,
   vanSpawn,
+  gridWithBlocked,
   type GameConfig,
   type KoMessage,
   type WeaponRolledMessage,
@@ -51,6 +52,7 @@ import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
 import { readTraps } from '../net/trapView';
+import { cartTileKeys, readNpcs, readStockCarts } from '../net/npcView';
 import { readWorld, type WorldView } from '../net/worldView';
 import { readProjectiles } from '../net/projectileView';
 import { browserStorage, loadProfile } from '../profile/storage';
@@ -81,6 +83,8 @@ export class GameScene extends Phaser.Scene {
   private inputManager!: InputManager;
   private local!: Avatar;
   private predictor!: Predictor;
+  /** Tiles covered by parked stock carts (M5-3): prediction treats them as walls, like the server. */
+  private cartTiles = new Set<number>();
   private clock!: FixedStepClock;
   private lastMove: Vec2 = { x: 0, y: 0 };
   /** Aim and buttons of the last sampled input frame (held weapon, predicted swing, block pose). */
@@ -261,7 +265,12 @@ export class GameScene extends Phaser.Scene {
     // Offline: van slot 1. In a room the first state patch moves us to the server's spawn.
     const spawn = vanSpawn(this.model, 0, playerHalfSize(this.config));
     const start = { x: spawn.x, y: spawn.y, vx: 0, vy: 0 };
-    this.predictor = new Predictor(this.model, this.config, start);
+    const width = this.model.collision.width;
+    const live = {
+      ...this.model,
+      collision: gridWithBlocked(this.model.collision, (tx, ty) => this.cartTiles.has(ty * width + tx)),
+    };
+    this.predictor = new Predictor(live, this.config, start);
 
     this.local = this.newAvatar(this.room !== null);
     // Offline (and in a room until the first patch) the local player wears the saved profile (§13.1).
@@ -438,6 +447,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.syncWorld(room.state, view);
     this.peels?.sync(readTraps(room.state));
+    this.cartTiles = cartTileKeys(readStockCarts(room.state), this.model.collision.width);
   }
 
   private updateRemotes(dt: number): void {
@@ -957,6 +967,8 @@ export class GameScene extends Phaser.Scene {
           y,
           armed,
         })),
+      npcs: () => (this.room ? readNpcs(this.room.state) : []),
+      stockCarts: () => (this.room ? readStockCarts(this.room.state) : []),
       held: () => this.combatFx?.heldSnapshots() ?? [],
       fx: () => this.combatFx?.fxSnapshots() ?? [],
       screenPoint: (x, y) => this.worldToClient({ x, y }),

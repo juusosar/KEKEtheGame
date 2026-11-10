@@ -219,6 +219,26 @@ export {
   type TilePathOptions,
   type TilePoint,
 } from './rules/pathfinding';
+export {
+  freshNpcVitals,
+  hitNpc,
+  npcCanBeHit,
+  npcRespawnDue,
+  npcRespawnIn,
+  npcSpeedMultiplier,
+  npcStunned,
+  type NpcHitResult,
+  type NpcHitSpec,
+  type NpcVitals,
+} from './rules/npcHealth';
+export {
+  gridWithBlocked,
+  placeStockCart,
+  rectCovers,
+  rectTiles,
+  type StockCartPlacement,
+  type TileRect,
+} from './rules/stockCart';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,

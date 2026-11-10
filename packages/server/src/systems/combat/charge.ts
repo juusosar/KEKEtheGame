@@ -3,7 +3,7 @@
 // synced `charging` flag zeroes its walk speed, server and prediction alike). Every body the dash's band
 // (`widthPx`) sweeps over is hit once: damage, knocked down (stun `knockdownSeconds`) and flung forward
 // and aside. Lying items in the band scatter `scatterPx` out of the line. A wall, a stun or a KO ends the
-// dash early. NPCs join when M5 adds them.
+// dash early. NPCs in the line are hit the same way (M5-3).
 import {
   Button,
   chargeKnockbackDirection,
@@ -58,12 +58,13 @@ export function createChargeBehaviour(): BehaviourModule {
 
     const source = { kind: 'player', id } as const;
     const halfWidth = dash.stats.widthPx / 2;
+    // Players and store workers alike (§7: "knocks down everything in its line"; M5-3).
     const candidates = ctx
-      .bodies()
-      .filter((b) => !dash.hit.has(b.sessionId) && ctx.canHit(source, b.sessionId))
-      .map((b) => ({ id: b.sessionId, x: b.x, y: b.y }));
+      .targets(source)
+      .filter((b) => !dash.hit.has(b.id))
+      .map((b) => ({ id: b.id, x: b.x, y: b.y }));
     for (const target of sweepTargets(from, to, halfWidth + ctx.bodyRadius, candidates)) {
-      const body = ctx.player(target);
+      const body = ctx.position(target);
       if (!body) continue;
       dash.hit.add(target);
       ctx.hit({
