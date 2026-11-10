@@ -118,10 +118,18 @@ export interface KekeHook {
   map: { theme: string; widthPx: number; heightPx: number; tileSize: number };
   player(): KekePlayerSnapshot;
   /**
-   * Moves the local player (pixels, body centre). Ignored when the spot is inside a wall, and always
-   * refused in a room, where the server owns positions. Returns true if moved.
+   * Moves the local player (pixels, body centre). Ignored when the spot is inside a wall. Offline it moves
+   * at once. In a room the server owns positions: this asks it (`DebugMessage.teleport`, phase 'playing'),
+   * which only a server started with `KEKE_DEBUG=1` does; the move shows in the next patches.
+   * Returns true if moved (offline) or asked (online).
    */
   teleport(x: number, y: number): boolean;
+  /**
+   * Online, host only: asks the server to end the current phase now (`DebugMessage.endPhase`, needs
+   * `KEKE_DEBUG=1` on the server). Lets an e2e play a whole round without waiting 180 s. Returns true
+   * when asked; false offline.
+   */
+  endPhase(): boolean;
   /** Zone id at a pixel position, or null. */
   zoneAt(x: number, y: number): string | null;
   /** Room and prediction state; null offline. */

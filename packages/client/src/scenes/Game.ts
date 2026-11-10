@@ -1,6 +1,7 @@
 import type { Room } from '@colyseus/sdk';
 import {
   ClientMessage,
+  DebugMessage,
   TILE_LAYERS,
   aabbOverlapsSolid,
   carryMultiplier,
@@ -31,6 +32,8 @@ import { WorldRenderer } from '../game/worldItems';
 import { Hud } from '../hud/Hud';
 import { FEED_MESSAGES, feedLine } from '../hud/feed';
 import { readHud, type HudContext } from '../hud/hudState';
+import { RoundScreen } from '../hud/RoundScreen';
+import { readRoundScreen } from '../hud/roundScreens';
 import { t } from '../i18n';
 import { InputManager, STANDARD } from '../input';
 import { SnapshotBuffer } from '../net/interpolation';
@@ -88,6 +91,8 @@ export class GameScene extends Phaser.Scene {
   private leaving = false;
   private unsubscribe: (() => void)[] = [];
   private hud: Hud | undefined;
+  /** Round intro / results / podium panels (§13.1); online only. */
+  private roundScreen: RoundScreen | undefined;
   private hudContext!: HudContext;
   private icons = new Map<string, string | null>();
 
@@ -184,6 +189,7 @@ export class GameScene extends Phaser.Scene {
     this.leaving = false;
     this.unsubscribe = [];
     this.hud = undefined;
+    this.roundScreen = undefined;
     this.icons = new Map();
   }
 
@@ -274,6 +280,7 @@ export class GameScene extends Phaser.Scene {
   private joinRoom(room: Room): void {
     this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
     this.createHud(room);
+    this.roundScreen = new RoundScreen();
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
 
@@ -308,7 +315,10 @@ export class GameScene extends Phaser.Scene {
     const view = readGame(room.state, room.sessionId);
     if (!view.synced) return;
     this.view = view;
+    // `<body data-phase>` lets CSS hide the in-round HUD behind the results and specs wait on phases.
+    document.body.dataset['phase'] = view.phase;
     this.hud?.render(readHud(room.state, room.sessionId, this.hudContext));
+    this.roundScreen?.render(readRoundScreen(room.state, room.sessionId));
 
     if (sceneForPhase(view.phase) !== 'Game') {
       // The session is over (podium → lobby): everyone goes back to the lobby.
@@ -508,8 +518,11 @@ export class GameScene extends Phaser.Scene {
     this.minimap = undefined;
     this.hud?.destroy();
     this.hud = undefined;
+    this.roundScreen?.destroy();
+    this.roundScreen = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
+    delete document.body.dataset['phase'];
   }
 
   private netSnapshot(): KekeNetSnapshot | null {
@@ -663,12 +676,20 @@ export class GameScene extends Phaser.Scene {
         };
       },
       teleport: (x, y) => {
-        // In a room the server owns every position.
-        if (this.room !== null) return false;
         if (aabbOverlapsSolid(model.collision, { x, y }, playerHalfSize(this.config))) return false;
+        // In a room the server owns every position: ask it (debug servers only, KEKE_DEBUG=1).
+        if (this.room !== null) {
+          this.room.send(DebugMessage.teleport, { x, y });
+          return true;
+        }
         this.predictor.reset({ x, y, vx: 0, vy: 0 });
         this.local.place(x, y, { x: 0, y: 0 });
         this.cameras.main.centerOn(x, y);
+        return true;
+      },
+      endPhase: () => {
+        if (this.room === null) return false;
+        this.room.send(DebugMessage.endPhase);
         return true;
       },
       zoneAt: (x, y) => model.zoneAt(x, y)?.id ?? null,

@@ -21,7 +21,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run build && npm start',
     url: baseURL,
-    env: { PORT: String(port) },
+    // KEKE_DEBUG=1 turns on the debug-only room messages (teleport, end phase) that round.spec.ts uses
+    // to script a pickup and a deposit and to skip the 180 s round. Never set on a real server.
+    env: { PORT: String(port), KEKE_DEBUG: '1' },
     reuseExistingServer: !process.env['CI'],
     timeout: 180_000,
     stdout: 'pipe',

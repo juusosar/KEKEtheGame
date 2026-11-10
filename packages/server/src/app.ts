@@ -32,6 +32,11 @@ export interface GameServerOptions {
   config?: GameConfig;
   /** The map rooms simulate on. Defaults to the default theme's map from maps/. */
   map?: MapModel;
+  /**
+   * Accept the debug-only room messages (teleport, end phase; `DebugMessage` in @keke/shared). For the
+   * e2e server and local testing only: `KEKE_DEBUG=1` turns it on in index.ts. Default off.
+   */
+  debug?: boolean;
 }
 
 /** Colyseus + Express on one HTTP server: rooms, matchmaking and the static client on a single port. */
@@ -39,6 +44,7 @@ export function createGameServer({
   clientDist = DEFAULT_CLIENT_DIST,
   config = loadConfig(),
   map = loadThemeMap(getTheme(defaultThemeId)),
+  debug = false,
 }: GameServerOptions = {}): Server {
   const server = new Server({
     transport: new WebSocketTransport(),
@@ -60,7 +66,10 @@ export function createGameServer({
   });
   server.define('hello', HelloRoom);
   // Join by code: the room puts its code in metadata, and filterBy matches `{ code }` join options against it.
-  server.define(ROOM_NAMES.game, gameRoomWithConfig(config, map)).filterBy(['code']).enableRealtimeListing();
+  server
+    .define(ROOM_NAMES.game, gameRoomWithConfig(config, map, { debug }))
+    .filterBy(['code'])
+    .enableRealtimeListing();
   // Built-in room list (§15.1): clients join it to get "rooms", "+" and "-" updates.
   server.define(ROOM_NAMES.lobby, LobbyRoom);
   return server;
