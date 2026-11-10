@@ -24,6 +24,14 @@ export interface RenderConfig {
   readonly disconnectedAlpha: number;
   /** Nameplate bottom edge, px above the player's position. */
   readonly nameplateOffsetY: number;
+  /** A carried item's bottom edge, px above the carrier's position (top of the head). */
+  readonly carriedItemGapPx: number;
+  /** Owner-colour outline around a target item lying in the world (§3.1), px. */
+  readonly itemOutlinePx: number;
+  /** Owner (or team) colour frame around a van, px. */
+  readonly vanOutlinePx: number;
+  /** Period of the joke-item twinkle (§10.1: "a little sparkle so everyone notices them"), seconds. */
+  readonly jokeTwinkleSeconds: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -47,6 +55,10 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const snapDistancePx = num('snapDistancePx', (n) => n > 0, 'positive');
   const disconnectedAlpha = num('disconnectedAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
   const nameplateOffsetY = num('nameplateOffsetY', () => true, 'a number');
+  const carriedItemGapPx = num('carriedItemGapPx', (n) => n >= 0, '>= 0');
+  const itemOutlinePx = num('itemOutlinePx', (n) => Number.isInteger(n) && n >= 0, 'an integer >= 0');
+  const vanOutlinePx = num('vanOutlinePx', (n) => n >= 0, '>= 0');
+  const jokeTwinkleSeconds = num('jokeTwinkleSeconds', (n) => n > 0, 'positive');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -61,6 +73,10 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     snapDistancePx,
     disconnectedAlpha,
     nameplateOffsetY,
+    carriedItemGapPx,
+    itemOutlinePx,
+    vanOutlinePx,
+    jokeTwinkleSeconds,
   });
 }
 

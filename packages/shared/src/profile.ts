@@ -22,6 +22,17 @@ export const PLAYER_COLORS = [
 ] as const;
 export type PlayerColor = (typeof PLAYER_COLORS)[number];
 
+/**
+ * Team colours (§4.3: they replace player colours on outlines; hats stay individual). Index 0 is
+ * team 1, index 1 is team 2. §4.3 names no colours, so these are placeholders like the palette.
+ */
+export const TEAM_COLORS = ['#E53935', '#3FA9F5'] as const;
+
+/** Outline colour for team 1 or 2, or undefined for no team (0) and anything else. */
+export function teamColor(team: number): string | undefined {
+  return team === 1 || team === 2 ? TEAM_COLORS[team - 1] : undefined;
+}
+
 export const DEFAULT_NICKNAME = 'Player';
 export const DEFAULT_COLOR: PlayerColor = PLAYER_COLORS[0];
 export const DEFAULT_HAT: HatId = 'cap';

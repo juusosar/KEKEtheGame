@@ -10,5 +10,9 @@
   "interpolationDelayMs": 100,
   "snapDistancePx": 64,
   "disconnectedAlpha": 0.4,
-  "nameplateOffsetY": 24
+  "nameplateOffsetY": 24,
+  "carriedItemGapPx": 20,
+  "itemOutlinePx": 1,
+  "vanOutlinePx": 2,
+  "jokeTwinkleSeconds": 1.2
 }

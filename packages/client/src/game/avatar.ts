@@ -23,6 +23,7 @@ export class Avatar {
   private look: AvatarLook | null = null;
   private labelText = '';
   private last: { x: number; y: number } | null = null;
+  private labelLift = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -68,6 +69,11 @@ export class Avatar {
     this.label.setText(text);
   }
 
+  /** Raises the nameplate by `px` (it clears a carried item, M3-6). */
+  setLabelLift(px: number): void {
+    this.labelLift = px;
+  }
+
   /** Half-transparent while the player is inside the reconnect window. */
   setConnected(connected: boolean): void {
     const alpha = connected ? 1 : renderConfig.disconnectedAlpha;
@@ -105,7 +111,7 @@ export class Avatar {
     this.hat.setPosition(x, y).setDepth(depth + 0.0001);
     // The hat shows the body's frame, so they never drift apart.
     this.hat.setFrame(this.body.frame.name);
-    this.label?.setPosition(Math.round(x), Math.round(y - renderConfig.nameplateOffsetY));
+    this.label?.setPosition(Math.round(x), Math.round(y - renderConfig.nameplateOffsetY - this.labelLift));
   }
 
   get currentFacing(): Facing {
