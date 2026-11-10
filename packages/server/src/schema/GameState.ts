@@ -246,7 +246,8 @@ export const NpcState = schema(
      * (to the next route corner), 'corner' (stopped at a corner), 'blocked' (a stock cart is in the way).
      * Security (M5-4): 'patrol' (to a waypoint), 'watch' (pausing at one), 'post' (standing at its post),
      * 'return' (back to the post), 'chase' (sees `target`), 'search' (walking to where it last saw
-     * `target`). Later behaviours add their own (see the M5-3 handoff).
+     * `target`). Butcher: 'idle' (at its post), 'attack' (after `target`, a player behind the counter),
+     * 'return' (walking back to its post). Later behaviours add their own (see the M5-3 handoff).
      */
     mode: t.string().default('idle'),
     /** sessionId of the player this NPC is after (retaliation, chase); '' when none. */

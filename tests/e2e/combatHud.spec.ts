@@ -11,6 +11,7 @@ import {
   test,
   toPlay,
   waitControlling,
+  nearButcherCounter,
 } from './helpers';
 
 // M4-7: the combat HUD and visuals in a real round. The host punches the guest down from full HP: the
@@ -121,7 +122,10 @@ test('punching a player down: held swing, HP bar, KO overlay, feed and respawn',
   // Meet in the store at the host's target, so the camera is centred on the host.
   const { tile, items } = await me(host);
   const targetId = (await game(host)).net?.target ?? 0;
-  const target = items.find((i) => i.id === targetId);
+  // Our target, unless it lies behind the butcher's counter (the butcher would join the fight).
+  const target =
+    items.find((i) => i.id === targetId && !nearButcherCounter({ x: i.serverX, y: i.serverY })) ??
+    items.find((i) => !nearButcherCounter({ x: i.serverX, y: i.serverY }));
   if (!target) throw new Error(`target ${targetId} is not drawn`);
   const at = await teleportNear(host, { x: target.serverX, y: target.serverY }, tile * 1.5);
   await host.waitForTimeout(500); // camera catches up

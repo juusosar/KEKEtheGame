@@ -10,6 +10,7 @@ import {
   test,
   toPlay,
   waitControlling,
+  nearButcherCounter,
 } from './helpers';
 
 // M4-2: melee in a real round. Two players stand next to each other in the store (debug teleport), the
@@ -89,7 +90,10 @@ test('a fist swing hits the player in front: HP drops on both screens', async ({
   // Meet in the store, away from the dock (the camera is centred on us there, not clamped to the map edge).
   const hostView = await keke(host);
   const targetId = (await game(host)).net?.target ?? 0;
-  const target = hostView.items.find((i) => i.id === targetId);
+  // Our target, unless it lies behind the butcher's counter (the butcher would join the fight).
+  const target =
+    hostView.items.find((i) => i.id === targetId && !nearButcherCounter({ x: i.serverX, y: i.serverY })) ??
+    hostView.items.find((i) => !nearButcherCounter({ x: i.serverX, y: i.serverY }));
   if (!target) throw new Error(`target ${targetId} is not drawn`);
   const at = await teleportNear(host, { x: target.serverX, y: target.serverY }, hostView.tile * 1.5);
   // The guest stands about 22 px to our right (fists reach 28 px + body radius).
