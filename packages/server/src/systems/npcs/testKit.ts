@@ -12,6 +12,8 @@ export interface NpcSetup extends Setup {
   npcEvents: NpcEventWire[];
   npcHits: WantedHit[];
   live: MapModel;
+  /** Who the NPCs see as Wanted (`ctx.wantedPlayers()`); tests push and splice ids directly. */
+  wanted: string[];
 }
 
 export function npcSetup(
@@ -22,6 +24,7 @@ export function npcSetup(
   const base = combatSetup(players, at);
   const npcEvents: NpcEventWire[] = [];
   const npcHits: WantedHit[] = [];
+  const wanted: string[] = [];
   const holder: { npcs?: NpcSystem } = {};
   const map = kesproMap();
   const live: MapModel = {
@@ -37,6 +40,7 @@ export function npcSetup(
       hitPlayer: (hit) => base.combat.externalHit(hit),
       onNpcDamaged: (attacker, npc, damage) =>
         npcHits.push({ attacker, victim: { kind: 'npc', id: npc }, damage }),
+      wantedPlayers: () => wanted,
     },
     options.seed ?? 7,
     options.modules,
@@ -44,7 +48,7 @@ export function npcSetup(
   holder.npcs = npcs;
   base.combat.npcTargets = npcs;
   npcs.startRound(options.roundPlayers ?? players);
-  return { ...base, npcs, npcEvents, npcHits, live };
+  return { ...base, npcs, npcEvents, npcHits, live, wanted };
 }
 
 export function npcTick(s: NpcSetup, frames: () => void = () => undefined): void {

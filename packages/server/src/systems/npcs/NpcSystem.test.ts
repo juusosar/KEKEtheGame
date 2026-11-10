@@ -13,6 +13,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { config, give, must, spot, weapons } from '../combat/testKit';
 import { npcIdle, npcPress, npcSetup, npcTick, putNpc } from './testKit';
+import { createStockerBehaviour } from './stocker';
 import type { NpcBehaviourModule } from './types';
 
 const stocker = getNpcCatalogue().require('stocker');
@@ -28,8 +29,8 @@ function hitsOn(events: CombatEventWire[], target: string): HitMessage[] {
 }
 
 describe('NpcSystem', () => {
-  it('spawns the planned NPCs that have a behaviour module (stockers only for now), at full HP', () => {
-    const s = npcSetup(2);
+  it('spawns the planned NPCs that have a behaviour module, at full HP', () => {
+    const s = npcSetup(2, undefined, { modules: [createStockerBehaviour()] });
     const ids = [...s.state.npcs.keys()];
     expect(ids).toHaveLength(npcCount(stocker.count, 2));
     expect(ids.every((id) => id.startsWith('stocker_'))).toBe(true);
@@ -44,7 +45,7 @@ describe('NpcSystem', () => {
   });
 
   it('stockers wander between waypoints without entering walls, searching paths only on events', () => {
-    const s = npcSetup(2);
+    const s = npcSetup(2, undefined, { modules: [createStockerBehaviour()] });
     const start = new Map([...s.state.npcs.values()].map((n) => [n.id, { x: n.x, y: n.y }]));
     const half = { hw: stocker.hitboxPx / 2, hh: stocker.hitboxPx / 2 };
     let ticks = 0;
