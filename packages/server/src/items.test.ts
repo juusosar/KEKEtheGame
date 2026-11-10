@@ -193,9 +193,22 @@ describe('GameRoom items and vans (integration)', () => {
     const pickup = p.events.find((e) => e.type === 'pickup')?.payload as PickupMessage;
     expect(pickup).toMatchObject({ player: p.conn.sessionId, kind: 'own_target', item: { id } });
 
+    // Away from the meat counter before measuring: the target may lie behind it, where the butcher's
+    // cleaver knocks us back (M5-6). An item spawn far from our van will do (no auto deposit).
+    if (map.zoneAt(p.me.x, p.me.y)?.id === 'behind_counter') {
+      const home = vanSpawn(map, p.me.van, playerHalfSize(config));
+      const away = map.itemSpawns.find(
+        (i) =>
+          !['meat_fish', 'behind_counter'].includes(map.zoneAt(i.x, i.y)?.id ?? '') &&
+          Math.hypot(i.x - home.x, i.y - home.y) > map.tileSize * 6,
+      );
+      if (!away) throw new Error('no item spot away from the counter');
+      teleport(p, { x: away.x, y: away.y });
+    }
     const from = { x: p.me.x, y: p.me.y, vx: p.me.vx, vy: p.me.vy };
     const frame = await press(p, 0, { x: 1, y: 0 });
     const slow = applyInput(from, frame, map, config, { speedMultiplier: config.carrySpeedMultiplier });
+    expect(p.me.carrying).toBe(id);
     expect(p.me.x).toBe(slow.x);
     expect(p.me.x).toBeLessThan(applyInput(from, frame, map, config).x);
   });
