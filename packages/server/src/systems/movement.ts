@@ -30,6 +30,14 @@ export class MovementSystem {
     return queue.push(raw);
   }
 
+  /**
+   * A player's client reconnected: restart their seq check from their ack, so a reloaded page's first
+   * frames are not refused because the old socket's frames went further (M2 review F2).
+   */
+  resume(player: PlayerState): void {
+    this.queues.get(player.sessionId)?.rewind(player.ack);
+  }
+
   /** Puts each player at their van, at rest. `players` in spawn order (join order until M3-4 assigns vans). */
   spawn(players: readonly PlayerState[]): void {
     const half = playerHalfSize(this.config);

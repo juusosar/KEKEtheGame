@@ -144,8 +144,10 @@ describe('GameRoom movement (integration)', () => {
     const startedAt = Date.now();
     await waitFor(() => me.ack === config.maxQueuedInputs);
     const seconds = (Date.now() - startedAt) / 1000;
-    // 15 frames at 30 Hz with up to maxInputsPerTick in the first tick: about 0.4 s, never instant.
-    const minimum = (config.maxQueuedInputs - config.maxInputsPerTick) / config.inputHz;
+    // Saved credit (at most maxInputCreditSeconds of frames) runs at up to maxInputsPerTick per tick,
+    // the rest at inputHz: 15 frames take about 0.2 s, never one tick.
+    const saved = config.maxInputCreditSeconds * config.inputHz;
+    const minimum = (config.maxQueuedInputs - saved) / config.inputHz;
     expect(seconds).toBeGreaterThan(minimum * 0.8);
   });
 

@@ -126,6 +126,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
     player.connected = true;
+    this.movement.resume(player);
     // Everyone was away: the first one back takes the host role if its holder is still away.
     if (this.state.players.get(this.state.hostId)?.connected !== true) this.reassignHost();
   }
