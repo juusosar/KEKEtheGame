@@ -28,6 +28,10 @@ export class Avatar {
   private tint = 0xffffff;
   private connectedAlpha = 1;
   private combat: CombatLook = NEUTRAL_LOOK;
+  /** Wanted ❗ over the head (§8, M5-7); made on first use. */
+  private wantedIcon: Phaser.GameObjects.Text | null = null;
+  private wanted = false;
+  private visible = true;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -100,6 +104,43 @@ export class Avatar {
     if (prev.alpha !== look.alpha) this.applyAlpha();
   }
 
+  /** Shows the Wanted ❗ over the head (synced PlayerState.wanted). Cheap every patch. */
+  setWanted(wanted: boolean): void {
+    if (wanted === this.wanted) return;
+    this.wanted = wanted;
+    if (wanted && !this.wantedIcon) {
+      this.wantedIcon = this.scene.add
+        .text(0, 0, '!', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          fontStyle: 'bold',
+          color: '#ffffff',
+          backgroundColor: '#e53935',
+          padding: { x: 3, y: 0 },
+          resolution: renderConfig.cameraZoom * 2,
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(this.depth.label + 0.1);
+      if (this.last) this.placeWanted(this.last.x, this.last.y);
+    }
+    this.wantedIcon?.setVisible(wanted && this.visible);
+  }
+
+  /** The ❗ is on screen (debug hook). */
+  get wantedShown(): boolean {
+    return this.wantedIcon?.visible === true;
+  }
+
+  private placeWanted(x: number, y: number): void {
+    if (!this.wantedIcon) return;
+    // A slow bob so it catches the eye.
+    const bob = Math.round(Math.sin(this.scene.time.now / 150));
+    this.wantedIcon.setPosition(
+      Math.round(x),
+      Math.round(y - renderConfig.wantedIconOffsetY - this.labelLift + bob),
+    );
+  }
+
   private applyAlpha(): void {
     const alpha = this.connectedAlpha * this.combat.alpha;
     this.body.setAlpha(alpha);
@@ -108,6 +149,8 @@ export class Avatar {
   }
 
   setVisible(visible: boolean): void {
+    this.visible = visible;
+    this.wantedIcon?.setVisible(visible && this.wanted);
     this.body.setVisible(visible);
     this.hat.setVisible(visible);
     this.label?.setVisible(visible);
@@ -137,6 +180,7 @@ export class Avatar {
     // The hat shows the body's frame, so they never drift apart.
     this.hat.setFrame(this.body.frame.name);
     this.label?.setPosition(Math.round(x), Math.round(y - renderConfig.nameplateOffsetY - this.labelLift));
+    this.placeWanted(x, y);
   }
 
   get currentFacing(): Facing {
@@ -147,5 +191,6 @@ export class Avatar {
     this.body.destroy();
     this.hat.destroy();
     this.label?.destroy();
+    this.wantedIcon?.destroy();
   }
 }

@@ -42,5 +42,8 @@
   "koStarsSpinHz": 0.5,
   "hudHpWarnFraction": 0.5,
   "hudHpLowFraction": 0.25,
-  "hudWeaponFlashSeconds": 1.2
+  "hudWeaponFlashSeconds": 1.2,
+  "wantedIconOffsetY": 34,
+  "forkliftLightBlinkHz": 2,
+  "forkliftBeepHearingPx": 320
 }

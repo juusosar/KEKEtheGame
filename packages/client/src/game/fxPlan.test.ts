@@ -1,6 +1,6 @@
 import { getWeaponCatalogue, type AttackMessage, type AttackMode } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
-import { ATTACK_FX, attackFx, hitFrame, hitFx, koFx, type FxConfig } from './fxPlan';
+import { ATTACK_FX, attackFx, hitFrame, hitFx, koFx, npcAttackFx, type FxConfig } from './fxPlan';
 
 const weapons = getWeaponCatalogue();
 const cfg: FxConfig = {
@@ -79,5 +79,15 @@ describe('hitFx', () => {
 describe('koFx', () => {
   it('bursts KO stars on the body', () => {
     expect(koFx('b', cfg)).toEqual([expect.objectContaining({ frame: 'ko_stars', follow: 'b' })]);
+  });
+});
+
+describe('npcAttackFx', () => {
+  it('draws a swing wedge sized by the worker melee, nothing without one', () => {
+    const a = { npc: 'stocker_1', x: 10, y: 20, aim: 1, target: 'p' };
+    expect(npcAttackFx(a, { rangePx: 30, arcDegrees: 90 }, cfg)).toEqual([
+      expect.objectContaining({ kind: 'wedge', x: 10, y: 20, aim: 1, rangePx: 30, arcDegrees: 90 }),
+    ]);
+    expect(npcAttackFx(a, null, cfg)).toEqual([]);
   });
 });

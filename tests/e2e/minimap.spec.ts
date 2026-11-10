@@ -55,7 +55,11 @@ test('a solo round: the minimap shows our van, our target and us', async ({ page
   await waitControlling(page);
 
   await expectBottomRight(page);
-  await expect.poll(() => kinds(page), { timeout: 5_000 }).toEqual(['self', 'target', 'van']);
+  // Forklifts (M5-7) drive their routes too; the rest is ours.
+  await expect
+    .poll(async () => (await kinds(page)).filter((k) => k !== 'forklift'), { timeout: 5_000 })
+    .toEqual(['self', 'target', 'van']);
+  expect((await kinds(page)).filter((k) => k === 'forklift').length).toBeGreaterThan(0);
   const all = await markers(page);
   const van = all.find((m) => m.kind === 'van');
   expect(van).toMatchObject({ id: 'van:0', mine: true });

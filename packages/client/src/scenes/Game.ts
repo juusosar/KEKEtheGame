@@ -4,10 +4,12 @@ import {
   ClientMessage,
   CombatEventMessage,
   DebugMessage,
+  NpcEventMessage,
   TILE_LAYERS,
   aabbOverlapsSolid,
   defaultThemeId,
   getItemCatalogue,
+  getNpcCatalogue,
   getWeaponCatalogue,
   getTheme,
   inputStepSeconds,
@@ -24,6 +26,7 @@ import {
   type Vec2,
 } from '@keke/shared';
 import Phaser from 'phaser';
+import { Sfx } from '../audio/sfx';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { Avatar } from '../game/avatar';
 import { CombatFx, type FxBody } from '../game/combatFx';
@@ -36,15 +39,24 @@ import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
 import { PeelRenderer } from '../game/peels';
+import { NpcRenderer } from '../game/npcs';
+import { hearingVolume, npcMelee, npcTypeFromId } from '../game/npcLook';
 import { WorldRenderer } from '../game/worldItems';
 import { ProjectileRenderer } from '../game/projectiles';
 import { Hud } from '../hud/Hud';
 import { readCombatHud, weaponName } from '../hud/combatHud';
-import { COMBAT_FEED_MESSAGES, FEED_MESSAGES, combatFeedLine, feedLine } from '../hud/feed';
+import {
+  COMBAT_FEED_MESSAGES,
+  FEED_MESSAGES,
+  NPC_FEED_MESSAGES,
+  combatFeedLine,
+  feedLine,
+  npcFeedLine,
+} from '../hud/feed';
 import { readHud, type HudContext } from '../hud/hudState';
 import { RoundScreen } from '../hud/RoundScreen';
 import { readRoundScreen } from '../hud/roundScreens';
-import { t } from '../i18n';
+import { t, type MessageKey } from '../i18n';
 import { InputManager, STANDARD, coneAimAssist, inputConfig } from '../input';
 import { DEFAULT_COMBAT, predictionSpeed, readCombat, type CombatPlayerView } from '../net/combatView';
 import { SnapshotBuffer } from '../net/interpolation';
@@ -53,6 +65,7 @@ import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from 
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
 import { readTraps } from '../net/trapView';
 import { cartTileKeys, readNpcs, readStockCarts } from '../net/npcView';
+import { readWanted } from '../net/wantedView';
 import { readWorld, type WorldView } from '../net/worldView';
 import { readProjectiles } from '../net/projectileView';
 import { browserStorage, loadProfile } from '../profile/storage';
@@ -124,6 +137,10 @@ export class GameScene extends Phaser.Scene {
   /** Who knocked us out (last `ko` about us), for the KO overlay; cleared on respawn. */
   private koBy: { name: string; weapon: string | null } | null = null;
   private weaponIcons = new Map<string, string | null>();
+  /** Store workers and stock carts (M5-7); online only. */
+  private npcs: NpcRenderer | undefined;
+  /** Placeholder sounds (wanted alarm, forklift beep); online only. */
+  private sfx: Sfx | undefined;
 
   private debug = false;
   private hitbox?: Phaser.GameObjects.Rectangle;
@@ -207,7 +224,8 @@ export class GameScene extends Phaser.Scene {
     this.local.place(pos.x, pos.y, this.lastMove);
 
     if (!offline) this.updateRemotes(dt);
-    this.drawCombat(time / 1000);
+    const npcAnchors = this.drawNpcs(time / 1000);
+    this.drawCombat(time / 1000, npcAnchors);
     this.projectiles?.draw(time / 1000);
     this.updateMinimap(dt);
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
@@ -238,6 +256,8 @@ export class GameScene extends Phaser.Scene {
     this.combat = new Map();
     this.koBy = null;
     this.weaponIcons = new Map();
+    this.npcs = undefined;
+    this.sfx = undefined;
     this.lastAim = 0;
     this.lastButtons = 0;
   }
@@ -347,6 +367,7 @@ export class GameScene extends Phaser.Scene {
       (weapon) => getWeaponCatalogue().get(weapon)?.sprite ?? weapon,
     );
     this.roundScreen = new RoundScreen();
+    this.createNpcs(room);
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
 
@@ -417,6 +438,11 @@ export class GameScene extends Phaser.Scene {
     this.controlling = controlling;
 
     this.renderCombatHud();
+    const wanted = readWanted(room.state);
+    this.local.setWanted(wanted.has(me.id));
+    this.hud?.renderWanted(
+      wanted.has(me.id) && view.phase === 'playing' ? (wanted.get(me.id)?.seconds ?? 0) : null,
+    );
 
     const now = performance.now();
     const seen = new Set<string>();
@@ -439,6 +465,7 @@ export class GameScene extends Phaser.Scene {
       remote.avatar.setLook(p);
       remote.avatar.setConnected(p.connected);
       remote.avatar.setLabel(p.connected ? p.nickname : t('game.reconnecting', { name: p.nickname }));
+      remote.avatar.setWanted(wanted.has(p.id));
     }
     for (const [id, remote] of this.remotes) {
       if (seen.has(id)) continue;
@@ -447,7 +474,9 @@ export class GameScene extends Phaser.Scene {
     }
     this.syncWorld(room.state, view);
     this.peels?.sync(readTraps(room.state));
-    this.cartTiles = cartTileKeys(readStockCarts(room.state), this.model.collision.width);
+    const carts = readStockCarts(room.state);
+    this.cartTiles = cartTileKeys(carts, this.model.collision.width);
+    this.npcs?.sync(readNpcs(room.state), carts, now);
   }
 
   private updateRemotes(dt: number): void {
@@ -478,7 +507,7 @@ export class GameScene extends Phaser.Scene {
         }),
       );
     }
-    const ctx = { weapons, me: room.sessionId, nameOf };
+    const ctx = { weapons, me: room.sessionId, nameOf, npcName: (id: string) => this.npcName(id) };
     for (const type of COMBAT_FEED_MESSAGES) {
       this.unsubscribe.push(
         room.onMessage(type, (message: unknown) => {
@@ -496,10 +525,18 @@ export class GameScene extends Phaser.Scene {
       const ko = message as KoMessage;
       if (ko.player !== me) return;
       const src = ko.source as KoMessage['source'] | undefined;
-      this.koBy =
-        src?.kind === 'player' && src.id !== me
-          ? { name: nameOf(src.id), weapon: ko.weapon ? weaponName(ko.weapon, getWeaponCatalogue()) : null }
-          : null;
+      if (src?.kind === 'player' && src.id !== me) {
+        this.koBy = {
+          name: nameOf(src.id),
+          weapon: ko.weapon ? weaponName(ko.weapon, getWeaponCatalogue()) : null,
+        };
+      } else if (src?.kind === 'npc' || src?.kind === 'hazard') {
+        // A store worker or a forklift (M5-7).
+        const name = this.npcName(src.id);
+        this.koBy = { name: name.charAt(0).toLocaleUpperCase() + name.slice(1), weapon: null };
+      } else {
+        this.koBy = null;
+      }
       this.renderCombatHud();
     } else if (type === CombatEventMessage.respawn) {
       if ((message as { player?: unknown }).player === me) this.koBy = null;
@@ -554,7 +591,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Avatar looks (KO, protection, hit flash), held weapons and the world FX, from the last patch. */
-  private drawCombat(now: number): void {
+  private drawCombat(now: number, npcAnchors?: ReadonlyMap<string, Vec2>): void {
     const fx = this.combatFx;
     const room = this.room;
     if (!fx || room === null) return;
@@ -584,10 +621,79 @@ export class GameScene extends Phaser.Scene {
       (this.lastButtons & Button.Block) !== 0,
     );
     for (const [id, remote] of this.remotes) add(id, remote.avatar, this.combat.get(id)?.aim ?? 0, false);
-    fx.draw(now, bodies);
+    fx.draw(now, bodies, npcAnchors);
     this.sprayFx?.draw(now, (id) => {
       const avatar = id === room.sessionId ? this.local : this.remotes.get(id)?.avatar;
       return avatar?.body.visible ? { x: avatar.body.x, y: avatar.body.y } : undefined;
+    });
+  }
+
+  // --- store workers and Wanted (M5-7) --------------------------------------------------------------
+
+  private createNpcs(room: Room): void {
+    const catalogue = getNpcCatalogue();
+    const npcs = new NpcRenderer(
+      this,
+      { npc: DEPTH.player, floor: DEPTH.decor + 0.4, label: DEPTH.label, mapHeight: this.model.heightPx },
+      catalogue,
+      this.model.tileSize,
+      1000 / this.config.serverTickHz,
+    );
+    this.npcs = npcs;
+    const sfx = new Sfx();
+    this.sfx = sfx;
+    const me = room.sessionId;
+    for (const type of Object.values(NpcEventMessage)) {
+      this.unsubscribe.push(
+        room.onMessage(type, (message: unknown) => {
+          const now = this.time.now / 1000;
+          npcs.onEvent(type, message, now);
+          const id = (message as { npc?: unknown } | null)?.npc;
+          const def =
+            typeof id === 'string' ? catalogue.get(npcs.typeOf(id) ?? npcTypeFromId(id)) : undefined;
+          this.combatFx?.onNpcEvent(type, message, now, npcMelee(def));
+          if (type === NpcEventMessage.wanted) this.onWanted(message, me);
+        }),
+      );
+    }
+    const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
+    const ctx = { weapons: getWeaponCatalogue(), me, nameOf, npcName: (id: string) => this.npcName(id) };
+    for (const type of NPC_FEED_MESSAGES) {
+      this.unsubscribe.push(
+        room.onMessage(type, (message: unknown) => {
+          const line = npcFeedLine(type, message, ctx);
+          if (line) this.hud?.pushFeed(line, performance.now());
+        }),
+      );
+    }
+  }
+
+  /** The alarm (§12 "wanted alarm"): loud when we become Wanted, a short far one for anyone else. */
+  private onWanted(message: unknown, me: string): void {
+    if (typeof message !== 'object' || message === null) return;
+    const { player, refreshed } = message as { player?: unknown; refreshed?: unknown };
+    if (player === me) this.sfx?.play(refreshed === true ? 'wantedRefresh' : 'wantedAlarm');
+    else if (refreshed !== true) this.sfx?.play('wantedAlarmFar');
+  }
+
+  /** Lower-case display name of a store worker (feed lines, KO overlay). */
+  private npcName(id: string): string {
+    const type = this.npcs?.typeOf(id) ?? npcTypeFromId(id);
+    const key = `npc.${type}` as MessageKey;
+    const name = t(key);
+    if (name !== key) return name;
+    return (getNpcCatalogue().get(type)?.name ?? type).toLocaleLowerCase();
+  }
+
+  /** Draws the workers and plays forklift beeps; returns where each worker is drawn (for combat FX). */
+  private drawNpcs(now: number): ReadonlyMap<string, Vec2> | undefined {
+    const npcs = this.npcs;
+    if (!npcs) return undefined;
+    const listener = this.local.body.visible
+      ? { x: this.local.body.x, y: this.local.body.y }
+      : this.cameras.main.midPoint;
+    return npcs.draw(now, performance.now(), (_id, at) => {
+      this.sfx?.play('forkliftBeep', hearingVolume(at, listener, renderConfig.forkliftBeepHearingPx));
     });
   }
 
@@ -754,6 +860,10 @@ export class GameScene extends Phaser.Scene {
     this.projectiles = undefined;
     this.peels?.destroy();
     this.peels = undefined;
+    this.npcs?.destroy();
+    this.npcs = undefined;
+    this.sfx?.destroy();
+    this.sfx = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
     delete document.body.dataset['phase'];
@@ -970,6 +1080,14 @@ export class GameScene extends Phaser.Scene {
         })),
       npcs: () => (this.room ? readNpcs(this.room.state) : []),
       stockCarts: () => (this.room ? readStockCarts(this.room.state) : []),
+      npcSprites: () => this.npcs?.snapshots() ?? [],
+      wantedIcons: () => {
+        const out: string[] = [];
+        if (this.room && this.local.wantedShown) out.push(this.room.sessionId);
+        for (const [id, remote] of this.remotes) if (remote.avatar.wantedShown) out.push(id);
+        return out;
+      },
+      sfx: () => ({ ...(this.sfx?.played() ?? {}) }),
       held: () => this.combatFx?.heldSnapshots() ?? [],
       swings: () => this.combatFx?.swingSnapshot() ?? { predicted: 0, last: null },
       fx: () => this.combatFx?.fxSnapshots() ?? [],

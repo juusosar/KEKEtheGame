@@ -553,6 +553,32 @@
   width: min(340px, calc(100vw - 2 * 200px));
   min-width: 220px;
 }
+.keke-hud .hud-wanted {
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: #e53935;
+  border: 2px solid #111;
+  animation: hud-wanted-pulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes hud-wanted-pulse {
+  from {
+    background: #e53935;
+  }
+  to {
+    background: #8e1b18;
+  }
+}
+.keke-hud .hud-feed li.feed-runover {
+  border-right: 3px solid #ff9800;
+}
+.keke-hud .hud-feed li.feed-wanted {
+  border-right: 3px solid #e53935;
+  color: #ffb3ad;
+  font-weight: 700;
+}
 .keke-hud .hud-status {
   font-size: 12px;
   font-weight: 700;

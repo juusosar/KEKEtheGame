@@ -1,11 +1,12 @@
 // Minimap model (§13.2): what the corner map shows and where, as plain data. No DOM or Phaser here, so
 // the marker rules are unit-tested; MinimapView.ts draws the result onto a canvas.
 //
-// Adding a marker later (office and box carriers in M6, forklifts in M5-7):
+// Adding a marker later (office and box carriers in M6; forklifts came in M5-7):
 //   1. add its kind to MARKER_STYLES (shape, size, draw order),
 //   2. write a MinimapLayer that turns the synced state (`world.state`) into markers of that kind,
 //   3. append the layer to the list passed to buildMinimapMarkers (or to DEFAULT_LAYERS).
 import { isBag, mapEntries, num, str } from '../net/lobbyView';
+import { readNpcs } from '../net/npcView';
 
 export interface Vec {
   readonly x: number;
@@ -58,6 +59,7 @@ export interface MarkerStyle {
 export const MARKER_STYLES = {
   van: { shape: 'square', size: 7, z: 1, color: '#9E9E9E' },
   loose: { shape: 'circle', size: 4, z: 2, color: '#F5F5F5' },
+  forklift: { shape: 'square', size: 6, z: 2.5, color: '#FF9800', pulse: true },
   target: { shape: 'diamond', size: 9, z: 3, color: '#FFD600', pulse: true },
   self: { shape: 'triangle', size: 8, z: 4, color: '#FFFFFF' },
 } as const satisfies Record<string, MarkerStyle>;
@@ -223,6 +225,12 @@ export const targetLayer: MinimapLayer = (world) => {
   return [{ kind: 'target', id: `item:${item.id}`, x: item.x, y: item.y }];
 };
 
+/** Forklifts driving their routes (§13.2), whatever their npcs.json id, keyed on the synced behaviour. */
+export const forkliftLayer: MinimapLayer = (world) =>
+  readNpcs(world.state)
+    .filter((n) => n.behaviour === 'forklift')
+    .map((n) => ({ kind: 'forklift', id: `npc:${n.id}`, x: n.x, y: n.y }));
+
 /** Where we are. */
 export const selfLayer: MinimapLayer = (world) => {
   const me = world.me;
@@ -232,7 +240,13 @@ export const selfLayer: MinimapLayer = (world) => {
   ];
 };
 
-export const DEFAULT_LAYERS: readonly MinimapLayer[] = [vanLayer, looseLayer, targetLayer, selfLayer];
+export const DEFAULT_LAYERS: readonly MinimapLayer[] = [
+  vanLayer,
+  looseLayer,
+  forkliftLayer,
+  targetLayer,
+  selfLayer,
+];
 
 /** Every marker of every layer, sorted bottom to top (style z, then layer order). */
 export function buildMinimapMarkers(

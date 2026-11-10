@@ -208,7 +208,7 @@ export interface KekeHook {
   remotePlayers(): KekeRemoteSnapshot[];
   /** Markers on the minimap at its last redraw (a few times a second). */
   minimap(): KekeMinimapMarker[];
-  /** The last 50 combat broadcasts this client received, oldest first; empty offline. */
+  /** The last 50 combat and store worker (M5-7) broadcasts this client received, oldest first; empty offline. */
   combatEvents(): KekeCombatEvent[];
   /** Spray vision clouds in the world now (M4-4), world pixels; empty offline. */
   sprayClouds(): { x: number; y: number; radiusPx: number }[];
@@ -239,10 +239,35 @@ export interface KekeHook {
   vans(): KekeVanSnapshot[];
   /** Banana peels on the floor (M4-5), by id; empty offline. */
   traps(): KekeTrapSnapshot[];
-  /** Store workers in the synced state (M5-3), by id; empty offline. Not what is drawn (M5-7 draws them). */
+  /** Store workers in the synced state (M5-3), by id; empty offline. What is drawn is `npcSprites()`. */
   npcs(): NpcView[];
   /** Stock carts parked right now (M5-3), by id; empty offline. */
   stockCarts(): StockCartView[];
+  /** Store workers as drawn this frame (M5-7), by id; empty offline. */
+  npcSprites(): KekeNpcSpriteSnapshot[];
+  /** Session ids of players with the Wanted ❗ icon showing this frame (M5-7); empty offline. */
+  wantedIcons(): string[];
+  /** How many times each placeholder sound has played (M5-7: wantedAlarm, forkliftBeep, ...). */
+  sfx(): Record<string, number>;
+}
+
+/** A store worker as drawn (M5-7). */
+export interface KekeNpcSpriteSnapshot {
+  id: string;
+  type: string;
+  /** Atlas the sprite uses (npcs.json `sprite`; `customer` when that atlas is missing). */
+  sheet: string;
+  /** Animation key playing, e.g. `stocker/walk_left`, `forklift/drive_up`. */
+  anim: string;
+  visible: boolean;
+  /** Drawn (interpolated) position, world px. */
+  x: number;
+  y: number;
+  alpha: number;
+  /** Anger mark showing (after a player). */
+  hostile: boolean;
+  /** Forklift warning light on. */
+  light: boolean;
 }
 
 /** A banana peel on the floor (M4-5). */
