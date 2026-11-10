@@ -7,6 +7,7 @@ import { createBlockBehaviour } from './block';
 import { createChargeBehaviour } from './charge';
 import { meleeBehaviour } from './melee';
 import { ProjectileSystem } from './projectiles';
+import { shotBehaviour } from './shot';
 import { createSprayBehaviour } from './spray';
 import { thrownBehaviour } from './thrown';
 import type { BehaviourModule } from './types';
@@ -14,11 +15,12 @@ import type { BehaviourModule } from './types';
 export function defaultCombatModules(state: GameState): BehaviourModule[] {
   const projectiles = new ProjectileSystem(state);
   return [
-    createBlockBehaviour(),
+    createBlockBehaviour(projectiles),
     meleeBehaviour,
     createSprayBehaviour(),
     projectiles,
     thrownBehaviour(projectiles),
+    shotBehaviour(projectiles),
     createChargeBehaviour(),
   ];
 }
