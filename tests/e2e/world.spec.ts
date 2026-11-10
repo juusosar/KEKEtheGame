@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { KekeHook, KekeItemSnapshot, KekeVanSnapshot } from '../../packages/client/src/game/hookTypes';
 import { createRoom, game, toPlay, waitControlling } from './helpers';
 
@@ -7,7 +7,7 @@ type WithHook = { __KEKE__?: KekeHook };
 // The default profile colour (DEFAULT_COLOR in @keke/shared; Playwright cannot import its JSON config).
 const DEFAULT_COLOR = '#3FA9F5';
 
-const world = (page: import('@playwright/test').Page) =>
+const world = (page: Page) =>
   page.evaluate((): { items: KekeItemSnapshot[]; vans: KekeVanSnapshot[] } => {
     const hook = (globalThis as WithHook).__KEKE__;
     if (!hook) throw new Error('window.__KEKE__ is missing (load the page with ?debug=1)');
