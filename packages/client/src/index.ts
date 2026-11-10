@@ -1,2 +1,16 @@
-// Client entry point. Phaser + Vite arrive in M0-4.
-export {};
+import Phaser from 'phaser';
+import { BootScene } from './scenes/Boot';
+
+// Client entry point (loaded by index.html).
+new Phaser.Game({
+  type: Phaser.AUTO,
+  parent: 'game',
+  backgroundColor: '#1a1a1a',
+  pixelArt: true,
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    width: '100%',
+    height: '100%',
+  },
+  scene: [BootScene],
+});
