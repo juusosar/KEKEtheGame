@@ -2,16 +2,13 @@
 // §20 flag the model for iteration after playtests: a new model is a new assigner, not a rewrite.
 // Ownership changes on pickup live in carry.ts; this file only decides what a new target is and where.
 import type { GameConfig } from '../config';
+import { ANY_ZONE, type ItemRarity } from '../items/catalogue';
 import type { Rng } from '../rng';
 import type { Vec2 } from '../types';
-import type { ItemRarity } from './scoring';
-
-/** Zone value of joke items: they may spawn at any item spawn point (§10.1). */
-export const ANY_ZONE = 'any';
 
 /**
- * What target assignment needs from a catalogue entry (§10). The full item type from the catalogue
- * (M3-1) has more fields (name, desc, sprite) and satisfies this shape.
+ * What target assignment needs from a catalogue entry (§10). `ItemDef` from shared/src/items
+ * satisfies this shape.
  */
 export interface TargetItemDef {
   readonly id: string;
