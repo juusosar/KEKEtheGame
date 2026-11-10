@@ -70,9 +70,9 @@ The items players fetch live in `packages/shared/src/data/items.kespro.json` (fi
 
 ## Walking the map (M1)
 
-After Boot connects it starts the Game scene: one local player on the map, starting at van slot 1 on the loading dock. Move with WASD or a gamepad's left stick. Movement runs through the shared rules in `packages/shared/src/rules/movement.ts`, the same code the server will run, so walls and the slippery cold room behave the same everywhere. The camera follows at 2× zoom. Client-only render values (zoom, follow smoothing, the player's default colour and hat) are in `packages/client/src/game/render-config.json`.
+Boot starts the Title menu. To walk the map offline without a room, open the game with `?scene=game` (http://localhost:5173/?scene=game in dev, add `&debug=1` for the overlay): one local player on the map, starting at van slot 1 on the loading dock. Move with WASD or a gamepad's left stick. Movement runs through the shared rules in `packages/shared/src/rules/movement.ts`, the same code the server will run, so walls and the slippery cold room behave the same everywhere. The camera follows at 2× zoom. Client-only render values (zoom, follow smoothing, the player's default colour and hat) are in `packages/client/src/game/render-config.json`.
 
-Add `?debug=1` to the URL (http://localhost:5173/?debug=1 in dev) for the debug overlay: walls in red, each zone filled and labelled with its id, van slots and the office trigger outlined, the player's hitbox in green, and a readout of position, zone, input device and fps in the top-right corner. Debug mode also installs `window.__KEKE__` (types in `packages/client/src/game/hookTypes.ts`), which the e2e specs use to read the player's position and zone and to teleport.
+Add `?debug=1` to the URL (http://localhost:5173/?debug=1 in dev, or `?scene=game&debug=1`) for the debug overlay: walls in red, each zone filled and labelled with its id, van slots and the office trigger outlined, the player's hitbox in green, and a readout of position, zone, input device and fps in the top-right corner. Debug mode also installs `window.__KEKE__` (types in `packages/client/src/game/hookTypes.ts`), which the e2e specs use to read the player's position and zone and to teleport.
 
 ## Playing on a LAN
 
