@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
 
-// M1 smoke: the Game scene loads with ?debug=1, exposes window.__KEKE__, and a keypress moves the player.
+// M1 smoke: the Game scene loads with ?debug=1 (&scene=game skips the menus), exposes window.__KEKE__,
+// and a keypress moves the player.
 // The root tsconfig has no DOM lib, so page code reads the hook through globalThis.
 type Snapshot = { x: number; y: number; zone: string | null };
 type WithHook = { __KEKE__?: KekeHook };
@@ -18,7 +19,7 @@ test('game scene: the player walks on a keypress and the debug hook reports it',
   const pageErrors: Error[] = [];
   page.on('pageerror', (err) => pageErrors.push(err));
 
-  await page.goto('/?debug=1');
+  await page.goto('/?debug=1&scene=game');
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 15_000 });
   await page.waitForFunction(() => (globalThis as WithHook).__KEKE__ !== undefined);
   await expect(page.locator('#keke-debug')).toBeVisible();

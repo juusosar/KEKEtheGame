@@ -3,8 +3,7 @@
   "cameraLerp": 0.2,
   "maxFrameSeconds": 0.1,
   "playerOriginY": 0.69,
-  "defaultPlayerColor": "#3FA9F5",
-  "defaultHat": "cap",
+  "menuPreviewScale": 5,
   "debugZoneAlpha": 0.22,
   "debugWallAlpha": 0.35
 }

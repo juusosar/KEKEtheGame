@@ -7,9 +7,9 @@ describe('render config', () => {
     expect(renderConfig.cameraZoom).toBe(2);
   });
 
-  it('rejects a non-integer zoom and an unknown hat, listing both', () => {
-    expect(() => parseRenderConfig({ ...raw, cameraZoom: 1.5, defaultHat: 'tophat' })).toThrow(
-      /cameraZoom[\s\S]*defaultHat/,
+  it('rejects a non-integer zoom and a bad alpha, listing both', () => {
+    expect(() => parseRenderConfig({ ...raw, cameraZoom: 1.5, debugZoneAlpha: 2 })).toThrow(
+      /cameraZoom[\s\S]*debugZoneAlpha/,
     );
   });
 });
