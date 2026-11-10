@@ -16,6 +16,7 @@
   "dependencies": {
     "@colyseus/core": "^0.18.27",
     "@colyseus/ws-transport": "^0.18.4",
+    "@keke/shared": "0.0.0",
     "express": "^5.3.0"
   },
   "devDependencies": {

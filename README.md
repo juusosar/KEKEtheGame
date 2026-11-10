@@ -15,6 +15,14 @@ npm run lint
 npm test
 ```
 
+### Windows: line endings
+
+The repo forces LF line endings through `.gitattributes`, because Prettier (and so `npm run lint`) expects LF. A fresh clone gets this automatically. A clone made before `.gitattributes` existed may still have CRLF files; fix it once with:
+
+```sh
+git rm --cached -r . && git reset --hard
+```
+
 ## Scripts
 
 | Script              | What it does                                                    |

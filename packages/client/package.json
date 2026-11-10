@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@colyseus/sdk": "^0.18.9",
+    "@keke/shared": "0.0.0",
     "phaser": "^3.90.0"
   },
   "devDependencies": {
