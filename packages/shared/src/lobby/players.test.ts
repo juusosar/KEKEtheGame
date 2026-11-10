@@ -29,8 +29,8 @@ describe('teams', () => {
       entry('d', 3, 1),
       entry('e', 4),
     ]);
-    const sizes = [...teams.values()].reduce((acc, t) => ((acc[t - 1] += 1), acc), [0, 0]);
-    expect(Math.abs((sizes[0] ?? 0) - (sizes[1] ?? 0))).toBeLessThanOrEqual(1);
+    const ones = [...teams.values()].filter((t) => t === 1).length;
+    expect(Math.abs(ones - (teams.size - ones))).toBeLessThanOrEqual(1);
     expect(teams.get('a')).toBe(1);
     expect(teams.get('d')).toBe(2);
     expect(teams.size).toBe(5);
