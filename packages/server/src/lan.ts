@@ -15,6 +15,20 @@ export function lanAddresses(interfaces: Interfaces = networkInterfaces()): stri
   return addresses;
 }
 
+/** Port of the Vite dev server (packages/client/vite.config.ts, strictPort). */
+export const VITE_DEV_PORT = 5173;
+
+/**
+ * The lines `npm run dev` prints: the page comes from Vite on 5173, which proxies to this server,
+ * so the LAN URLs point at Vite instead of the game server port.
+ */
+export function devBanner(serverPort: number, interfaces?: Interfaces): string[] {
+  return [
+    `Dev mode: the game server is on port ${serverPort}, but open the page from Vite on port ${VITE_DEV_PORT}.`,
+    ...lanBanner(VITE_DEV_PORT, interfaces),
+  ];
+}
+
 /** The lines the server prints at startup so players on the LAN know which URL to open (§16). */
 export function lanBanner(port: number, interfaces?: Interfaces): string[] {
   const addresses = lanAddresses(interfaces);

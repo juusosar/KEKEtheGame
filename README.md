@@ -25,26 +25,27 @@ git rm --cached -r . && git reset --hard
 
 ## Scripts
 
-| Script              | What it does                                                    |
-| ------------------- | --------------------------------------------------------------- |
-| `npm run dev`       | Server in watch mode + Vite dev server on http://localhost:5173 |
-| `npm run build`     | Builds every workspace package that has a `build` script        |
-| `npm start`         | Runs the built server on `PORT` (default 2567)                  |
-| `npm test`          | Vitest across all packages                                      |
-| `npm run test:e2e`  | Playwright end-to-end tests against the production build        |
-| `npm run lint`      | ESLint + Prettier check                                         |
-| `npm run format`    | Prettier write                                                  |
-| `npm run typecheck` | `tsc --noEmit` for the root configs and every package           |
+| Script                | What it does                                                     |
+| --------------------- | ---------------------------------------------------------------- |
+| `npm run dev`         | Server in watch mode + Vite dev server on http://localhost:5173  |
+| `npm run build`       | Builds every workspace package that has a `build` script         |
+| `npm start`           | Runs the built server on `PORT` (default 2567)                   |
+| `npm test`            | Vitest across all packages                                       |
+| `npm run test:e2e`    | Playwright end-to-end tests against the production build         |
+| `npm run e2e:install` | Downloads Playwright's Chromium (once, before the first e2e run) |
+| `npm run lint`        | ESLint + Prettier check                                          |
+| `npm run format`      | Prettier write                                                   |
+| `npm run typecheck`   | `tsc --noEmit` for the root configs and every package            |
 
 ## Development
 
-`npm run dev` starts the game server in watch mode and the Vite dev server together. Open http://localhost:5173: the Boot scene joins the server's `hello` room and shows **connected**. Vite proxies `/colyseus/*` (HTTP matchmaking and the room WebSocket) to the server on `PORT` (default 2567), so the browser only talks to Vite.
+`npm run dev` starts the game server in watch mode and the Vite dev server together. Open http://localhost:5173: the Boot scene joins the server's `hello` room and shows **connected**. Vite proxies `/colyseus/*` (HTTP matchmaking and the room WebSocket) to the server on `PORT` (default 2567), so the browser only talks to Vite. In dev the server's startup banner prints the Vite URLs (port 5173), since that is where the page lives.
 
 `npm run build` writes the client to `packages/client/dist`, which the server serves on its own port in production.
 
 ## End-to-end tests
 
-`npm run test:e2e` installs Playwright's Chromium if it is missing, builds everything, starts the built server on port 2568 (`E2E_PORT` to change it) and runs the specs in `tests/e2e/`. Locally it reuses a server that is already listening on that port; with `CI` set it always starts a fresh one. Specs wait on `<body data-connection="connected">` instead of reading the canvas. On Linux, a fresh machine may also need the browser's system libraries: `npx playwright install-deps chromium`. Failure traces and the HTML report land in `test-results/` and `playwright-report/` (open it with `npx playwright show-report`).
+Run `npm run e2e:install` once to download Playwright's Chromium. After that, `npm run test:e2e` builds everything, starts the built server on port 2568 (`E2E_PORT` to change it) and runs the specs in `tests/e2e/`. Locally it reuses a server that is already listening on that port; with `CI` set it always starts a fresh one. Specs wait on `<body data-connection="connected">` instead of reading the canvas. On Linux, a fresh machine may also need the browser's system libraries: `npx playwright install-deps chromium`. Failure traces and the HTML report land in `test-results/` and `playwright-report/` (open it with `npx playwright show-report`).
 
 ## Playing on a LAN
 
