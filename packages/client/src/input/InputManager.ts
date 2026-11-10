@@ -15,6 +15,12 @@ import type { GamepadSnapshot } from './gamepad';
  *   this.inputManager = new InputManager(this);
  *   // each update: inputManager.setOrigin(player); const frame = inputManager.sample();
  */
+/** Keys the game captures (preventDefault) while it runs. Released again in `destroy()`. */
+export const CAPTURED_KEYS: readonly number[] = [
+  // Tab is the scoreboard key; without capture the browser moves focus out of the canvas.
+  Phaser.Input.Keyboard.KeyCodes.TAB,
+];
+
 export class InputManager {
   private readonly builder: InputFrameBuilder;
   private readonly keys = new Set<string>();
@@ -40,8 +46,7 @@ export class InputManager {
     if (keyboard) {
       keyboard.on(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.onKeyDown);
       keyboard.on(Phaser.Input.Keyboard.Events.ANY_KEY_UP, this.onKeyUp);
-      // Tab is the scoreboard key; without capture the browser moves focus out of the canvas.
-      keyboard.addCapture([Phaser.Input.Keyboard.KeyCodes.TAB]);
+      keyboard.addCapture([...CAPTURED_KEYS]);
     }
     // Right mouse is Block, so the context menu must not open over the game.
     scene.input.mouse?.disableContextMenu();
@@ -90,6 +95,9 @@ export class InputManager {
     const keyboard = this.scene.input.keyboard;
     keyboard?.off(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.onKeyDown);
     keyboard?.off(Phaser.Input.Keyboard.Events.ANY_KEY_UP, this.onKeyUp);
+    // Captures live on the game-wide KeyboardManager and survive scene shutdown; without this,
+    // Tab stays blocked in the HTML menus (title, profile, lobby) after a match.
+    keyboard?.removeCapture([...CAPTURED_KEYS]);
     this.scene.game.events.off(Phaser.Core.Events.BLUR, this.onBlur);
     this.keys.clear();
   }

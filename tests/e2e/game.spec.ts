@@ -38,6 +38,8 @@ test('game scene: the player walks on a keypress and the debug hook reports it',
   // Walls stop the player: teleporting into one is refused.
   const intoWall = await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(1, 1));
   expect(intoWall).toBe(false);
+  const toNaN = await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(NaN, NaN));
+  expect(toNaN).toBe(false);
 
   expect(pageErrors).toEqual([]);
 });

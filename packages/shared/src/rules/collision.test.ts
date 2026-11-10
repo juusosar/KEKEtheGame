@@ -44,6 +44,16 @@ describe('moveAabb', () => {
     expect(r).toEqual({ x: 150, y: 150, hitX: true, hitY: true });
   });
 
+  it('treats NaN and Infinity positions or sizes as overlapping, never as free space', () => {
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      expect(aabbOverlapsSolid(room, { x: bad, y: 80 }, half)).toBe(true);
+      expect(aabbOverlapsSolid(room, { x: 80, y: bad }, half)).toBe(true);
+      expect(aabbOverlapsSolid(room, { x: 80, y: 80 }, { hw: bad, hh: 10 })).toBe(true);
+      expect(aabbOverlapsSolid(room, { x: 80, y: 80 }, { hw: 10, hh: bad })).toBe(true);
+    }
+    expect(aabbOverlapsSolid(room, { x: 80, y: 80 }, half)).toBe(false);
+  });
+
   it('does not count touching a wall as overlapping, so a flush box can move away and along it', () => {
     expect(aabbOverlapsSolid(room, { x: 150, y: 80 }, half)).toBe(false);
     expect(moveAabb(room, { x: 150, y: 80 }, half, { x: -5, y: 0 })).toMatchObject({ x: 145, hitX: false });
