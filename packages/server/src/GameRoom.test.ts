@@ -110,6 +110,17 @@ describe('GameRoom (integration)', () => {
     await expect(colyseus.sdk.joinById(a.room.roomId, {})).rejects.toThrow(/code/);
   });
 
+  it('never gives a codeless join a seat, even in a brand-new room (M2 review F3)', async () => {
+    // Before the creator connects: the room is locked, so a join without a code finds nothing.
+    const reservation = await colyseus.sdk.http.post('matchmake/create/game', { body: { nickname: 'Host' } });
+    expect(reservation).toBeDefined();
+    await expect(colyseus.sdk.join('game', {})).rejects.toThrow();
+    // After the creator is in: the room is open for codes only.
+    const { room } = await create();
+    await expect(colyseus.sdk.join('game', {})).rejects.toThrow(/code/);
+    expect(room.state.players.size).toBe(1);
+  });
+
   it('refuses joins beyond maxPlayersPerRoom', async () => {
     const { room } = await create();
     await join(room.state.code);
