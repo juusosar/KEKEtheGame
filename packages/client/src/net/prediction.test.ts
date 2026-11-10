@@ -1,4 +1,11 @@
-import { applyInput, loadConfig, type InputFrame, type MovementMap, type MovementState } from '@keke/shared';
+import {
+  Button,
+  applyInput,
+  loadConfig,
+  type InputFrame,
+  type MovementMap,
+  type MovementState,
+} from '@keke/shared';
 import { describe, expect, it } from 'vitest';
 import { FixedStepClock, InputSequence, Predictor, inputSequenceFor } from './prediction';
 
@@ -93,6 +100,7 @@ describe('Predictor', () => {
     p.apply(frame(1, 1));
     const midBefore = p.renderPosition(0.5);
     p.reconcile({ x: start.x + 10, y: start.y, vx: 0, vy: 0, ack: 0 });
+    p.smooth(1); // once the drawn-offset smoothing (M4 review F7) has run out
     expect(p.renderPosition(0.5).x).toBeCloseTo(midBefore.x + 10, 9);
   });
 
@@ -166,5 +174,62 @@ describe('Predictor carry slowdown (M2 review H1)', () => {
     p.reconcile({ ...server, ack: 2 });
     expect(p.lastCorrection).toBe(0);
     expect(p.state.x).toBeLessThan(serverRun(start, frames).x);
+  });
+});
+
+describe('Predictor with a pan block (M4 review F7)', () => {
+  const blockFrame = (seq: number, held: boolean): InputFrame => ({
+    seq,
+    move: { x: 1, y: 0 },
+    aim: 0,
+    buttons: held ? Button.Block : 0,
+  });
+  const modifiers = { speedMultiplier: 1, blockSpeedMultiplier: 0.5 };
+
+  it('moves frames that hold Block at the block speed, the others at full speed', () => {
+    const blocked = new Predictor(map, config, start);
+    blocked.setModifiers(modifiers);
+    const open = new Predictor(map, config, start);
+    open.setModifiers(modifiers);
+    for (let i = 1; i <= 10; i++) {
+      blocked.apply(blockFrame(i, true));
+      open.apply(blockFrame(i, false));
+    }
+    expect(blocked.state.x - start.x).toBeLessThan((open.state.x - start.x) * 0.75);
+  });
+
+  it('a block press and release need no correction: the server moves the same frames the same way', () => {
+    const p = new Predictor(map, config, start);
+    p.setModifiers(modifiers);
+    const frames = [1, 2, 3, 4, 5, 6, 7, 8].map((s) => blockFrame(s, s >= 3 && s <= 6));
+    for (const f of frames) p.apply(f);
+    const server = frames.slice(0, 5).reduce((st, f) => applyInput(st, f, map, config, modifiers), start);
+    p.reconcile({ ...server, ack: 5 });
+    expect(p.lastCorrection).toBe(0);
+  });
+});
+
+describe('Predictor correction smoothing (M4 review F7)', () => {
+  it('draws a mid-size correction where the body was and eases onto the server body', () => {
+    const p = new Predictor(map, config, start);
+    p.reconcile({ x: start.x + 20, y: start.y, vx: 0, vy: 0, ack: 0 });
+    expect(p.state.x).toBe(start.x + 20); // the truth moves at once
+    expect(p.renderPosition(1).x).toBeCloseTo(start.x, 6); // the drawn body has not jumped
+    p.smooth(0.05);
+    const half = p.renderPosition(1).x;
+    expect(half).toBeGreaterThan(start.x + 10);
+    expect(half).toBeLessThan(start.x + 20);
+    p.smooth(0.2);
+    expect(p.renderPosition(1).x).toBeCloseTo(start.x + 20, 1);
+    expect(p.smoothing).toBe(0);
+  });
+
+  it('draws tiny corrections as they are and snaps far ones (teleport, respawn)', () => {
+    const p = new Predictor(map, config, start);
+    p.reconcile({ x: start.x + 2, y: start.y, vx: 0, vy: 0, ack: 0 });
+    expect(p.smoothing).toBe(0);
+    p.reconcile({ x: start.x + 150, y: start.y, vx: 0, vy: 0, ack: 0 });
+    expect(p.smoothing).toBe(0);
+    expect(p.renderPosition(1).x).toBe(start.x + 150);
   });
 });

@@ -110,5 +110,8 @@ export function createChargeBehaviour(): BehaviourModule {
     removePlayer(id: string): void {
       end(id);
     },
+    onDisconnect(id: string): void {
+      end(id);
+    },
   };
 }

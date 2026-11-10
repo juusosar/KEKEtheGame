@@ -246,6 +246,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     player.connected = false;
     // §15.3: the carried item drops on disconnect, not when the window ends (review H4).
     this.items.dropCarried(player, this.roundSeconds(), 'disconnect');
+    this.combat.onDisconnect(player);
     if (this.state.hostId === client.sessionId) this.reassignHost();
     this.allowReconnection(client, seconds);
   }
@@ -425,7 +426,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.clearDelivery();
     }
     if (phase === 'playing') this.playingSince = this.clock.currentTime;
-    if (phase === 'roundResults') this.scoreRound();
+    if (phase === 'roundResults') {
+      this.scoreRound();
+      this.combat.freeze();
+    }
     if (phase === 'lobby') this.resetToLobby();
     this.runSimulation(phase === 'playing');
 
@@ -621,7 +625,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       // Carry slowdown times stun/slow/KO/block, from synced fields only (review H1).
       modifiers: (player) => {
         const carry = this.items.modifiers(player).speedMultiplier ?? 1;
-        return { speedMultiplier: carry * this.combat.speedMultiplier(player) };
+        const block = this.combat.blockSpeedMultiplier(player);
+        return {
+          speedMultiplier: carry * this.combat.speedMultiplier(player),
+          ...(block === undefined ? {} : { blockSpeedMultiplier: block }),
+        };
       },
       afterFrame: (player, frame, pressed) => {
         // A KO'd player can neither pick up nor attack until the respawn (§3.3); a stunned or sliding

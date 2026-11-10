@@ -68,7 +68,13 @@ import { RoundScreen } from '../hud/RoundScreen';
 import { readRoundScreen } from '../hud/roundScreens';
 import { t, type MessageKey } from '../i18n';
 import { InputManager, STANDARD, coneAimAssist, inputConfig } from '../input';
-import { DEFAULT_COMBAT, predictionSpeed, readCombat, type CombatPlayerView } from '../net/combatView';
+import {
+  DEFAULT_COMBAT,
+  blockSpeed,
+  predictionSpeed,
+  readCombat,
+  type CombatPlayerView,
+} from '../net/combatView';
 import { SnapshotBuffer } from '../net/interpolation';
 import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
@@ -232,6 +238,8 @@ export class GameScene extends Phaser.Scene {
       this.lastButtons = 0;
     }
 
+    // Server-moved corrections (dash, slide, shove) ease in over 0.1 s instead of jumping (M4 review F7).
+    this.predictor.smooth(dt);
     const pos = this.predictor.renderPosition(this.clock.alpha);
     this.local.place(pos.x, pos.y, this.lastMove);
 
@@ -439,8 +447,10 @@ export class GameScene extends Phaser.Scene {
     this.combat = readCombat(room.state);
     // Same carry, stun, slow and KO speed as the server, from synced state (M2 review H1).
     const myCombat = this.combat.get(me.id) ?? DEFAULT_COMBAT;
+    const block = blockSpeed(myCombat, getWeaponCatalogue());
     this.predictor.setModifiers({
-      speedMultiplier: predictionSpeed(myCombat, me.carrying !== 0, this.config, getWeaponCatalogue()),
+      speedMultiplier: predictionSpeed(myCombat, me.carrying !== 0, this.config),
+      ...(block === undefined ? {} : { blockSpeedMultiplier: block }),
     });
     if (controlling && this.controlling) {
       this.predictor.reconcile(me);

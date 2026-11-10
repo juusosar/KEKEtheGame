@@ -15,10 +15,13 @@ describe('block (cast-iron pan)', () => {
     give(s, a, 'cast_iron_pan');
     press(s, a, 0, Button.Block);
     expect(a.blocking).toBe(true);
-    expect(s.combat.speedMultiplier(a)).toBeCloseTo(block.moveSpeedMultiplier);
+    // The slow is per frame that holds Block (M4 review F7), not from the flag.
+    expect(s.combat.blockSpeedMultiplier(a)).toBeCloseTo(block.moveSpeedMultiplier);
+    expect(s.combat.speedMultiplier(a)).toBe(1);
     press(s, a, 0, 0);
     expect(a.blocking).toBe(false);
-    expect(s.combat.speedMultiplier(a)).toBe(1);
+    a.stunned = true;
+    expect(s.combat.blockSpeedMultiplier(a), 'a stunned holder cannot block').toBeUndefined();
   });
 
   it('takes melee hits at 30% damage with less knockback and no stun', () => {
@@ -98,5 +101,19 @@ describe('block (cast-iron pan)', () => {
     idle(s, 1);
     press(s, b, 0, Button.Block);
     expect(b.blocking).toBe(true);
+  });
+
+  it('a disconnected holder stops blocking until frames come again (M4 review F8)', () => {
+    const s = setup(1);
+    const [a] = s.players as [(typeof s.players)[0]];
+    give(s, a, 'cast_iron_pan');
+    press(s, a, 0, Button.Block);
+    expect(a.blocking).toBe(true);
+    s.combat.onDisconnect(a);
+    expect(a.blocking).toBe(false);
+    idle(s, 1); // no frames while away
+    expect(a.blocking).toBe(false);
+    press(s, a, 0, Button.Block); // back, Block still held
+    expect(a.blocking).toBe(true);
   });
 });

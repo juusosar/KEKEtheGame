@@ -34,6 +34,12 @@ export type MovementConfig = Pick<GameConfig, 'playerSpeed' | 'playerHitboxSize'
 export interface StepModifiers {
   /** Multiplies top speed. Defaults to 1. */
   readonly speedMultiplier?: number;
+  /**
+   * Multiplies top speed on frames that hold Block (`applyInput`), when the player can raise a block now
+   * (pan, alive, not stunned; M4 review F7). Per frame, so prediction and server agree on the very frame
+   * the block goes up or down. Undefined when the player cannot block.
+   */
+  readonly blockSpeedMultiplier?: number;
 }
 
 /** Velocities below this (px/s) snap to zero so a slide ends instead of decaying forever. Not a tunable. */

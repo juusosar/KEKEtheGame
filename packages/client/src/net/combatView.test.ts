@@ -1,6 +1,6 @@
 import { getWeaponCatalogue, loadConfig } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_COMBAT, predictionSpeed, readCombat } from './combatView';
+import { DEFAULT_COMBAT, blockSpeed, predictionSpeed, readCombat } from './combatView';
 
 const config = loadConfig();
 const weapons = getWeaponCatalogue();
@@ -41,18 +41,28 @@ describe('readCombat', () => {
 });
 
 describe('predictionSpeed', () => {
-  it('matches the server: carry × (0 when KO or stunned, else slow × block)', () => {
-    expect(predictionSpeed(DEFAULT_COMBAT, false, config, weapons)).toBe(1);
-    expect(predictionSpeed(DEFAULT_COMBAT, true, config, weapons)).toBe(config.carrySpeedMultiplier);
-    expect(predictionSpeed({ ...DEFAULT_COMBAT, stunned: true }, false, config, weapons)).toBe(0);
-    expect(predictionSpeed({ ...DEFAULT_COMBAT, alive: false }, false, config, weapons)).toBe(0);
-    expect(predictionSpeed({ ...DEFAULT_COMBAT, slowMultiplier: 0.6 }, true, config, weapons)).toBeCloseTo(
+  it('matches the server: carry × (0 when KO, stunned or charging, else slow)', () => {
+    expect(predictionSpeed(DEFAULT_COMBAT, false, config)).toBe(1);
+    expect(predictionSpeed(DEFAULT_COMBAT, true, config)).toBe(config.carrySpeedMultiplier);
+    expect(predictionSpeed({ ...DEFAULT_COMBAT, stunned: true }, false, config)).toBe(0);
+    expect(predictionSpeed({ ...DEFAULT_COMBAT, alive: false }, false, config)).toBe(0);
+    expect(predictionSpeed({ ...DEFAULT_COMBAT, slowMultiplier: 0.6 }, true, config)).toBeCloseTo(
       0.6 * config.carrySpeedMultiplier,
     );
-    const pan = { ...DEFAULT_COMBAT, weapon: 'cast_iron_pan', blocking: true };
-    expect(predictionSpeed(pan, false, config, weapons)).toBe(
-      weapons.require('cast_iron_pan').block?.moveSpeedMultiplier,
-    );
-    expect(predictionSpeed({ ...DEFAULT_COMBAT, charging: true }, false, config, weapons)).toBe(0);
+    // The block is per frame now (blockSpeed), not from the synced flag (M4 review F7).
+    expect(
+      predictionSpeed({ ...DEFAULT_COMBAT, weapon: 'cast_iron_pan', blocking: true }, false, config),
+    ).toBe(1);
+    expect(predictionSpeed({ ...DEFAULT_COMBAT, charging: true }, false, config)).toBe(0);
+  });
+});
+
+describe('blockSpeed (M4 review F7)', () => {
+  it("is the pan's move multiplier while we could raise it, else undefined", () => {
+    const pan = { ...DEFAULT_COMBAT, weapon: 'cast_iron_pan' };
+    expect(blockSpeed(pan, weapons)).toBe(weapons.require('cast_iron_pan').block?.moveSpeedMultiplier);
+    expect(blockSpeed(DEFAULT_COMBAT, weapons)).toBeUndefined();
+    expect(blockSpeed({ ...pan, stunned: true }, weapons)).toBeUndefined();
+    expect(blockSpeed({ ...pan, alive: false }, weapons)).toBeUndefined();
   });
 });

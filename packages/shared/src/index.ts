@@ -34,6 +34,7 @@ export {
   InputQueue,
   MAX_INPUT_SEQ,
   applyInput,
+  frameModifiers,
   inputStepSeconds,
   sanitizeInputFrame,
   type InputQueueConfig,
