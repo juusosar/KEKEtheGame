@@ -4,8 +4,12 @@ import { t } from '../i18n';
 import { joinHelloRoom } from '../net/connection';
 import { serverEndpoint } from '../net/endpoint';
 import { gameClient } from '../net/client';
-import { ROOM_CODE_REGISTRY_KEY, markRoom, resumeRoom } from '../net/session';
+import { readGame, sceneForPhase } from '../net/gameView';
+import { ROOM_CODE_REGISTRY_KEY, markRoom, resumeRoom, waitForFirstState } from '../net/session';
 import { AFTER_JOIN_SCENE } from './Play';
+
+/** How long a resumed room may take to send its state before we fall back to the lobby. */
+const RESUME_STATE_TIMEOUT_MS = 5000;
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
 
@@ -36,12 +40,26 @@ export class BootScene extends Phaser.Scene {
     void this.start();
   }
 
-  /** After a reload inside the reconnect window, go straight back into the room; else the entry scene. */
+  /**
+   * After a reload inside the reconnect window, go straight back into the room, to the scene its phase
+   * calls for (the Game mid-round, else the Lobby); otherwise to the entry scene.
+   */
   private async start(): Promise<void> {
     const entry = entryScene(window.location.search);
     const resumed = entry === 'Title' ? await resumeRoom(gameClient()) : null;
-    if (resumed !== null) markRoom(this.registry, resumed);
-    this.scene.launch(resumed !== null ? AFTER_JOIN_SCENE : entry);
+    let next: string = entry;
+    if (resumed !== null) {
+      markRoom(this.registry, resumed);
+      const { room } = resumed;
+      const synced = await waitForFirstState(
+        room,
+        (state) => readGame(state, room.sessionId).synced,
+        RESUME_STATE_TIMEOUT_MS,
+      );
+      // Without a state the Lobby still works: it moves on to the Game once the phase arrives.
+      next = synced ? sceneForPhase(readGame(room.state, room.sessionId).phase) : AFTER_JOIN_SCENE;
+    }
+    this.scene.launch(next);
     this.scene.bringToTop();
   }
 

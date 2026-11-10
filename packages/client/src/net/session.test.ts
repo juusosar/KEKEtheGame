@@ -7,6 +7,7 @@ import {
   resumeRoom,
   saveResumeTicket,
   setCurrentRoom,
+  waitForFirstState,
 } from './session';
 
 function memoryStorage(): Storage {
@@ -86,5 +87,49 @@ describe('resume ticket', () => {
     saveResumeTicket(storage, { token: 'old', code: 'ABCD' });
     expect(await resumeRoom(client, storage)).toBeNull();
     expect(loadResumeTicket(storage)).toBeNull();
+  });
+});
+
+describe('waitForFirstState', () => {
+  function fakeRoom(state: unknown) {
+    const listeners = new Set<(s: unknown) => void>();
+    const onStateChange = Object.assign((cb: (s: unknown) => void) => listeners.add(cb), {
+      remove: (cb: (s: unknown) => void) => listeners.delete(cb),
+    });
+    return {
+      sessionId: 'me',
+      state,
+      onStateChange,
+      listeners,
+      emit(next: unknown) {
+        this.state = next;
+        for (const cb of [...listeners]) cb(next);
+      },
+    };
+  }
+  const hasMe = (s: unknown) => typeof s === 'object' && s !== null && 'me' in s;
+
+  it('resolves at once when the state is already there', async () => {
+    const room = fakeRoom({ me: 1 });
+    await expect(waitForFirstState(room as never, hasMe, 1000)).resolves.toBe(true);
+  });
+
+  it('waits for the patch that brings the state, then stops listening', async () => {
+    const room = fakeRoom({});
+    const done = waitForFirstState(room as never, hasMe, 1000);
+    room.emit({});
+    room.emit({ me: 1 });
+    await expect(done).resolves.toBe(true);
+    expect(room.listeners.size).toBe(0);
+  });
+
+  it('gives up after the timeout', async () => {
+    vi.useFakeTimers();
+    const room = fakeRoom({});
+    const done = waitForFirstState(room as never, hasMe, 1000);
+    vi.advanceTimersByTime(1000);
+    await expect(done).resolves.toBe(false);
+    expect(room.listeners.size).toBe(0);
+    vi.useRealTimers();
   });
 });

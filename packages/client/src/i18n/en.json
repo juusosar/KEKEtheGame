@@ -74,5 +74,10 @@
   "lobby.error.not_ready": "Everyone has to be ready before the host can start.",
   "lobby.error.teams_off": "Turn teams on before shuffling.",
   "lobby.error.unknown": "The server refused that request.",
-  "room.joined": "room {code}"
+  "room.joined": "room {code}",
+  "game.lost": "Lost the connection to the room.",
+  "game.reconnecting": "{name} (reconnecting…)",
+  "game.spectating": "Spectating {name}",
+  "game.spectatingNobody": "Waiting for the next round…",
+  "game.spectateHint": "Click or press A for the next player. You join at the next round."
 }
