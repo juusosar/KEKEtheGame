@@ -6,7 +6,9 @@ import {
   ServerMessage,
   balanceTeams,
   canStart,
+  assignVans,
   createRng,
+  defaultThemeId,
   generateRoomCode,
   nextPhase,
   normalizeRoomCode,
@@ -29,6 +31,7 @@ import {
   type RoundPhase,
 } from '@keke/shared';
 import { GameState, PlayerState } from '../schema/GameState';
+import { ItemSystem } from '../systems/items';
 import { MovementSystem } from '../systems/movement';
 
 /** Close/auth error code for a join with a missing or wrong room code. */
@@ -58,7 +61,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private phaseTimer: Delayed | undefined;
   private phaseEndsAt = 0;
   private movement!: MovementSystem;
+  private items!: ItemSystem;
   private simulation: Delayed | undefined;
+  /** Clock time (ms) the 'playing' phase started; the round clock for item rules counts from here. */
+  private playingSince = 0;
 
   override onCreate(): void {
     this.maxClients = this.config.maxPlayersPerRoom;
@@ -75,6 +81,14 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.onMessage(ClientMessage.input, (client, message: unknown) => this.handleInput(client, message));
 
     this.movement = new MovementSystem(this.config, this.map);
+    this.items = new ItemSystem(
+      this.state,
+      this.config,
+      this.map,
+      (event) => this.broadcast(event.type, event.payload),
+      defaultThemeId,
+      randomSeed(),
+    );
     // One state patch per simulation tick.
     this.setPatchRate(1000 / this.config.serverTickHz);
 
@@ -122,7 +136,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     const seconds = this.config.reconnectWindowSeconds;
     if (!player || seconds <= 0) return; // onLeave follows and removes the player.
     player.connected = false;
-    // Later systems drop the carried item here (§15.3, M3-4).
+    // §15.3: the carried item drops on disconnect, not when the window ends (review H4).
+    this.items.dropCarried(player, this.roundSeconds(), 'disconnect');
     if (this.state.hostId === client.sessionId) this.reassignHost();
     this.allowReconnection(client, seconds);
   }
@@ -138,6 +153,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   /** A consented leave, or a reconnect window that ran out. */
   override onLeave(client: Client): void {
+    const player = this.state.players.get(client.sessionId);
+    if (player) this.items.removePlayer(player, this.roundSeconds());
     this.state.players.delete(client.sessionId);
     this.movement.remove(client.sessionId);
     if (this.state.hostId === client.sessionId) this.reassignHost();
@@ -237,6 +254,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.admitSpectators();
       this.spawnPlayers();
     }
+    if (phase === 'playing') this.playingSince = this.clock.currentTime;
     if (phase === 'lobby') this.resetToLobby();
     this.runSimulation(phase === 'playing');
 
@@ -251,12 +269,21 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.publishMetadata();
   }
 
-  /** Every player starts the round at their van (§3). Until M3-4 assigns vans, van order = join order. */
+  /**
+   * Round start (countdown): assigns vans (teams share one, players keep theirs, §4.3/§15.3), puts every
+   * player at their van (§3) and gives each a first target.
+   */
   private spawnPlayers(): void {
     const active = [...this.state.players.values()]
       .filter((p) => !p.spectator)
       .sort((a, b) => a.joinOrder - b.joinOrder);
+    const vans = assignVans(
+      active.map((p) => ({ id: p.sessionId, joinOrder: p.joinOrder, team: p.team, van: p.van })),
+      { teams: this.state.settings.teams, slotCount: this.map.vanSlots.length },
+    );
+    for (const p of active) p.van = vans.get(p.sessionId) ?? 0;
     this.movement.spawn(active);
+    this.items.startRound(active);
   }
 
   /** Starts or stops the 20 Hz movement tick. Inputs queued outside 'playing' never run. */
@@ -272,7 +299,22 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   /** One simulation tick. Public so tests can step the room without waiting on the clock. */
   tick(): void {
-    this.movement.tick(this.state.players.values());
+    const now = this.roundSeconds();
+    this.movement.tick(this.state.players.values(), {
+      modifiers: (player) => this.items.modifiers(player),
+      afterFrame: (player, _frame, pressed) => this.items.afterFrame(player, pressed, now),
+    });
+    this.items.tick(now);
+  }
+
+  /** Seconds since 'playing' started: the round clock the item rules use (loose-item despawn). */
+  private roundSeconds(): number {
+    return Math.max(0, (this.clock.currentTime - this.playingSince) / 1000);
+  }
+
+  /** The current round's item world, for tests and later systems (M3-5 ranking). */
+  get itemWorld() {
+    return this.items.itemWorld;
   }
 
   /** Late joiners become players when the next round's countdown starts (§13.1). */
@@ -285,6 +327,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   }
 
   private resetToLobby(): void {
+    this.items.reset();
     this.state.round = 0;
     this.state.totalRounds = 0;
     this.state.players.forEach((p) => {

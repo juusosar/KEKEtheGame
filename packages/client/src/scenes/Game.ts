@@ -3,6 +3,7 @@ import {
   ClientMessage,
   TILE_LAYERS,
   aabbOverlapsSolid,
+  carryMultiplier,
   defaultThemeId,
   getTheme,
   inputStepSeconds,
@@ -256,6 +257,8 @@ export class GameScene extends Phaser.Scene {
     this.local.setVisible(isOnMap(me, view.phase));
 
     const controlling = isControlling(view);
+    // Same carry slowdown as the server, from synced state (M2 review H1).
+    this.predictor.setModifiers({ speedMultiplier: carryMultiplier(this.config, me.carrying !== 0) });
     if (controlling && this.controlling) {
       this.predictor.reconcile(me);
     } else {

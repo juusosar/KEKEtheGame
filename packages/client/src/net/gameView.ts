@@ -4,7 +4,10 @@ import type { RoundPhase } from '@keke/shared';
 import { isBag, mapEntries, num, readLobby, str, type LobbyPlayerView } from './lobbyView';
 import type { ServerBody } from './prediction';
 
-export interface GamePlayerView extends LobbyPlayerView, ServerBody {}
+export interface GamePlayerView extends LobbyPlayerView, ServerBody {
+  /** World item id carried (M3-4); 0 = nothing. Drives the carry slowdown in prediction. */
+  carrying: number;
+}
 
 export interface GameView {
   phase: RoundPhase;
@@ -17,7 +20,7 @@ export interface GameView {
 
 export function readGame(state: unknown, mySessionId: string): GameView {
   const lobby = readLobby(state, mySessionId);
-  const bodies = new Map<string, ServerBody>();
+  const bodies = new Map<string, ServerBody & { carrying: number }>();
   if (isBag(state)) {
     for (const [key, value] of mapEntries(state['players'])) {
       if (!isBag(value)) continue;
@@ -27,12 +30,13 @@ export function readGame(state: unknown, mySessionId: string): GameView {
         vx: num(value, 'vx'),
         vy: num(value, 'vy'),
         ack: num(value, 'ack'),
+        carrying: num(value, 'carrying'),
       });
     }
   }
   const players = lobby.players.map((p): GamePlayerView => ({
     ...p,
-    ...(bodies.get(p.id) ?? { x: 0, y: 0, vx: 0, vy: 0, ack: 0 }),
+    ...(bodies.get(p.id) ?? { x: 0, y: 0, vx: 0, vy: 0, ack: 0, carrying: 0 }),
   }));
   const me = players.find((p) => p.isMe) ?? null;
   return { phase: lobby.phase, players, me, synced: me !== null };
