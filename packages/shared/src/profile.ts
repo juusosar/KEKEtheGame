@@ -46,8 +46,11 @@ export function isPlayerColor(value: unknown): value is PlayerColor {
  */
 export function sanitizeNickname(raw: unknown, maxLength: number): string {
   if (typeof raw !== 'string') return DEFAULT_NICKNAME;
-  // eslint-disable-next-line no-control-regex -- stripping control characters is the point
-  const cleaned = raw.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
+  const cleaned = raw
+    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   const cut = Array.from(cleaned).slice(0, Math.max(0, maxLength)).join('').trim();
   return cut === '' ? DEFAULT_NICKNAME : cut;
 }

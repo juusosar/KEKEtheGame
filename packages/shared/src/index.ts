@@ -3,6 +3,8 @@
 export { Rng, createRng, type Weighted } from './rng';
 export { Button, buttonsOf, isPressed, type ButtonName, type InputFrame, type Vec2 } from './types';
 export { ConfigError, configSchema, formatIssues, loadConfig, type GameConfig } from './config';
+export * from './profile';
+export * from './lobby';
 export {
   aabbOverlapsSolid,
   circleSeparation,
