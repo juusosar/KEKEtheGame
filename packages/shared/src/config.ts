@@ -41,6 +41,7 @@ export const configSchema = z
     jokeItemChance: fraction,
     jokeItemValue: positiveInt,
     hpRegenPerSec: nonNegative,
+    weaponRarityWeights: z.object({ common: nonNegative, uncommon: nonNegative, rare: nonNegative }).strict(),
     nicknameMaxLength: positiveInt,
     maxRoundsPerMap: positiveInt,
     countdownSeconds: nonNegative,
@@ -52,8 +53,9 @@ export const configSchema = z
 type RawConfig = z.infer<typeof configSchema>;
 
 /** Validated, read-only game config. */
-export type GameConfig = Readonly<Omit<RawConfig, 'placementPoints'>> & {
+export type GameConfig = Readonly<Omit<RawConfig, 'placementPoints' | 'weaponRarityWeights'>> & {
   readonly placementPoints: readonly number[];
+  readonly weaponRarityWeights: Readonly<RawConfig['weaponRarityWeights']>;
 };
 
 /** Thrown by `loadConfig` when the data is invalid. The message lists every problem, one per line. */
@@ -88,5 +90,6 @@ export function loadConfig(raw: unknown = defaultConfigJson, source = 'config.js
   return Object.freeze({
     ...result.data,
     placementPoints: Object.freeze([...result.data.placementPoints]),
+    weaponRarityWeights: Object.freeze({ ...result.data.weaponRarityWeights }),
   });
 }

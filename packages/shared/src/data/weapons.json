@@ -1,0 +1,169 @@
+{
+  "weapons": [
+    {
+      "id": "fists",
+      "name": "Fists",
+      "rarity": "fallback",
+      "uses": null,
+      "cooldownSeconds": 0.4,
+      "behaviour": "melee",
+      "melee": { "damage": 5, "rangePx": 28, "arcDegrees": 90, "knockbackPx": 16, "stunSeconds": 0 }
+    },
+    {
+      "id": "baguette",
+      "name": "Baguette",
+      "rarity": "common",
+      "uses": 20,
+      "cooldownSeconds": 0.35,
+      "behaviour": "melee",
+      "melee": { "damage": 10, "rangePx": 40, "arcDegrees": 140, "knockbackPx": 8, "stunSeconds": 0 }
+    },
+    {
+      "id": "frozen_salmon",
+      "name": "Frozen salmon",
+      "rarity": "common",
+      "uses": 12,
+      "cooldownSeconds": 0.9,
+      "behaviour": "melee",
+      "melee": { "damage": 18, "rangePx": 36, "arcDegrees": 90, "knockbackPx": 96, "stunSeconds": 0 }
+    },
+    {
+      "id": "rolling_pin",
+      "name": "Rolling pin",
+      "rarity": "uncommon",
+      "uses": 15,
+      "cooldownSeconds": 0.6,
+      "behaviour": "melee",
+      "melee": { "damage": 12, "rangePx": 34, "arcDegrees": 90, "knockbackPx": 16, "stunSeconds": 0.8 }
+    },
+    {
+      "id": "ketchup_bottle",
+      "name": "Ketchup bottle",
+      "rarity": "common",
+      "uses": 3,
+      "cooldownSeconds": 0,
+      "behaviour": "spray",
+      "spray": {
+        "damagePerTick": 3,
+        "tickSeconds": 0.25,
+        "rangePx": 80,
+        "coneDegrees": 30,
+        "pushPxPerSecond": 0,
+        "slow": { "multiplier": 0.6, "seconds": 1.5 },
+        "visionCloud": null
+      }
+    },
+    {
+      "id": "egg_carton",
+      "name": "Egg carton",
+      "rarity": "common",
+      "uses": 6,
+      "cooldownSeconds": 0.3,
+      "behaviour": "thrown",
+      "projectile": {
+        "damage": 8,
+        "speedPxPerSecond": 400,
+        "rangePx": 320,
+        "radiusPx": 6,
+        "knockbackPx": 0,
+        "area": { "radiusPx": 32, "knockbackPx": 0 }
+      }
+    },
+    {
+      "id": "soda_bottle",
+      "name": "Shaken soda bottle",
+      "rarity": "uncommon",
+      "uses": 2,
+      "cooldownSeconds": 0.8,
+      "behaviour": "thrown",
+      "projectile": {
+        "damage": 6,
+        "speedPxPerSecond": 320,
+        "rangePx": 256,
+        "radiusPx": 8,
+        "knockbackPx": 0,
+        "area": { "radiusPx": 64, "knockbackPx": 64 }
+      }
+    },
+    {
+      "id": "cast_iron_pan",
+      "name": "Cast-iron pan",
+      "rarity": "uncommon",
+      "uses": 15,
+      "cooldownSeconds": 0.7,
+      "behaviour": "melee",
+      "melee": { "damage": 15, "rangePx": 32, "arcDegrees": 100, "knockbackPx": 24, "stunSeconds": 0 },
+      "block": { "meleeDamageMultiplier": 0.3, "moveSpeedMultiplier": 0.5, "reflectsProjectiles": true }
+    },
+    {
+      "id": "banana_peels",
+      "name": "Banana peels",
+      "rarity": "common",
+      "uses": 3,
+      "cooldownSeconds": 0.5,
+      "behaviour": "trap",
+      "trap": {
+        "damage": 0,
+        "lifetimeSeconds": 45,
+        "triggerRadiusPx": 12,
+        "armSeconds": 0.5,
+        "slideSeconds": 1,
+        "slideSpeedPxPerSecond": 200,
+        "dropsCarried": true
+      }
+    },
+    {
+      "id": "fire_extinguisher",
+      "name": "Fire extinguisher",
+      "rarity": "uncommon",
+      "uses": 4,
+      "cooldownSeconds": 0,
+      "behaviour": "spray",
+      "spray": {
+        "damagePerTick": 0,
+        "tickSeconds": 0.25,
+        "rangePx": 128,
+        "coneDegrees": 70,
+        "pushPxPerSecond": 240,
+        "slow": null,
+        "visionCloud": { "radiusPx": 48, "seconds": 1.5 }
+      }
+    },
+    {
+      "id": "champagne_bottle",
+      "name": "Champagne bottle",
+      "rarity": "rare",
+      "uses": 9,
+      "cooldownSeconds": 0.6,
+      "behaviour": "shot_then_melee",
+      "shotUses": 1,
+      "shot": {
+        "damage": 20,
+        "speedPxPerSecond": 640,
+        "rangePx": 480,
+        "radiusPx": 4,
+        "knockbackPx": 16,
+        "area": null
+      },
+      "melee": { "damage": 12, "rangePx": 36, "arcDegrees": 90, "knockbackPx": 16, "stunSeconds": 0 }
+    },
+    {
+      "id": "pallet_jack",
+      "name": "Pallet jack",
+      "rarity": "rare",
+      "uses": 3,
+      "cooldownSeconds": 1.5,
+      "behaviour": "charge",
+      "charge": {
+        "damage": 25,
+        "distanceTiles": 6,
+        "speedPxPerSecond": 480,
+        "widthPx": 28,
+        "knockbackPx": 64,
+        "knockdownSeconds": 0.8,
+        "scattersItems": true,
+        "scatterPx": 48
+      }
+    }
+  ]
+}
