@@ -65,6 +65,10 @@ export interface KekeRemoteSnapshot extends KekeCombatSnapshot {
   serverX: number;
   serverY: number;
   connected: boolean;
+  /** 0 = no team, 1 or 2 (M6-4). */
+  team: number;
+  /** Body outline `#RRGGBB`: the team colour with Teams on, null otherwise (§4.3). */
+  outline: string | null;
 }
 
 /** Netcode state of the local player, or null offline (`?scene=game`). */
@@ -92,6 +96,10 @@ export interface KekeNetSnapshot extends KekeCombatSnapshot {
   target: number;
   /** Item points we deposited this round. */
   deposited: number;
+  /** 0 = no team, 1 or 2 (M6-4). */
+  team: number;
+  /** Our body outline `#RRGGBB`: the team colour with Teams on, null otherwise (§4.3). */
+  outline: string | null;
 }
 
 /** A world item as the Game scene draws it (M3-6). */

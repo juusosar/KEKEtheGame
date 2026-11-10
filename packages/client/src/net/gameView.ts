@@ -16,6 +16,8 @@ export interface GameView {
   me: GamePlayerView | null;
   /** True once our own player is in the synced state. */
   synced: boolean;
+  /** Room setting: Teams on (§4.3); bodies get a team-colour outline (M6-4). */
+  teams: boolean;
 }
 
 export function readGame(state: unknown, mySessionId: string): GameView {
@@ -39,7 +41,7 @@ export function readGame(state: unknown, mySessionId: string): GameView {
     ...(bodies.get(p.id) ?? { x: 0, y: 0, vx: 0, vy: 0, ack: 0, carrying: 0 }),
   }));
   const me = players.find((p) => p.isMe) ?? null;
-  return { phase: lobby.phase, players, me, synced: me !== null };
+  return { phase: lobby.phase, players, me, synced: me !== null, teams: lobby.settings.teams };
 }
 
 /** Whether our player is simulated right now: the round is on and we are in it, not watching. */

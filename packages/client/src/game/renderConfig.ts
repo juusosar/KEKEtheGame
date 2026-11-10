@@ -30,6 +30,8 @@ export interface RenderConfig {
   readonly itemOutlinePx: number;
   /** Owner (or team) colour frame around a van, px. */
   readonly vanOutlinePx: number;
+  /** Team-colour outline around a player's body with Teams on (§4.3, M6-4), px. 0 = none. */
+  readonly playerOutlinePx: number;
   /** Period of the joke-item twinkle (§10.1: "a little sparkle so everyone notices them"), seconds. */
   readonly jokeTwinkleSeconds: number;
   /** Rows in the HUD mini scoreboard before our own row is added (§13.2: top 5 + you). */
@@ -120,6 +122,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const carriedItemGapPx = num('carriedItemGapPx', (n) => n >= 0, '>= 0');
   const itemOutlinePx = num('itemOutlinePx', (n) => Number.isInteger(n) && n >= 0, 'an integer >= 0');
   const vanOutlinePx = num('vanOutlinePx', (n) => n >= 0, '>= 0');
+  const playerOutlinePx = num('playerOutlinePx', (n) => Number.isInteger(n) && n >= 0, 'an integer >= 0');
   const jokeTwinkleSeconds = num('jokeTwinkleSeconds', (n) => n > 0, 'positive');
   const hudMiniRows = num('hudMiniRows', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
   const hudFeedLines = num('hudFeedLines', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
@@ -169,6 +172,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     carriedItemGapPx,
     itemOutlinePx,
     vanOutlinePx,
+    playerOutlinePx,
     jokeTwinkleSeconds,
     hudMiniRows,
     hudFeedLines,

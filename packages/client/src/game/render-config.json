@@ -14,6 +14,7 @@
   "carriedItemGapPx": 20,
   "itemOutlinePx": 1,
   "vanOutlinePx": 2,
+  "playerOutlinePx": 1,
   "jokeTwinkleSeconds": 1.2,
   "hudMiniRows": 5,
   "hudFeedLines": 5,

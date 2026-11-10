@@ -5,6 +5,7 @@
 //   1. add its kind to MARKER_STYLES (shape, size, draw order),
 //   2. write a MinimapLayer that turns the synced state (`world.state`) into markers of that kind,
 //   3. append the layer to the list passed to buildMinimapMarkers (or to DEFAULT_LAYERS).
+import { teamColor } from '@keke/shared';
 import { isBag, mapEntries, num, str } from '../net/lobbyView';
 import { readNpcs } from '../net/npcView';
 
@@ -203,7 +204,7 @@ const ORDER_BOX = 'order_box';
 
 export type MinimapLayer = (world: MinimapWorld, map: MinimapMap) => MinimapMarker[];
 
-/** Vans in use, coloured like their first player (by join order); our own van is highlighted. */
+/** Vans in use, coloured like their first player (by join order) or their team; our own van is highlighted. */
 export const vanLayer: MinimapLayer = (world, map) => {
   const vans = new Set(world.vans);
   if (world.me && world.me.van >= 0 && !world.me.spectator) vans.add(world.me.van);
@@ -213,12 +214,14 @@ export const vanLayer: MinimapLayer = (world, map) => {
     if (!at) continue;
     const mine = world.me !== null && !world.me.spectator && world.me.van === van;
     const owner = mine ? world.me : world.players.find((p) => p.van === van && !p.spectator);
+    // Teams (§4.3, M6-4): a team van takes the team colour. A player's team is 0 with Teams off.
+    const color = (owner && owner.team > 0 ? teamColor(owner.team) : undefined) ?? owner?.color;
     out.push({
       kind: 'van',
       id: `van:${van}`,
       x: at.x,
       y: at.y,
-      ...(owner?.color ? { color: owner.color } : {}),
+      ...(color ? { color } : {}),
       ...(mine ? { mine: true } : {}),
     });
   }

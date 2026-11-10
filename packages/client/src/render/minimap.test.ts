@@ -1,4 +1,4 @@
-import { loadMap } from '@keke/shared';
+import { TEAM_COLORS, loadMap } from '@keke/shared';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
@@ -161,7 +161,7 @@ describe('buildMinimapMarkers', () => {
     expect(markers.filter((m) => m.id === 'item:1').map((m) => m.kind)).toEqual(['target']);
   });
 
-  it('gives a team one van, coloured by its first player', () => {
+  it('gives a team one van, in the team colour (§4.3, M6-4)', () => {
     const s = state({
       players: {
         a: { sessionId: 'a', color: '#3FA9F5', van: 0, team: 1, joinOrder: 0, target: 1 },
@@ -172,8 +172,8 @@ describe('buildMinimapMarkers', () => {
     });
     const vans = buildMinimapMarkers(readMinimapWorld(s, 'b'), map).filter((m) => m.kind === 'van');
     expect(vans.map((v) => [v.id, v.color, v.mine ?? false])).toEqual([
-      ['van:0', '#E53935', true],
-      ['van:1', '#43A047', false],
+      ['van:0', TEAM_COLORS[0], true],
+      ['van:1', TEAM_COLORS[1], false],
     ]);
   });
 
