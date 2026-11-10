@@ -24,7 +24,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present",
     "gen:art": "tsx tools/gen-placeholder-art.ts",
-    "gen:map": "tsx tools/gen-kespro-map.ts"
+    "gen:map": "tsx tools/gen-kespro-map.ts",
+    "gen:items": "tsx tools/items-table-to-json.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,0 +1,324 @@
+{
+  "items": [
+    {
+      "id": "coffee_juhla_mokka",
+      "name": "Paulig Juhla Mokka 500 g",
+      "desc": "The morning shift won't start without it.",
+      "zone": "dry_goods",
+      "sprite": "coffee_juhla_mokka",
+      "rarity": "normal"
+    },
+    {
+      "id": "flour_myllyn_paras",
+      "name": "Myllyn Paras vehnäjauho 2 kg",
+      "desc": "Enough for about 40 pizza bases.",
+      "zone": "dry_goods",
+      "sprite": "flour_myllyn_paras",
+      "rarity": "normal"
+    },
+    {
+      "id": "pasta_barilla",
+      "name": "Barilla spaghetti 5 kg",
+      "desc": "Tonight's special is… spaghetti. Again.",
+      "zone": "dry_goods",
+      "sprite": "pasta_barilla",
+      "rarity": "normal"
+    },
+    {
+      "id": "ketchup_felix",
+      "name": "Felix ketsuppi 1 kg",
+      "desc": "The fry station is completely out.",
+      "zone": "dry_goods",
+      "sprite": "ketchup_felix",
+      "rarity": "normal"
+    },
+    {
+      "id": "tomato_crush",
+      "name": "K-Menu tomaattimurska 2,5 kg",
+      "desc": "Base for the house marinara.",
+      "zone": "dry_goods",
+      "sprite": "tomato_crush",
+      "rarity": "normal"
+    },
+    {
+      "id": "taco_spice",
+      "name": "Santa Maria tacomauste 1 kg",
+      "desc": "Taco Tuesday is in danger.",
+      "zone": "dry_goods",
+      "sprite": "taco_spice",
+      "rarity": "normal"
+    },
+    {
+      "id": "oil_rapeseed",
+      "name": "K-Menu rypsiöljy 3 l",
+      "desc": "The deep fryer is running on fumes.",
+      "zone": "dry_goods",
+      "sprite": "oil_rapeseed",
+      "rarity": "normal"
+    },
+    {
+      "id": "chocolate_fazer",
+      "name": "Fazer Sininen 200 g",
+      "desc": "Dessert menu emergency.",
+      "zone": "dry_goods",
+      "sprite": "chocolate_fazer",
+      "rarity": "normal"
+    },
+    {
+      "id": "cola",
+      "name": "Coca-Cola 1,5 l",
+      "desc": "The lunch rush is thirsty.",
+      "zone": "beverages",
+      "sprite": "cola",
+      "rarity": "normal"
+    },
+    {
+      "id": "jaffa",
+      "name": "Hartwall Jaffa appelsiini 1,5 l",
+      "desc": "The kids' menu demands it.",
+      "zone": "beverages",
+      "sprite": "jaffa",
+      "rarity": "normal"
+    },
+    {
+      "id": "novelle",
+      "name": "Hartwall Novelle 0,5 l",
+      "desc": "Fizzy water for the fancy tables.",
+      "zone": "beverages",
+      "sprite": "novelle",
+      "rarity": "normal"
+    },
+    {
+      "id": "pommac",
+      "name": "Pommac 0,33 l",
+      "desc": "Someone booked a party.",
+      "zone": "beverages",
+      "sprite": "pommac",
+      "rarity": "normal"
+    },
+    {
+      "id": "kotikalja",
+      "name": "Hartwall Kotikalja 1,5 l",
+      "desc": "The grandpa regulars insist.",
+      "zone": "beverages",
+      "sprite": "kotikalja",
+      "rarity": "normal"
+    },
+    {
+      "id": "lapin_kulta_pure",
+      "name": "Lapin Kulta Pure 0,0 %",
+      "desc": "For the designated drivers.",
+      "zone": "beverages",
+      "sprite": "lapin_kulta_pure",
+      "rarity": "normal"
+    },
+    {
+      "id": "butter_valio",
+      "name": "Valio voi 2,5 kg",
+      "desc": "For the restaurant's croissants.",
+      "zone": "cold_room",
+      "sprite": "butter_valio",
+      "rarity": "normal"
+    },
+    {
+      "id": "milk_valio",
+      "name": "Valio kevytmaito 1 l",
+      "desc": "The latte machine is empty.",
+      "zone": "cold_room",
+      "sprite": "milk_valio",
+      "rarity": "normal"
+    },
+    {
+      "id": "cheese_oltermanni",
+      "name": "Valio Oltermanni 1 kg",
+      "desc": "Burger cheese, slice it thick.",
+      "zone": "cold_room",
+      "sprite": "cheese_oltermanni",
+      "rarity": "normal"
+    },
+    {
+      "id": "eggs",
+      "name": "Kananmunat 30 kpl",
+      "desc": "Breakfast buffet starts in an hour.",
+      "zone": "cold_room",
+      "sprite": "eggs",
+      "rarity": "normal"
+    },
+    {
+      "id": "cream_whip",
+      "name": "Valio vispikerma 1 l",
+      "desc": "The cake needs clouds.",
+      "zone": "cold_room",
+      "sprite": "cream_whip",
+      "rarity": "normal"
+    },
+    {
+      "id": "cheese_polar",
+      "name": "Valio Polar 15 % 1 kg",
+      "desc": "Sandwich line restock.",
+      "zone": "cold_room",
+      "sprite": "cheese_polar",
+      "rarity": "normal"
+    },
+    {
+      "id": "mince_atria",
+      "name": "Atria jauheliha 1 kg",
+      "desc": "Meatballs for 200 people.",
+      "zone": "meat_fish",
+      "sprite": "mince_atria",
+      "rarity": "normal"
+    },
+    {
+      "id": "sausage_sininen_lenkki",
+      "name": "HK Sininen lenkki",
+      "desc": "The legendary blue sausage.",
+      "zone": "meat_fish",
+      "sprite": "sausage_sininen_lenkki",
+      "rarity": "normal"
+    },
+    {
+      "id": "salmon_fillet",
+      "name": "Lohifilee 1 kg",
+      "desc": "Today's fish of the day.",
+      "zone": "meat_fish",
+      "sprite": "salmon_fillet",
+      "rarity": "normal"
+    },
+    {
+      "id": "chicken_breast",
+      "name": "Kariniemen broilerin rintafilee 2 kg",
+      "desc": "Caesar salads won't make themselves.",
+      "zone": "meat_fish",
+      "sprite": "chicken_breast",
+      "rarity": "normal"
+    },
+    {
+      "id": "bacon_atria",
+      "name": "Atria pekoni 1 kg",
+      "desc": "Brunch without bacon is a riot.",
+      "zone": "meat_fish",
+      "sprite": "bacon_atria",
+      "rarity": "normal"
+    },
+    {
+      "id": "fries_frozen",
+      "name": "Pakaste-ranskalaiset 2,5 kg",
+      "desc": "Fries for the whole lunch rush.",
+      "zone": "frozen",
+      "sprite": "fries_frozen",
+      "rarity": "normal"
+    },
+    {
+      "id": "veg_mix_apetit",
+      "name": "Apetit herne-maissi-paprika 2 kg",
+      "desc": "The classic Finnish side dish.",
+      "zone": "frozen",
+      "sprite": "veg_mix_apetit",
+      "rarity": "normal"
+    },
+    {
+      "id": "ice_cream_pingviini",
+      "name": "Pingviini vaniljajäätelö 2 l",
+      "desc": "Melts fast. Run.",
+      "zone": "frozen",
+      "sprite": "ice_cream_pingviini",
+      "rarity": "normal"
+    },
+    {
+      "id": "fish_fingers_apetit",
+      "name": "Apetit kalapuikot 1 kg",
+      "desc": "School lunch flashbacks.",
+      "zone": "frozen",
+      "sprite": "fish_fingers_apetit",
+      "rarity": "normal"
+    },
+    {
+      "id": "blueberries_frozen",
+      "name": "Pakastemustikat 1 kg",
+      "desc": "Pie of the week.",
+      "zone": "frozen",
+      "sprite": "blueberries_frozen",
+      "rarity": "normal"
+    },
+    {
+      "id": "kurkkumopo",
+      "name": "Kurkkumopo",
+      "desc": "A ride-on cucumber. The chef's kid demanded it.",
+      "zone": "any",
+      "sprite": "kurkkumopo",
+      "rarity": "joke"
+    },
+    {
+      "id": "palju",
+      "name": "Puulämmitteinen palju",
+      "desc": "The staff party is this weekend. Don't ask.",
+      "zone": "any",
+      "sprite": "palju",
+      "rarity": "joke"
+    },
+    {
+      "id": "kiuas",
+      "name": "Sähkökiuas 9 kW",
+      "desc": "The office sauna broke. Again.",
+      "zone": "any",
+      "sprite": "kiuas",
+      "rarity": "joke"
+    },
+    {
+      "id": "flamingo",
+      "name": "Puhallettava flamingo 2 m",
+      "desc": "Team-building day at the lake.",
+      "zone": "any",
+      "sprite": "flamingo",
+      "rarity": "joke"
+    },
+    {
+      "id": "karaoke",
+      "name": "Karaoke-kone",
+      "desc": "Friday is karaoke night at the restaurant.",
+      "zone": "any",
+      "sprite": "karaoke",
+      "rarity": "joke"
+    },
+    {
+      "id": "moose_head",
+      "name": "Täytetty hirvenpää",
+      "desc": "Decor for the new hunting-lodge theme.",
+      "zone": "any",
+      "sprite": "moose_head",
+      "rarity": "joke"
+    },
+    {
+      "id": "rubber_boots",
+      "name": "Kumisaappaat koko 48",
+      "desc": "For the dishwasher who floods everything.",
+      "zone": "any",
+      "sprite": "rubber_boots",
+      "rarity": "joke"
+    },
+    {
+      "id": "christmas_ham",
+      "name": "Joulukinkku 9 kg",
+      "desc": "It's November. The boss insists.",
+      "zone": "any",
+      "sprite": "christmas_ham",
+      "rarity": "joke"
+    },
+    {
+      "id": "snowblower",
+      "name": "Lumilinko",
+      "desc": "The parking lot won't plow itself.",
+      "zone": "any",
+      "sprite": "snowblower",
+      "rarity": "joke"
+    },
+    {
+      "id": "garden_gnome",
+      "name": "Puutarhatonttu",
+      "desc": "The new restaurant mascot.",
+      "zone": "any",
+      "sprite": "garden_gnome",
+      "rarity": "joke"
+    }
+  ]
+}
