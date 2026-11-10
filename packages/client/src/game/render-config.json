@@ -29,5 +29,18 @@
   "hpBarOffsetY": 19,
   "sprayFxAlpha": 0.45,
   "sprayCloudAlpha": 0.8,
-  "sprayCloudFadeSeconds": 0.5
+  "sprayCloudFadeSeconds": 0.5,
+  "fxBurstSeconds": 0.35,
+  "damageNumberSeconds": 0.7,
+  "damageNumberRisePx": 12,
+  "heldWeaponReachPx": 9,
+  "heldWeaponLiftPx": 7,
+  "heldWeaponScale": 0.6,
+  "heldSwingSeconds": 0.18,
+  "heldUseKickPx": 4,
+  "koStarsOffsetY": 16,
+  "koStarsSpinHz": 0.5,
+  "hudHpWarnFraction": 0.5,
+  "hudHpLowFraction": 0.25,
+  "hudWeaponFlashSeconds": 1.2
 }

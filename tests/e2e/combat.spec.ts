@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
-import { createRoom, game, joinRoom, players, test, toPlay, waitControlling } from './helpers';
+import { aimMouse, createRoom, game, joinRoom, players, test, toPlay, waitControlling } from './helpers';
 
 // M4-2: melee in a real round. Two players stand next to each other in the store (debug teleport), the
 // host aims at the guest with the mouse and clicks: one fist swing lands on the server, both clients see
@@ -85,14 +85,8 @@ test('a fist swing hits the player in front: HP drops on both screens', async ({
   const guestAt = await teleportNear(guest, { x: at.x + 22, y: at.y }, 4);
   await host.waitForTimeout(500); // camera catches up
 
-  // Aim right of our body and click once.
-  const canvas = host.locator('canvas');
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error('no canvas');
-  const angle = Math.atan2(guestAt.y - at.y, guestAt.x - at.x);
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  await host.mouse.move(cx + Math.cos(angle) * 120, cy + Math.sin(angle) * 120);
+  // Aim at the guest from where we are on screen and click once.
+  await aimMouse(host, at, guestAt);
   await host.waitForTimeout(100);
   await host.mouse.down();
   await host.waitForTimeout(120);
