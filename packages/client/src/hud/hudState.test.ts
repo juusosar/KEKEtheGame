@@ -125,6 +125,23 @@ describe('readHud', () => {
     expect(hud.rows.find((r) => r.id === 'a')?.place).toBe(2);
   });
 
+  it('takes team points from the van bank, so a member who left still counts (M3 review F3)', () => {
+    // Team 1's van banked 4, 3 of them by a member who has left; only 'a' (1 deposited) is still here.
+    const hud = readHud(
+      state([player('a', 0, { team: 1, deposited: 1 }), player('b', 1, { team: 2, deposited: 3 })], {
+        settings: { mode: 'timed', roundsPerMap: 1, teams: true },
+        vans: { '0': { van: 0, team: 1, points: 4 }, '1': { van: 1, team: 2, points: 3 } },
+      }),
+      'a',
+      ctx,
+    );
+    expect(hud.teamRows).toEqual([
+      { team: 1, points: 4, place: 1 },
+      { team: 2, points: 3, place: 2 },
+    ]);
+    expect(hud.rows.find((r) => r.id === 'a')).toMatchObject({ points: 1, place: 1 });
+  });
+
   it('reads session totals once the round flow sends them', () => {
     const hud = readHud(state([player('a', 0, { sessionPoints: 17, sessionItemPoints: 6 })]), 'a', ctx);
     expect(hud.hasSession).toBe(true);

@@ -91,6 +91,7 @@ export {
   isTimedRoundOver,
   rankByItemPoints,
   rankTimedRound,
+  teamPointsFromVans,
   teamSideId,
   type PlayerPlacement,
   type Ranked,

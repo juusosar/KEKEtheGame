@@ -4,6 +4,7 @@
 // and fields added by later milestones (session totals from the round flow) may not exist yet.
 import {
   rankTimedRound,
+  teamPointsFromVans,
   teamSideId,
   vanCentre,
   type ItemCatalogue,
@@ -127,7 +128,12 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
     itemPoints: Math.max(0, num(extra.get(p.id) ?? {}, 'deposited')),
     team: p.team,
   }));
-  const ranked = rankTimedRound(scores, teams);
+  // Teams: the van's banked total, as the server ranks it (M3 review F3).
+  const vans = mapEntries(s['vans']).map(([, v]) => ({
+    team: isBag(v) ? num(v, 'team') : 0,
+    points: isBag(v) ? Math.max(0, num(v, 'points')) : 0,
+  }));
+  const ranked = rankTimedRound(scores, teams, teams ? teamPointsFromVans(vans) : undefined);
   const placeOf = new Map(ranked.players.map((r) => [r.id, r.place]));
   const pointsOf = new Map(scores.map((r) => [r.id, r.itemPoints]));
 
