@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/Boot';
 import { GameScene } from './scenes/Game';
+import { LobbyScene } from './scenes/Lobby';
 import { PlayScene } from './scenes/Play';
 import { ProfileScene } from './scenes/Profile';
 import { TitleScene } from './scenes/Title';
@@ -20,6 +21,6 @@ new Phaser.Game({
     height: '100%',
   },
   // Boot starts Title (or Game with ?scene=game) and stays on top as the connection status overlay.
-  // Flow (§13.1): Title → Profile → Play → (Lobby, M2-5) → Game.
-  scene: [BootScene, TitleScene, ProfileScene, PlayScene, GameScene],
+  // Flow (§13.1): Title → Profile → Play → Lobby → Game.
+  scene: [BootScene, TitleScene, ProfileScene, PlayScene, LobbyScene, GameScene],
 });

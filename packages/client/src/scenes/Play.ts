@@ -22,9 +22,10 @@ import {
 import { ROOM_CODE_REGISTRY_KEY, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
 import { createMenuLayer, h } from '../ui/dom';
+import type { PlaySceneData } from './Lobby';
 
-/** Scene that takes over once we're in a room. The Lobby scene (M2-5) replaces the Game stand-in. */
-export const AFTER_JOIN_SCENE = 'Game';
+/** Scene that takes over once we're in a room (§13.1 step 4). */
+export const AFTER_JOIN_SCENE = 'Lobby';
 
 /**
  * §13.1 step 3: create a room (the server hands out a 4-letter code), join one by code, or pick one
@@ -47,6 +48,12 @@ export class PlayScene extends Phaser.Scene {
     super('Play');
   }
 
+  private notice = '';
+
+  init(data: PlaySceneData | undefined): void {
+    this.notice = data?.notice ?? '';
+  }
+
   create(): void {
     this.busy = false;
     this.closed = false;
@@ -56,6 +63,7 @@ export class PlayScene extends Phaser.Scene {
     this.createPanel();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.closeListing());
     void this.openListing();
+    if (this.notice !== '') this.setStatus(this.notice, true);
   }
 
   private createPanel(): void {

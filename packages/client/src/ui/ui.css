@@ -1,4 +1,4 @@
-/* Menu screens (Title, Profile, Play). Laid over the Phaser canvas; see ui/dom.ts. */
+/* Menu screens (Title, Profile, Play, Lobby). Laid over the Phaser canvas; see ui/dom.ts. */
 .keke-menu {
   --keke-accent: #ff6a13;
   --keke-panel: #2b2b2b;
@@ -190,4 +190,75 @@
 }
 .keke-menu .title-actions p {
   margin-top: 12px;
+}
+.keke-menu .room-code {
+  font-size: 15px;
+}
+.keke-menu .room-code .code {
+  font-family: monospace;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--keke-accent);
+  margin-left: 6px;
+}
+.keke-menu .players {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.keke-menu .players li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #444;
+}
+.keke-menu .players .swatch-dot {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #1a1a1a;
+  flex: none;
+}
+.keke-menu .players .name {
+  font-weight: 700;
+}
+.keke-menu .players .tags {
+  flex: 1;
+  font-size: 13px;
+  color: #bdbdbd;
+}
+.keke-menu .players .state {
+  font-size: 13px;
+  color: #bdbdbd;
+}
+.keke-menu .players li.is-ready .state {
+  color: #8bd17c;
+  font-weight: 700;
+}
+.keke-menu button[aria-pressed='true'].wide::after {
+  content: ' ✓';
+}
+.keke-menu .choice {
+  display: flex;
+  gap: 6px;
+}
+.keke-menu .choice button {
+  flex: 1;
+  background: #d8d8d8;
+  box-shadow: none;
+  padding: 8px 4px;
+  font-size: 14px;
+}
+.keke-menu .choice button[aria-pressed='true'] {
+  background: var(--keke-accent);
+}
+.keke-menu .settings > button.secondary {
+  margin-top: 8px;
+}
+.keke-menu [hidden] {
+  display: none !important;
+}
+.keke-menu button.start {
+  margin-top: 16px;
 }
