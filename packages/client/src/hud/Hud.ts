@@ -8,26 +8,34 @@
 //   #keke-hud-timer      round timer, role timer, data-seconds
 //   #keke-hud-scores     mini scoreboard (top 5 + you): li[data-player-id][data-place][data-points]
 //   #keke-hud-board      full scoreboard while Tab / pad View is held: tr[data-player-id]
-//   #keke-hud-feed       event feed, role log
+//   #keke-hud-feed       event feed, role log (li[data-kind] steal|joke|deposit|hit|ko)
+//   #keke-hud-combat     bottom-centre: HP bar and weapon slot (M4-7)
+//   #keke-hud-hp         role meter "Health", data-hp, data-max, data-level ok|warn|low
+//   #keke-hud-weapon     region "Weapon", data-weapon (id), data-uses (number, or 'inf'), class .new after a roll
+//   #keke-hud-ko         KO overlay, role status, data-respawn-in (whole seconds)
 //
-// Layout: target + carry top-left, timer top-centre, scores and feed top-right, minimap (M3-8) owns the
-// bottom-right corner. The Game scene owns one Hud and feeds it from state patches and item events.
+// Layout: target + carry top-left, timer top-centre, scores and feed top-right, HP and weapon
+// bottom-centre, KO overlay in the middle, minimap (M3-8) owns the bottom-right corner. The Game scene owns one Hud and feeds it from state patches and item events.
 import type { Vec2 } from '@keke/shared';
 import { renderConfig } from '../game/renderConfig';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
 import { placeArrow } from './edgeArrow';
+import type { CombatHudModel } from './combatHud';
 import type { FeedLine } from './feed';
 import { formatClock, miniRows, type HudItem, type HudModel, type HudPlayerRow } from './hudState';
 
 export interface HudDeps {
   /** Image URL for an `items` atlas frame, or null when it cannot be drawn. */
   iconFor(sprite: string): string | null;
+  /** Image URL for a `weapons` atlas frame, or null when it cannot be drawn. */
+  weaponIconFor(sprite: string): string | null;
 }
 
 interface FeedEntry {
   el: HTMLLIElement;
   expires: number;
+  merge?: FeedLine['merge'];
 }
 
 /** Zone label for the target card; unknown zones show their id. */
@@ -52,6 +60,20 @@ export class Hud {
   private readonly boardBody: HTMLTableSectionElement;
   private readonly boardHead: HTMLTableRowElement;
   private readonly feed: HTMLOListElement;
+  private readonly combat: HTMLElement;
+  private readonly hp: HTMLElement;
+  private readonly hpFill: HTMLElement;
+  private readonly hpText: HTMLElement;
+  private readonly weapon: HTMLElement;
+  private readonly weaponIcon: HTMLImageElement;
+  private readonly weaponName: HTMLElement;
+  private readonly weaponUses: HTMLElement;
+  private readonly status: HTMLElement;
+  private readonly ko: HTMLElement;
+  private readonly koBy: HTMLElement;
+  private readonly koCount: HTMLElement;
+  private combatKey = '';
+  private weaponFlashUntil = 0;
   private feedEntries: FeedEntry[] = [];
   private model: HudModel | null = null;
   private scoresKey = '';
@@ -107,12 +129,56 @@ export class Hud {
       h('table', {}, h('thead', {}, this.boardHead), this.boardBody),
     );
 
+    this.hpFill = h('div', { class: 'hud-hp-fill' });
+    this.hpText = h('span', { class: 'hud-hp-text' });
+    this.hp = h(
+      'div',
+      {
+        id: 'keke-hud-hp',
+        class: 'hud-hp',
+        role: 'meter',
+        'aria-label': t('hud.hp'),
+        'aria-valuemin': 0,
+      },
+      this.hpFill,
+      this.hpText,
+    );
+    this.weaponIcon = h('img', { class: 'hud-icon', alt: '' });
+    this.weaponName = h('span', { class: 'hud-name' });
+    this.weaponUses = h('span', { class: 'hud-uses', 'aria-label': t('hud.weapon.uses') });
+    this.weapon = h(
+      'section',
+      { id: 'keke-hud-weapon', class: 'hud-weapon', 'aria-label': t('hud.weapon') },
+      h('div', { class: 'hud-slot' }, this.weaponIcon),
+      h('div', { class: 'hud-text' }, h('span', { class: 'hud-label' }, t('hud.weapon')), this.weaponName),
+      this.weaponUses,
+    );
+    this.status = h('div', { class: 'hud-status' });
+    this.combat = h(
+      'div',
+      { id: 'keke-hud-combat', class: 'hud-combat', hidden: true },
+      this.status,
+      this.hp,
+      this.weapon,
+    );
+    this.koBy = h('span', { class: 'hud-ko-by' });
+    this.koCount = h('span', { class: 'hud-ko-count' });
+    this.ko = h(
+      'div',
+      { id: 'keke-hud-ko', class: 'hud-ko', role: 'status', 'aria-label': t('hud.ko'), hidden: true },
+      h('strong', {}, t('hud.ko.title')),
+      this.koBy,
+      this.koCount,
+    );
+
     this.root = h(
       'div',
       { id: 'keke-hud', class: 'keke-hud', 'aria-label': t('hud.label') },
       h('div', { class: 'hud-left' }, this.target, this.carry),
       this.timer,
       h('div', { class: 'hud-right' }, this.scores, this.feed),
+      this.combat,
+      this.ko,
       this.board,
       this.arrow,
     );
@@ -163,17 +229,108 @@ export class Hud {
   }
 
   pushFeed(line: FeedLine, nowMs: number): void {
+    const expires = nowMs + renderConfig.hudFeedSeconds * 1000;
+    if (line.merge) {
+      // Fold into the live line with the same key (repeated spray ticks) and move it to the bottom.
+      const key = line.merge.key;
+      const i = this.feedEntries.findIndex((e) => e.merge?.key === key);
+      const old = i >= 0 ? this.feedEntries[i] : undefined;
+      if (old?.merge) {
+        this.feedEntries.splice(i, 1);
+        const amount = old.merge.amount + line.merge.amount;
+        old.merge = { ...line.merge, amount };
+        old.el.textContent = line.merge.render(amount);
+        old.expires = expires;
+        this.feed.append(old.el);
+        this.feedEntries.push(old);
+        return;
+      }
+    }
     const el = h('li', { class: `feed-${line.kind}`, 'data-kind': line.kind }, line.text);
     this.feed.append(el);
-    this.feedEntries.push({ el, expires: nowMs + renderConfig.hudFeedSeconds * 1000 });
+    this.feedEntries.push({ el, expires, merge: line.merge });
     while (this.feedEntries.length > renderConfig.hudFeedLines) this.feedEntries.shift()?.el.remove();
   }
 
-  /** Every frame: drops expired feed lines. */
+  /** Every frame: drops expired feed lines and ends the new-weapon glow. */
   tick(nowMs: number): void {
-    while (this.feedEntries.length > 0 && (this.feedEntries[0]?.expires ?? Infinity) <= nowMs) {
-      this.feedEntries.shift()?.el.remove();
+    // Lines move to the end when they merge, so expiry is not in order: check them all.
+    if (this.feedEntries.some((e) => e.expires <= nowMs)) {
+      this.feedEntries = this.feedEntries.filter((e) => {
+        if (e.expires > nowMs) return true;
+        e.el.remove();
+        return false;
+      });
     }
+    if (this.weaponFlashUntil !== 0 && nowMs >= this.weaponFlashUntil) {
+      this.weaponFlashUntil = 0;
+      this.weapon.classList.remove('new');
+    }
+  }
+
+  /**
+   * HP bar, weapon slot and KO overlay (§13.2). Every state patch. `koBy` names who knocked us out (from
+   * the last `ko` broadcast about us) while we are down.
+   */
+  renderCombat(model: CombatHudModel, koBy: { name: string; weapon: string | null } | null): void {
+    const show = model.show;
+    this.combat.hidden = !show;
+    this.ko.hidden = !show || model.ko === null;
+    if (!show) return;
+    const key = JSON.stringify([model, koBy]);
+    if (key === this.combatKey) return;
+    this.combatKey = key;
+
+    this.hp.dataset['hp'] = String(model.hp);
+    this.hp.dataset['max'] = String(model.maxHp);
+    this.hp.dataset['level'] = model.level;
+    this.hp.setAttribute('aria-valuemax', String(model.maxHp));
+    this.hp.setAttribute('aria-valuenow', String(model.hp));
+    this.hpFill.style.width = `${(model.fill * 100).toFixed(1)}%`;
+    this.hpText.textContent = t('hud.hp.value', { hp: model.hp, max: model.maxHp });
+
+    const w = model.weapon;
+    this.weapon.dataset['weapon'] = w.id;
+    this.weapon.dataset['uses'] = w.uses === null ? 'inf' : String(w.uses);
+    this.weaponName.textContent = w.name;
+    this.weaponUses.textContent = w.usesText;
+    this.weaponUses.title = w.uses === null ? t('hud.weapon.unlimited') : '';
+    const src = this.deps.weaponIconFor(w.sprite);
+    this.weaponIcon.hidden = src === null;
+    if (src !== null && this.weaponIcon.getAttribute('src') !== src) this.weaponIcon.src = src;
+
+    const status: string[] = [];
+    if (model.stunned) status.push(t('hud.status.stunned'));
+    if (model.blocking) status.push(t('hud.status.blocking'));
+    if (model.protected) status.push(t('hud.status.protected'));
+    this.status.textContent = status.join(' · ');
+    this.status.hidden = status.length === 0;
+
+    if (model.ko !== null) {
+      this.ko.dataset['respawnIn'] = String(model.ko.respawnIn);
+      this.koBy.hidden = koBy === null;
+      this.koBy.textContent =
+        koBy === null
+          ? ''
+          : koBy.weapon === null
+            ? t('hud.ko.byPlain', { name: koBy.name })
+            : t('hud.ko.by', { name: koBy.name, weapon: koBy.weapon });
+      this.koCount.textContent =
+        model.ko.respawnIn > 0
+          ? t('hud.ko.respawn', { seconds: model.ko.respawnIn })
+          : t('hud.ko.respawnNow');
+    } else {
+      delete this.ko.dataset['respawnIn'];
+    }
+  }
+
+  /** Our weapon changed to a newly rolled one: the slot glows for a moment. */
+  flashWeapon(nowMs: number): void {
+    this.weaponFlashUntil = nowMs + renderConfig.hudWeaponFlashSeconds * 1000;
+    this.weapon.classList.remove('new');
+    // Restart the CSS animation.
+    void this.weapon.offsetWidth;
+    this.weapon.classList.add('new');
   }
 
   destroy(): void {

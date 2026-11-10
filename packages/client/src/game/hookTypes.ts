@@ -149,6 +149,29 @@ export interface KekeMinimapMarker {
   mine?: boolean;
 }
 
+/** The held weapon sprite of one player (M4-7). */
+export interface KekeHeldSnapshot {
+  id: string;
+  weapon: string;
+  visible: boolean;
+  /** Frame in the `weapons` atlas. */
+  frame: string;
+  /** Rotation, radians (the aim, or the swing angle mid-swing). */
+  angle: number;
+  x: number;
+  y: number;
+  swinging: boolean;
+  blocking: boolean;
+}
+
+/** A combat effect on screen (M4-7): `sprite` (fx atlas frame), `number` (damage), `wedge`, `trail`. */
+export interface KekeFxSnapshot {
+  kind: 'wedge' | 'sprite' | 'number' | 'trail';
+  frame?: string;
+  target?: string;
+  text?: string;
+}
+
 export interface KekeHook {
   /** Active scene key, e.g. `Game`. */
   scene: string;
@@ -182,6 +205,15 @@ export interface KekeHook {
   sprayClouds(): { x: number; y: number; radiusPx: number }[];
   /** Projectiles in flight at the last patch (M4-3); empty offline. */
   projectiles(): KekeProjectileSnapshot[];
+  /** Held weapon of every player drawn (us included); empty offline. */
+  held(): KekeHeldSnapshot[];
+  /** Combat effects alive right now; empty offline. */
+  fx(): KekeFxSnapshot[];
+  /**
+   * Where a world point is on screen now, in CSS pixels of the page (follows the camera, also where it
+   * is clamped at the map edge). Specs aim the mouse with it.
+   */
+  screenPoint(x: number, y: number): { x: number; y: number };
   /** Items in the world, by id; empty offline and in the lobby. */
   items(): KekeItemSnapshot[];
   /** Vans drawn on the dock, by slot. Offline: slot 1 only. */

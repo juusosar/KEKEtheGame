@@ -1,5 +1,6 @@
 import type { Room } from '@colyseus/sdk';
 import {
+  Button,
   ClientMessage,
   CombatEventMessage,
   DebugMessage,
@@ -15,6 +16,8 @@ import {
   playerHalfSize,
   vanSpawn,
   type GameConfig,
+  type KoMessage,
+  type WeaponRolledMessage,
   type MapModel,
   type MapTheme,
   type Vec2,
@@ -22,7 +25,7 @@ import {
 import Phaser from 'phaser';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { Avatar } from '../game/avatar';
-import { CombatFx } from '../game/combatFx';
+import { CombatFx, type FxBody } from '../game/combatFx';
 import { SprayFx } from '../game/sprayFx';
 import { isDebugEnabled } from '../game/debugFlag';
 import { placeZoneLabels } from '../game/debugLayout';
@@ -35,12 +38,13 @@ import { PeelRenderer } from '../game/peels';
 import { WorldRenderer } from '../game/worldItems';
 import { ProjectileRenderer } from '../game/projectiles';
 import { Hud } from '../hud/Hud';
-import { FEED_MESSAGES, feedLine } from '../hud/feed';
+import { readCombatHud, weaponName } from '../hud/combatHud';
+import { COMBAT_FEED_MESSAGES, FEED_MESSAGES, combatFeedLine, feedLine } from '../hud/feed';
 import { readHud, type HudContext } from '../hud/hudState';
 import { RoundScreen } from '../hud/RoundScreen';
 import { readRoundScreen } from '../hud/roundScreens';
 import { t } from '../i18n';
-import { InputManager, STANDARD } from '../input';
+import { InputManager, STANDARD, coneAimAssist, inputConfig } from '../input';
 import { DEFAULT_COMBAT, predictionSpeed, readCombat, type CombatPlayerView } from '../net/combatView';
 import { SnapshotBuffer } from '../net/interpolation';
 import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
@@ -79,6 +83,9 @@ export class GameScene extends Phaser.Scene {
   private predictor!: Predictor;
   private clock!: FixedStepClock;
   private lastMove: Vec2 = { x: 0, y: 0 };
+  /** Aim and buttons of the last sampled input frame (held weapon, predicted swing, block pose). */
+  private lastAim = 0;
+  private lastButtons = 0;
   private minimap: MinimapView | undefined;
   /** Profile colour, for the offline minimap. */
   private profileColor = '';
@@ -110,6 +117,9 @@ export class GameScene extends Phaser.Scene {
   private combat = new Map<string, CombatPlayerView>();
   /** Banana peels on the floor (M4-5); online only. */
   private peels: PeelRenderer | undefined;
+  /** Who knocked us out (last `ko` about us), for the KO overlay; cleared on respawn. */
+  private koBy: { name: string; weapon: string | null } | null = null;
+  private weaponIcons = new Map<string, string | null>();
 
   private debug = false;
   private hitbox?: Phaser.GameObjects.Rectangle;
@@ -149,6 +159,10 @@ export class GameScene extends Phaser.Scene {
 
     this.minimap = new MinimapView(this.model, this.theme);
     this.inputManager = new InputManager(this);
+    // §13.3: with the right stick idle, aim snaps toward the nearest enemy in a 30° cone.
+    this.inputManager.setAimAssist(
+      coneAimAssist(() => this.enemyPositions(), inputConfig.aimAssistConeDegrees),
+    );
     this.clock = new FixedStepClock(inputStepSeconds(this.config));
 
     if (this.debug) this.createDebug();
@@ -169,6 +183,9 @@ export class GameScene extends Phaser.Scene {
       this.inputManager.setOrigin(this.predictor.state);
       const frame = this.inputManager.sample();
       this.lastMove = frame.move;
+      if (!offline) this.onLocalButtons(frame.buttons, frame.aim);
+      this.lastAim = frame.aim;
+      this.lastButtons = frame.buttons;
       if (offline) {
         this.predictor.apply(frame, false);
       } else if (this.room && this.sequence) {
@@ -177,7 +194,10 @@ export class GameScene extends Phaser.Scene {
         this.room.send(ClientMessage.input, sent);
       }
     }
-    if (!offline && !this.controlling) this.lastMove = { x: 0, y: 0 };
+    if (!offline && !this.controlling) {
+      this.lastMove = { x: 0, y: 0 };
+      this.lastButtons = 0;
+    }
 
     const pos = this.predictor.renderPosition(this.clock.alpha);
     this.local.place(pos.x, pos.y, this.lastMove);
@@ -212,6 +232,10 @@ export class GameScene extends Phaser.Scene {
     this.sprayFx = undefined;
     this.peels = undefined;
     this.combat = new Map();
+    this.koBy = null;
+    this.weaponIcons = new Map();
+    this.lastAim = 0;
+    this.lastButtons = 0;
   }
 
   private createTilemap(raw: unknown): void {
@@ -303,7 +327,11 @@ export class GameScene extends Phaser.Scene {
     this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
     this.createHud(room);
     this.createCombatFx(room);
-    this.projectiles = new ProjectileRenderer(this, DEPTH.fx);
+    this.projectiles = new ProjectileRenderer(
+      this,
+      DEPTH.fx,
+      (weapon) => getWeaponCatalogue().get(weapon)?.sprite ?? weapon,
+    );
     this.peels = new PeelRenderer(this, DEPTH.player - 0.6);
     this.roundScreen = new RoundScreen();
     // Hidden until the first patch says where we are (and whether we are in the round at all).
@@ -375,6 +403,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.controlling = controlling;
 
+    this.renderCombatHud();
+
     const now = performance.now();
     const seen = new Set<string>();
     for (const p of view.players) {
@@ -415,37 +445,131 @@ export class GameScene extends Phaser.Scene {
     this.updateSpectator(dt);
   }
 
-  // --- combat feedback (M4-2) --------------------------------------------------------------------------
+  // --- combat (M4-2 feedback, M4-7 visuals and HUD) --------------------------------------------------
 
   private createCombatFx(room: Room): void {
-    const fx = new CombatFx(this, DEPTH.fx, getWeaponCatalogue(), this.config.maxHp);
+    const weapons = getWeaponCatalogue();
+    const fx = new CombatFx(this, DEPTH.fx, weapons, this.config.maxHp, room.sessionId, this.model.tileSize);
     this.combatFx = fx;
     // Spray cones under the labels; vision clouds over everything in the world, nameplates too (M4-4).
-    const spray = new SprayFx(this, DEPTH.fx, DEPTH.label + 1, getWeaponCatalogue(), renderConfig);
+    const spray = new SprayFx(this, DEPTH.fx, DEPTH.label + 1, weapons, renderConfig);
     this.sprayFx = spray;
+    const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
     for (const type of Object.values(CombatEventMessage)) {
       this.unsubscribe.push(
         room.onMessage(type, (message: unknown) => {
           fx.onEvent(type, message, this.time.now / 1000);
           spray.onEvent(type, message, this.time.now / 1000);
+          this.onCombatEvent(type, message, room.sessionId, nameOf);
+        }),
+      );
+    }
+    const ctx = { weapons, me: room.sessionId, nameOf };
+    for (const type of COMBAT_FEED_MESSAGES) {
+      this.unsubscribe.push(
+        room.onMessage(type, (message: unknown) => {
+          const line = combatFeedLine(type, message, ctx);
+          if (line) this.hud?.pushFeed(line, performance.now());
         }),
       );
     }
   }
 
-  /** Avatar looks (KO, protection, hit flash) and the world FX, from the last patch. */
+  /** KO overlay attribution and the new-weapon glow. */
+  private onCombatEvent(type: string, message: unknown, me: string, nameOf: (id: string) => string): void {
+    if (typeof message !== 'object' || message === null) return;
+    if (type === CombatEventMessage.ko) {
+      const ko = message as KoMessage;
+      if (ko.player !== me) return;
+      const src = ko.source as KoMessage['source'] | undefined;
+      this.koBy =
+        src?.kind === 'player' && src.id !== me
+          ? { name: nameOf(src.id), weapon: ko.weapon ? weaponName(ko.weapon, getWeaponCatalogue()) : null }
+          : null;
+      this.renderCombatHud();
+    } else if (type === CombatEventMessage.respawn) {
+      if ((message as { player?: unknown }).player === me) this.koBy = null;
+    } else if (type === CombatEventMessage.weaponRolled) {
+      if ((message as WeaponRolledMessage).player === me) this.hud?.flashWeapon(performance.now());
+    }
+  }
+
+  /** Our own Attack press swings the held weapon at once (the server's echo confirms the hit). */
+  private onLocalButtons(buttons: number, aim: number): void {
+    const fx = this.combatFx;
+    const me = this.room?.sessionId;
+    if (!fx || me === undefined) return;
+    const pressed = (buttons & Button.Attack) !== 0 && (this.lastButtons & Button.Attack) === 0;
+    if (pressed) fx.predictAttack(this.combat.get(me) ?? DEFAULT_COMBAT, aim, this.time.now / 1000);
+  }
+
+  /** Bodies of other players that aim assist may snap to: alive, drawn, not on our team (§3.3). */
+  private enemyPositions(): Vec2[] {
+    const view = this.view;
+    const me = view?.me;
+    if (!view || !me) return [];
+    const out: Vec2[] = [];
+    for (const p of view.players) {
+      if (p.isMe || (me.team > 0 && p.team === me.team)) continue;
+      if (!(this.combat.get(p.id)?.alive ?? true)) continue;
+      const body = this.remotes.get(p.id)?.avatar.body;
+      if (body?.visible) out.push({ x: body.x, y: body.y });
+    }
+    return out;
+  }
+
+  /** HP bar, weapon slot and KO overlay from the last patch. */
+  private renderCombatHud(): void {
+    const hud = this.hud;
+    const room = this.room;
+    const view = this.view;
+    if (!hud || room === null || view === null) return;
+    const me = view.me;
+    hud.renderCombat(
+      readCombatHud({
+        combat: me === null ? null : (this.combat.get(me.id) ?? DEFAULT_COMBAT),
+        phase: view.phase,
+        spectator: me?.spectator ?? true,
+        maxHp: this.config.maxHp,
+        weapons: getWeaponCatalogue(),
+        warnFraction: renderConfig.hudHpWarnFraction,
+        lowFraction: renderConfig.hudHpLowFraction,
+      }),
+      this.koBy,
+    );
+  }
+
+  /** Avatar looks (KO, protection, hit flash), held weapons and the world FX, from the last patch. */
   private drawCombat(now: number): void {
     const fx = this.combatFx;
     const room = this.room;
     if (!fx || room === null) return;
-    const bodies: { pos: Vec2; combat: CombatPlayerView }[] = [];
-    const add = (id: string, avatar: Avatar): void => {
+    const weapons = getWeaponCatalogue();
+    const bodies: FxBody[] = [];
+    const add = (id: string, avatar: Avatar, aim: number, blockHeld: boolean): void => {
       const combat = this.combat.get(id) ?? DEFAULT_COMBAT;
       avatar.setCombatLook(fx.lookFor(id, combat, now));
-      if (avatar.body.visible) bodies.push({ pos: { x: avatar.body.x, y: avatar.body.y }, combat });
+      // Our own block shows as soon as Block is held with a blocking weapon; the server's flag follows.
+      const canBlock = weapons.get(combat.weapon)?.block !== undefined && combat.alive && !combat.stunned;
+      bodies.push({
+        id,
+        pos: { x: avatar.body.x, y: avatar.body.y },
+        combat,
+        aim,
+        blocking: combat.blocking || (blockHeld && canBlock),
+        visible: avatar.body.visible,
+        depth: avatar.body.depth,
+      });
     };
-    add(room.sessionId, this.local);
-    for (const [id, remote] of this.remotes) add(id, remote.avatar);
+    const me = room.sessionId;
+    const myCombat = this.combat.get(me) ?? DEFAULT_COMBAT;
+    add(
+      me,
+      this.local,
+      this.controlling ? this.lastAim : myCombat.aim,
+      (this.lastButtons & Button.Block) !== 0,
+    );
+    for (const [id, remote] of this.remotes) add(id, remote.avatar, this.combat.get(id)?.aim ?? 0, false);
     fx.draw(now, bodies);
     this.sprayFx?.draw(now, (id) => {
       const avatar = id === room.sessionId ? this.local : this.remotes.get(id)?.avatar;
@@ -459,7 +583,10 @@ export class GameScene extends Phaser.Scene {
   private createHud(room: Room): void {
     const catalogue = getItemCatalogue(this.theme.id);
     this.hudContext = { catalogue, vanSlots: this.model.vanSlots };
-    const hud = new Hud({ iconFor: (sprite) => this.itemIcon(sprite) });
+    const hud = new Hud({
+      iconFor: (sprite) => this.itemIcon(sprite),
+      weaponIconFor: (sprite) => this.weaponIcon(sprite),
+    });
     this.hud = hud;
     const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
     for (const type of FEED_MESSAGES) {
@@ -475,17 +602,22 @@ export class GameScene extends Phaser.Scene {
   private updateHud(hud: Hud): void {
     hud.tick(performance.now());
     hud.setBoardOpen(this.inputManager.scoreboardHeld());
+    hud.updateArrow((world) => this.worldToClient(world), {
+      width: hud.root.clientWidth,
+      height: hud.root.clientHeight,
+    });
+  }
+
+  /** World pixels to CSS pixels in the viewport (HUD arrow, debug hook). */
+  private worldToClient(world: Vec2): Vec2 {
     const cam = this.cameras.main;
     const rect = this.game.canvas.getBoundingClientRect();
     const scaleX = this.scale.width > 0 ? rect.width / this.scale.width : 1;
     const scaleY = this.scale.height > 0 ? rect.height / this.scale.height : 1;
-    hud.updateArrow(
-      (world) => ({
-        x: rect.left + ((world.x - cam.worldView.x) * cam.zoom + cam.x) * scaleX,
-        y: rect.top + ((world.y - cam.worldView.y) * cam.zoom + cam.y) * scaleY,
-      }),
-      { width: hud.root.clientWidth, height: hud.root.clientHeight },
-    );
+    return {
+      x: rect.left + ((world.x - cam.worldView.x) * cam.zoom + cam.x) * scaleX,
+      y: rect.top + ((world.y - cam.worldView.y) * cam.zoom + cam.y) * scaleY,
+    };
   }
 
   /** Data URL of an `items` atlas frame for the HUD card and carry slot, cached per frame. */
@@ -497,6 +629,18 @@ export class GameScene extends Phaser.Scene {
       url = this.textures.getBase64('items', sprite) || null;
     }
     this.icons.set(sprite, url);
+    return url;
+  }
+
+  /** Data URL of a `weapons` atlas frame for the HUD weapon slot, cached per frame. */
+  private weaponIcon(sprite: string): string | null {
+    const cached = this.weaponIcons.get(sprite);
+    if (cached !== undefined) return cached;
+    let url: string | null = null;
+    if (this.textures.exists('weapons') && this.textures.get('weapons').has(sprite)) {
+      url = this.textures.getBase64('weapons', sprite) || null;
+    }
+    this.weaponIcons.set(sprite, url);
     return url;
   }
 
@@ -804,6 +948,9 @@ export class GameScene extends Phaser.Scene {
           y,
           armed,
         })),
+      held: () => this.combatFx?.heldSnapshots() ?? [],
+      fx: () => this.combatFx?.fxSnapshots() ?? [],
+      screenPoint: (x, y) => this.worldToClient({ x, y }),
     };
     this.hook = hook;
     installHook(hook);

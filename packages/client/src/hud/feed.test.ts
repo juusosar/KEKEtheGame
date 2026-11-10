@@ -1,6 +1,6 @@
-import { getItemCatalogue } from '@keke/shared';
+import { getItemCatalogue, getWeaponCatalogue } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
-import { feedLine, type FeedContext } from './feed';
+import { combatFeedLine, feedLine, type FeedContext } from './feed';
 
 const names: Record<string, string> = { a: 'Juuso', b: 'Mikko' };
 const ctx: FeedContext = { catalogue: getItemCatalogue('kespro'), nameOf: (id) => names[id] ?? id };
@@ -40,5 +40,65 @@ describe('feedLine', () => {
     expect(feedLine('drop', { player: 'a', item: voi, reason: 'drop' }, ctx)).toBeNull();
     expect(feedLine('pickup', null, ctx)).toBeNull();
     expect(feedLine('pickup', { player: 'a' }, ctx)).toBeNull();
+  });
+});
+
+describe('combatFeedLine', () => {
+  const combatCtx = {
+    weapons: getWeaponCatalogue(),
+    me: 'a',
+    nameOf: (id: string) => names[id] ?? id,
+  };
+  const player = (id: string) => ({ kind: 'player' as const, id });
+
+  it('announces every KO with the weapon', () => {
+    expect(
+      combatFeedLine(
+        'ko',
+        { player: 'b', source: player('c'), weapon: 'frozen_salmon', respawnInSeconds: 3 },
+        combatCtx,
+      ),
+    ).toEqual({ kind: 'ko', text: 'c knocked out Mikko with Frozen salmon' });
+    expect(
+      combatFeedLine('ko', { player: 'a', source: player('b'), weapon: null, respawnInSeconds: 3 }, combatCtx)
+        ?.text,
+    ).toBe('Mikko knocked you out');
+    expect(
+      combatFeedLine(
+        'ko',
+        { player: 'b', source: { kind: 'hazard', id: 'f1' }, weapon: null, respawnInSeconds: 3 },
+        combatCtx,
+      )?.text,
+    ).toBe('Mikko got knocked out');
+  });
+
+  it('shows only hits we dealt or took, and merges repeats', () => {
+    const mine = combatFeedLine(
+      'hit',
+      { source: player('a'), target: 'b', damage: 3, weapon: 'ketchup_bottle', hp: 97 },
+      combatCtx,
+    );
+    expect(mine).toMatchObject({ kind: 'hit', text: 'You hit Mikko with Ketchup bottle (-3)' });
+    expect(mine?.merge?.render(9)).toBe('You hit Mikko with Ketchup bottle (-9)');
+    const taken = combatFeedLine(
+      'hit',
+      { source: player('b'), target: 'a', damage: 5, weapon: 'fists', hp: 95 },
+      combatCtx,
+    );
+    expect(taken?.text).toBe('Mikko hit you with Fists (-5)');
+    expect(
+      combatFeedLine(
+        'hit',
+        { source: player('b'), target: 'c', damage: 5, weapon: 'fists', hp: 95 },
+        combatCtx,
+      ),
+    ).toBeNull();
+    expect(
+      combatFeedLine(
+        'hit',
+        { source: player('a'), target: 'b', damage: 0, weapon: 'banana_peels', hp: 95 },
+        combatCtx,
+      ),
+    ).toBeNull();
   });
 });
