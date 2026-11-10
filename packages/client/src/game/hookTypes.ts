@@ -32,6 +32,8 @@ export interface KekeCombatSnapshot {
   respawnIn: number;
   /** Slipped on a banana peel and sliding (M4-5). */
   sliding: boolean;
+  /** Speed multiplier from a slow (ketchup 0.6), 1 when not slowed. */
+  slowMultiplier: number;
 }
 
 /** A combat broadcast as the client received it (`attack`, `hit`, `ko`, `respawn`, `weaponRolled`, `weaponSpent`). */
