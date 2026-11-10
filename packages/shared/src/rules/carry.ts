@@ -316,6 +316,25 @@ export function despawnLooseItems(
   };
 }
 
+/**
+ * Moves lying items (targets and loose ones) to new positions, e.g. scattered by a pallet jack dash
+ * (§7, M4-6). Carried items and unknown ids are skipped; nothing else about an item changes.
+ */
+export function moveLyingItems(
+  world: ItemWorld,
+  moves: readonly { readonly id: number; readonly x: number; readonly y: number }[],
+): CarryResult {
+  const to = new Map(moves.map((m) => [m.id, m]));
+  let changed = false;
+  const items = world.items.map((i) => {
+    const m = to.get(i.id);
+    if (!m || i.state === 'carried' || (m.x === i.x && m.y === i.y)) return i;
+    changed = true;
+    return { ...i, x: m.x, y: m.y };
+  });
+  return changed ? { world: { ...world, items }, events: [] } : { world, events: [] };
+}
+
 function replaceItem(items: readonly WorldItem[], item: WorldItem): WorldItem[] {
   return items.map((i) => (i.id === item.id ? item : i));
 }

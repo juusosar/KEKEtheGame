@@ -17,6 +17,8 @@ export interface CombatPlayerView {
   protected: boolean;
   /** Holding Block with a pan (M4-6). */
   blocking: boolean;
+  /** Dashing with a pallet jack (M4-6): input does not move the body. */
+  charging: boolean;
   /** Whole seconds until the respawn while KO'd; 0 while alive. */
   respawnIn: number;
 }
@@ -30,6 +32,7 @@ export const DEFAULT_COMBAT: CombatPlayerView = Object.freeze({
   slowMultiplier: 1,
   protected: false,
   blocking: false,
+  charging: false,
   respawnIn: 0,
 });
 
@@ -49,6 +52,7 @@ export function readCombat(state: unknown): Map<string, CombatPlayerView> {
       slowMultiplier: num(value, 'slowMultiplier', 1),
       protected: bool(value, 'protected'),
       blocking: bool(value, 'blocking'),
+      charging: bool(value, 'charging'),
       respawnIn: num(value, 'respawnIn'),
     });
   }
@@ -74,6 +78,7 @@ export function predictionSpeed(
       stunned: combat.stunned,
       slowMultiplier: combat.slowMultiplier,
       blockSpeedMultiplier: block,
+      charging: combat.charging,
     })
   );
 }

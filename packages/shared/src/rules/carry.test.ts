@@ -6,6 +6,7 @@ import {
   addCarryPlayer,
   assignTargets,
   createItemWorld,
+  moveLyingItems,
   deposit,
   despawnLooseItems,
   drop,
@@ -340,5 +341,24 @@ describe('players leaving', () => {
     const w = setup();
     expect(() => addCarryPlayer(w, 'a', 3)).toThrow();
     expect(removeCarryPlayer(w, 'zz', { x: 0, y: 0 }, 0).rejected).toBe('unknown_player');
+  });
+});
+
+describe('moveLyingItems (pallet jack scatter, M4-6)', () => {
+  it('moves lying items, skips carried ones, and keeps the world when nothing moves', () => {
+    let w = setup();
+    const ta = targetOf(w, 'a');
+    const tb = targetOf(w, 'b');
+    w = ok(pickup(w, 'b', tb));
+    const moved = moveLyingItems(w, [
+      { id: ta, x: 11, y: 22 },
+      { id: tb, x: 33, y: 44 },
+      { id: 999, x: 0, y: 0 },
+    ]);
+    expect(moved.events).toEqual([]);
+    expect(findItem(moved.world, ta)).toMatchObject({ x: 11, y: 22, state: 'target', owner: 'a' });
+    const carried = findItem(w, tb);
+    expect(findItem(moved.world, tb)).toEqual(carried);
+    expect(moveLyingItems(moved.world, []).world).toBe(moved.world);
   });
 });

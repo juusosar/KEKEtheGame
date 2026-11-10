@@ -73,6 +73,11 @@ export interface CombatContext {
   hit(hit: CombatHit): boolean;
   /** Shoves a round player `px` pixels along `dir`, without a hit (e.g. a spray push step). */
   push(target: string, dir: Vec2, px: number): void;
+  /**
+   * Scatters the lying items within `halfWidth` of the segment from→to `px` pixels out of the line
+   * (pallet jack, M4-6). Nothing happens when the room has no item hook.
+   */
+  scatterItems(from: Vec2, to: Vec2, halfWidth: number, px: number): void;
 }
 
 export interface BehaviourModule {
@@ -82,8 +87,11 @@ export interface BehaviourModule {
   readonly modes: readonly AttackMode[];
   /** One frame of a living player holding a weapon of this module's modes. `def` is the held weapon. */
   onFrame?(ctx: CombatContext, intent: FrameIntent, def: WeaponDef, mode: AttackMode): void;
-  /** Every frame of every living round player, whatever they hold (block, M4-6). Runs before `onFrame`. */
-  onAnyFrame?(ctx: CombatContext, intent: FrameIntent, def: WeaponDef): void;
+  /**
+   * Every frame of every living round player, whatever they hold (block, M4-6). Runs before `onFrame`.
+   * Return true to take the frame: the held weapon's `onFrame` does not run (no attacks while blocking).
+   */
+  onAnyFrame?(ctx: CombatContext, intent: FrameIntent, def: WeaponDef): unknown;
   /** Change or cancel (null) a hit before it lands, e.g. block. Runs in module order. */
   adjustHit?(ctx: CombatContext, hit: CombatHit): CombatHit | null;
   /** Once per server tick, after this tick's frames (projectiles fly, traps trigger, charges move). */

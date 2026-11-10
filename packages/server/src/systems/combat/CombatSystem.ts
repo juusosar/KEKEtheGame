@@ -53,6 +53,8 @@ export type CombatBroadcast = (event: CombatEventWire) => void;
 export interface CombatHooks {
   /** A player was KO'd: the room drops their carried item (M3 review H1). */
   onKo(player: PlayerState, now: number): void;
+  /** A dash swept the band from→to: scatter the lying items in it (pallet jack, M4-6). */
+  onScatterItems?(from: Vec2, to: Vec2, halfWidth: number, px: number): void;
 }
 
 export class CombatSystem {
@@ -127,6 +129,7 @@ export class CombatSystem {
       p.slowMultiplier = 1;
       p.protected = false;
       p.blocking = false;
+      p.charging = false;
       p.respawnIn = 0;
     });
   }
@@ -153,6 +156,7 @@ export class CombatSystem {
       stunned: player.stunned,
       slowMultiplier: player.slowMultiplier,
       blockSpeedMultiplier: block,
+      charging: player.charging,
     });
   }
 
@@ -200,7 +204,9 @@ export class CombatSystem {
       const c = findCombatant(this.world, intent.player);
       if (!c || !c.alive) continue;
       const def = this.weapons.require(c.weapon.id);
-      for (const m of this.modules) m.onAnyFrame?.(ctx, intent, def);
+      let taken = false;
+      for (const m of this.modules) if (m.onAnyFrame?.(ctx, intent, def) === true) taken = true;
+      if (taken) continue;
       // Re-read: an earlier module may have changed the weapon (none does yet).
       const held = findCombatant(this.world, intent.player);
       if (!held || !held.alive) continue;
@@ -232,6 +238,7 @@ export class CombatSystem {
       canHit: (source, target, allowSelf) => canHit(this.world, source, target, this.now, allowSelf),
       hit: (h) => this.landHit(h),
       push: (target, dir, px) => this.push(target, dir, px),
+      scatterItems: (from, to, halfWidth, px) => this.hooks.onScatterItems?.(from, to, halfWidth, px),
     };
   }
 
@@ -315,6 +322,7 @@ export class CombatSystem {
         player.vx = 0;
         player.vy = 0;
         player.blocking = false;
+        player.charging = false;
         this.hooks.onKo(player, this.now);
       }
     } else if (event.type === 'respawn') {

@@ -119,7 +119,7 @@ export function knockbackStep(
 
 /**
  * The combat part of a player's movement speed from synced state (§3.3, §7), so server and client
- * prediction use the same numbers (M2 review H1): 0 while KO'd or stunned, else the slow multiplier
+ * prediction use the same numbers (M2 review H1): 0 while KO'd, stunned or charging, else the slow multiplier
  * times the block multiplier (pan, M4-6; pass 1 when not blocking). Multiply by `carryMultiplier`.
  */
 export function syncedCombatSpeed(state: {
@@ -127,7 +127,9 @@ export function syncedCombatSpeed(state: {
   readonly stunned: boolean;
   readonly slowMultiplier: number;
   readonly blockSpeedMultiplier?: number;
+  /** Dashing with a pallet jack (M4-6): the dash moves the body, input does not. */
+  readonly charging?: boolean;
 }): number {
-  if (!state.alive || state.stunned) return 0;
+  if (!state.alive || state.stunned || state.charging) return 0;
   return state.slowMultiplier * (state.blockSpeedMultiplier ?? 1);
 }
