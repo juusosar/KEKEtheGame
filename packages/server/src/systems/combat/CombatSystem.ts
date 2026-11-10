@@ -73,7 +73,7 @@ export class CombatSystem {
     private readonly broadcast: CombatBroadcast,
     private readonly hooks: CombatHooks,
     seed: number,
-    modules: readonly BehaviourModule[] = defaultCombatModules(),
+    modules: readonly BehaviourModule[] = defaultCombatModules(state),
     weapons: WeaponCatalogue = getWeaponCatalogue(),
   ) {
     this.rng = createRng(seed);
@@ -259,10 +259,11 @@ export class CombatSystem {
     let adjusted: CombatHit | null = spec;
     for (const m of this.modules) {
       if (adjusted === null) break;
-      adjusted = m.adjustHit?.(this.context(), adjusted) ?? adjusted;
+      // A module without adjustHit leaves the hit alone; one that returns null cancels it.
+      if (m.adjustHit) adjusted = m.adjustHit(this.context(), adjusted);
     }
     if (adjusted === null) return false;
-    const { delivery: _delivery, knockback, ...hitSpec } = adjusted;
+    const { delivery: _delivery, knockback, projectile: _projectile, ...hitSpec } = adjusted;
     const result = applyHit(this.world, hitSpec, this.now, this.weapons, this.config);
     if (result.rejected) return false;
     this.commit(result);

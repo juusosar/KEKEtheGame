@@ -40,6 +40,8 @@ export interface CombatHit extends HitSpec {
   readonly delivery: HitDelivery;
   /** Shove the target `px` pixels along `dir` (unit vector) if the hit lands. */
   readonly knockback?: { readonly dir: Vec2; readonly px: number };
+  /** The ProjectileSystem id of the projectile that delivered it ('projectile' hits), e.g. for a reflect. */
+  readonly projectile?: number;
 }
 
 export interface CombatContext {

@@ -32,6 +32,7 @@ import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
 import { WorldRenderer } from '../game/worldItems';
+import { ProjectileRenderer } from '../game/projectiles';
 import { Hud } from '../hud/Hud';
 import { FEED_MESSAGES, feedLine } from '../hud/feed';
 import { readHud, type HudContext } from '../hud/hudState';
@@ -45,6 +46,7 @@ import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
 import { readWorld, type WorldView } from '../net/worldView';
+import { readProjectiles } from '../net/projectileView';
 import { browserStorage, loadProfile } from '../profile/storage';
 import { MinimapView } from '../render/MinimapView';
 import { buildMinimapMarkers, offlineMinimapWorld, readMinimapWorld, withSelfAt } from '../render/minimap';
@@ -102,6 +104,7 @@ export class GameScene extends Phaser.Scene {
   /** Swings, hit flashes, stun rings and HP bars (M4-2); online only. */
   private combatFx: CombatFx | undefined;
   private sprayFx: SprayFx | undefined;
+  private projectiles: ProjectileRenderer | undefined;
   private combat = new Map<string, CombatPlayerView>();
 
   private debug = false;
@@ -177,6 +180,7 @@ export class GameScene extends Phaser.Scene {
 
     if (!offline) this.updateRemotes(dt);
     this.drawCombat(time / 1000);
+    this.projectiles?.draw(time / 1000);
     this.updateMinimap(dt);
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
     if (this.hud) this.updateHud(this.hud);
@@ -255,6 +259,7 @@ export class GameScene extends Phaser.Scene {
     const world = readWorld(state);
     this.worldView = world;
     this.world.sync(world, view.players);
+    this.projectiles?.sync(readProjectiles(state), this.time.now / 1000);
     this.local.setLabelLift(this.world.nameplateLift(view.me?.id ?? ''));
     for (const [id, remote] of this.remotes) remote.avatar.setLabelLift(this.world.nameplateLift(id));
   }
@@ -293,6 +298,7 @@ export class GameScene extends Phaser.Scene {
     this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
     this.createHud(room);
     this.createCombatFx(room);
+    this.projectiles = new ProjectileRenderer(this, DEPTH.fx);
     this.roundScreen = new RoundScreen();
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
@@ -579,6 +585,8 @@ export class GameScene extends Phaser.Scene {
     this.combatFx = undefined;
     this.sprayFx?.destroy();
     this.sprayFx = undefined;
+    this.projectiles?.destroy();
+    this.projectiles = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
     delete document.body.dataset['phase'];
@@ -774,6 +782,7 @@ export class GameScene extends Phaser.Scene {
       vans: () => this.world.vanSnapshots(),
       combatEvents: () => this.combatFx?.events() ?? [],
       sprayClouds: () => this.sprayFx?.clouds(this.time.now / 1000) ?? [],
+      projectiles: () => this.projectiles?.snapshots() ?? [],
     };
     this.hook = hook;
     installHook(hook);
