@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCompleteRoomCode, cleanCodeInput } from './rooms';
+import { cleanCodeInput } from './rooms';
 
 describe('room codes', () => {
   it('upper-cases, keeps letters only and stops at four', () => {
@@ -7,12 +7,6 @@ describe('room codes', () => {
     expect(cleanCodeInput(' a-b c1d2e ')).toBe('ABCD');
     expect(cleanCodeInput('äöxy')).toBe('XY');
     expect(cleanCodeInput('')).toBe('');
-  });
-
-  it('knows when a code is complete', () => {
-    expect(isCompleteRoomCode('ABCD')).toBe(true);
-    expect(isCompleteRoomCode('ABC')).toBe(false);
-    expect(isCompleteRoomCode('abcd')).toBe(false);
   });
 });
 
@@ -23,5 +17,14 @@ describe('join errors', () => {
     expect(classifyJoinError({ code: 4404, message: 'wrong code' })).toBe('noRoom');
     expect(classifyJoinError(new Error('socket closed'))).toBe('other');
     expect(classifyJoinError('x')).toBe('other');
+  });
+});
+
+describe('roomCodeOf', () => {
+  it('reads state.code and falls back while the state is empty', async () => {
+    const { roomCodeOf } = await import('./rooms');
+    expect(roomCodeOf({ state: { code: 'KXBD' } })).toBe('KXBD');
+    expect(roomCodeOf({ state: {} }, 'ABCD')).toBe('ABCD');
+    expect(roomCodeOf({ state: undefined })).toBe('');
   });
 });

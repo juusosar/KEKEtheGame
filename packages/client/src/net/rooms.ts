@@ -3,16 +3,11 @@
 // - join by code: client.join('game', { code, ...profile }), matched with filterBy(['code'])
 // - room list: the built-in LobbyRoom 'lobby' with realtime listing ("rooms", "+", "-" messages)
 import type { Client, Room } from '@colyseus/sdk';
-import type { PlayerProfile } from '@keke/shared';
-
-export const GAME_ROOM = 'game';
-export const LOBBY_ROOM = 'lobby';
-export const ROOM_CODE_LENGTH = 4;
+import { ROOM_CODE_LENGTH, ROOM_NAMES, type GameJoinOptions, type PlayerProfile } from '@keke/shared';
 
 /**
- * Cleans what the player types into the code box: upper case, letters only, at most 4 characters.
- * The server picks codes without ambiguous letters (I, L, O), but we don't reject them here: an
- * unknown code simply fails to join.
+ * Cleans what the player types into the code box as they type: upper case, letters only, at most
+ * 4 characters. The shared normalizeRoomCode then decides whether it is a valid code to join with.
  */
 export function cleanCodeInput(input: string): string {
   return input
@@ -21,27 +16,48 @@ export function cleanCodeInput(input: string): string {
     .slice(0, ROOM_CODE_LENGTH);
 }
 
-export function isCompleteRoomCode(code: string): boolean {
-  return code.length === ROOM_CODE_LENGTH && /^[A-Z]+$/.test(code);
-}
-
 /** Creates a new game room; the server assigns the code. */
 export function createGameRoom(client: Client, profile: PlayerProfile): Promise<Room> {
-  return client.create(GAME_ROOM, { ...profile });
+  const options: GameJoinOptions = { ...profile };
+  return client.create(ROOM_NAMES.game, options);
 }
 
-/** Joins the game room with this code. Rejects when no open room has it. */
+/** Joins the game room with this (already normalised) code. Rejects when no open room has it. */
 export function joinGameRoomByCode(client: Client, code: string, profile: PlayerProfile): Promise<Room> {
-  return client.join(GAME_ROOM, { ...profile, code: cleanCodeInput(code) });
+  const options: GameJoinOptions = { ...profile, code };
+  return client.join(ROOM_NAMES.game, options);
 }
 
-/** The room's code: state.code once the state has synced, else the code we joined with. */
-export function roomCodeOf(room: Room, fallback = ''): string {
+/** The room's code from its synced state, or `fallback` while the state has not arrived. */
+export function roomCodeOf(room: Pick<Room, 'state'>, fallback = ''): string {
   const state: unknown = room.state;
   if (typeof state === 'object' && state !== null && 'code' in state && typeof state.code === 'string') {
     return state.code;
   }
   return fallback;
+}
+
+/**
+ * Resolves with the room's code. create()/join() resolve before the first state patch, so on a fresh
+ * room state.code may still be empty: wait for a state change that carries it, up to `timeoutMs`,
+ * then fall back to `fallback` (the code we joined with, if any).
+ */
+export function waitForRoomCode(room: Room, fallback = '', timeoutMs = 5000): Promise<string> {
+  const now = roomCodeOf(room);
+  if (now !== '') return Promise.resolve(now);
+  return new Promise((resolve) => {
+    const done = (code: string): void => {
+      clearTimeout(timer);
+      room.onStateChange.remove(onChange);
+      resolve(code);
+    };
+    const onChange = (): void => {
+      const code = roomCodeOf(room);
+      if (code !== '') done(code);
+    };
+    const timer = setTimeout(() => done(fallback), timeoutMs);
+    room.onStateChange(onChange);
+  });
 }
 
 /**

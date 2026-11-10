@@ -36,7 +36,7 @@
   "play.phase.playing": "in game",
   "play.creating": "Creating a room…",
   "play.joining": "Joining {code}…",
-  "play.error.codeIncomplete": "A room code has 4 letters.",
+  "play.error.codeIncomplete": "Room codes are 4 letters (there's no I, L or O).",
   "play.error.noRoom": "No open room with the code {code}.",
   "play.error.create": "Could not create a room: {message}",
   "play.error.join": "Could not join {code}: {message}",

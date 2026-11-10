@@ -1,19 +1,23 @@
 import type { Room } from '@colyseus/sdk';
-import { loadConfig, type PlayerProfile } from '@keke/shared';
+import {
+  ROOM_CODE_LENGTH,
+  ROOM_NAMES,
+  isRoomCode,
+  loadConfig,
+  normalizeRoomCode,
+  type PlayerProfile,
+} from '@keke/shared';
 import Phaser from 'phaser';
 import { t } from '../i18n';
 import { gameClient } from '../net/client';
 import { addRoom, isJoinable, removeRoom, setRooms, type RoomSummary } from '../net/roomList';
 import {
-  LOBBY_ROOM,
-  ROOM_CODE_LENGTH,
   classifyJoinError,
   createGameRoom,
   errorMessage,
-  isCompleteRoomCode,
   joinGameRoomByCode,
   cleanCodeInput,
-  roomCodeOf,
+  waitForRoomCode,
 } from '../net/rooms';
 import { ROOM_CODE_REGISTRY_KEY, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
@@ -113,7 +117,7 @@ export class PlayScene extends Phaser.Scene {
     if (!this.begin(t('play.creating'))) return;
     try {
       const room = await createGameRoom(gameClient(), this.profile);
-      this.enter(room, roomCodeOf(room));
+      this.enter(room, await waitForRoomCode(room));
     } catch (err) {
       console.error('[keke] could not create a room', err);
       this.fail(t('play.error.create', { message: errorMessage(err) }));
@@ -121,15 +125,15 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private async joinByCode(input: string): Promise<void> {
-    const code = cleanCodeInput(input);
-    if (!isCompleteRoomCode(code)) {
+    const code = normalizeRoomCode(input);
+    if (code === null) {
       this.setStatus(t('play.error.codeIncomplete'), true);
       return;
     }
     if (!this.begin(t('play.joining', { code }))) return;
     try {
       const room = await joinGameRoomByCode(gameClient(), code, this.profile);
-      this.enter(room, roomCodeOf(room, code));
+      this.enter(room, await waitForRoomCode(room, code));
     } catch (err) {
       console.error(`[keke] could not join room ${code}`, err);
       this.fail(
@@ -174,14 +178,14 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private updateJoinEnabled(): void {
-    this.joinButton.disabled = this.busy || !isCompleteRoomCode(this.codeInput.value);
+    this.joinButton.disabled = this.busy || !isRoomCode(this.codeInput.value);
   }
 
   // --- room list --------------------------------------------------------------------------------------
 
   private async openListing(): Promise<void> {
     try {
-      const listing = await gameClient().joinOrCreate(LOBBY_ROOM);
+      const listing = await gameClient().joinOrCreate(ROOM_NAMES.lobby);
       if (this.closed) {
         void listing.leave();
         return;
