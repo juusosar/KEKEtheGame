@@ -27,7 +27,39 @@ export async function toPlay(page: Page, nickname: string, query = ''): Promise<
 
 /** From Play: creates a room, waits for the lobby and returns the room code. */
 export async function createRoom(page: Page): Promise<string> {
-  await page.getByRole('button', { name: 'Create room' }).click();
+  const create = page.getByRole('button', { name: 'Create room' });
+  await create.click();
+  // On a page drawing a few fps the click was lost once or twice in many runs (M4 review F1 note): the
+  // Play status stayed empty and the buttons enabled, so create never started. Not reproduced by hand;
+  // if the click left no trace after 3 s, click again (a started create disables the button).
+  // One evaluate, no auto-waiting locators: the button is gone once the Lobby has taken over.
+  const noTrace = () =>
+    page.evaluate(() => {
+      const doc = (globalThis as unknown as { document: { body: { dataset: Record<string, string> } } })
+        .document;
+      const q = (sel: string) =>
+        (globalThis as unknown as { document: { querySelector(s: string): unknown } }).document.querySelector(
+          sel,
+        ) as { textContent: string | null; disabled?: boolean } | null;
+      const button = q('#keke-play button.wide');
+      return (
+        doc.body.dataset['scene'] === 'play' &&
+        button !== null &&
+        button.disabled !== true &&
+        (q('#keke-play p.status')?.textContent ?? '') === ''
+      );
+    });
+  const lost = await expect
+    .poll(noTrace, { timeout: 3_000 })
+    .toBe(false)
+    .then(
+      () => false,
+      () => true,
+    );
+  if (lost) {
+    console.warn('[e2e] Create room click left no trace; clicking again');
+    await create.click();
+  }
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'lobby', { timeout: 10_000 });
   await expect(page.locator('body')).toHaveAttribute('data-room', /^[A-Z]{4}$/);
   return (await page.locator('body').getAttribute('data-room')) ?? '';
@@ -90,6 +122,8 @@ export async function remoteSeen(page: Page, nickname: string): Promise<{ x: num
  * playwright.config.ts). Copied here because specs cannot import JSON from the shared package.
  */
 export const E2E_COUNTDOWN_SECONDS = 6;
+/** config.e2e.json respawnSeconds: longer than config.json's 3 s, so a slow page still sees the KO screen. */
+export const E2E_RESPAWN_SECONDS = 6;
 
 /** How long to wait from Start until the round is playing: the countdown plus the scene switch. */
 export const UNTIL_PLAYING_MS = (E2E_COUNTDOWN_SECONDS + 10) * 1000;

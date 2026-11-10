@@ -214,8 +214,18 @@ export interface KekeHook {
   projectiles(): KekeProjectileSnapshot[];
   /** Held weapon of every player drawn (us included); empty offline. */
   held(): KekeHeldSnapshot[];
+  /**
+   * Swings predicted on our own Attack presses (M4 review F1): a counter that only goes up, so specs
+   * poll it instead of the 0.18 s `held().swinging` window. Zero offline.
+   */
+  swings(): KekeSwingsSnapshot;
   /** Combat effects alive right now; empty offline. */
   fx(): KekeFxSnapshot[];
+  /**
+   * The last 50 combat effects started, oldest first, including those already over: a damage number
+   * lives 0.7 s, so specs on slow pages read this instead of `fx()` (M4 review F1). Empty offline.
+   */
+  fxStarted(): KekeFxSnapshot[];
   /**
    * Where a world point is on screen now, in CSS pixels of the page (follows the camera, also where it
    * is clamped at the map edge). Specs aim the mouse with it.
@@ -243,4 +253,12 @@ export interface KekeTrapSnapshot {
   y: number;
   /** Past its arm delay: trips rivals. */
   armed: boolean;
+}
+
+/** Our own predicted swings (`__KEKE__.swings()`). */
+export interface KekeSwingsSnapshot {
+  /** Presses that swung the held weapon locally, since the Game scene started. */
+  predicted: number;
+  /** The last one: weapon id, attack mode and scene clock seconds; null before the first. */
+  last: { weapon: string; mode: string; at: number } | null;
 }

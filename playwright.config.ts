@@ -5,6 +5,8 @@ import { defineConfig, devices } from '@playwright/test';
 // A separate default port keeps the run from colliding with a dev server on 2567.
 const port = Number(process.env['E2E_PORT'] ?? 2568);
 const baseURL = `http://localhost:${port}`;
+/** Specs that open 3 or more pages. */
+const HEAVY = /multiplayer\.spec\.ts/;
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -21,7 +23,12 @@ export default defineConfig({
     baseURL,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // Specs with 3 or more pages (each a full Phaser game on software WebGL) run in 'heavy', which starts
+  // only after 'chromium' has finished, so they get the machine to themselves (M4 review F2).
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: HEAVY },
+    { name: 'heavy', use: { ...devices['Desktop Chrome'] }, testMatch: HEAVY, dependencies: ['chromium'] },
+  ],
   webServer: {
     command: 'npm run build && npm start',
     url: baseURL,

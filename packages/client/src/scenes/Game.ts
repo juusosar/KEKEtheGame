@@ -970,7 +970,9 @@ export class GameScene extends Phaser.Scene {
       npcs: () => (this.room ? readNpcs(this.room.state) : []),
       stockCarts: () => (this.room ? readStockCarts(this.room.state) : []),
       held: () => this.combatFx?.heldSnapshots() ?? [],
+      swings: () => this.combatFx?.swingSnapshot() ?? { predicted: 0, last: null },
       fx: () => this.combatFx?.fxSnapshots() ?? [],
+      fxStarted: () => this.combatFx?.startedSnapshots() ?? [],
       screenPoint: (x, y) => this.worldToClient({ x, y }),
     };
     this.hook = hook;
