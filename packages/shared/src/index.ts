@@ -11,3 +11,19 @@ export function clamp(value: number, min: number, max: number): number {
   }
   return Math.min(max, Math.max(min, value));
 }
+export {
+  allGuardedTerms,
+  defaultThemeId,
+  findBrandTerms,
+  getTheme,
+  kesproTheme,
+  prismaTheme,
+  themes,
+  type BrandHit,
+  type HexColor,
+  type MapTheme,
+  type ThemeAssets,
+  type ThemeBrand,
+  type ThemeColors,
+  type ThemeId,
+} from './theme';

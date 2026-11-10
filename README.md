@@ -61,10 +61,13 @@ packages/
 maps/       Tiled maps (.tmj) and tilesets
 tools/      generators (placeholder art, SFX, item tables)
 tests/e2e/  Playwright specs
+tests/guards/ repo-wide Vitest checks (brand guard)
 ```
 
 ## Working rules
 
 - TypeScript `strict` everywhere. `any` is a lint error; if you truly need it, disable the rule on that line with a comment explaining why.
 - `packages/shared` stays pure and deterministic: no Phaser, Colyseus or DOM; randomness goes through the seeded RNG and time is passed in (`Math.random` and `Date.now` are lint errors there).
-- Every tunable number lives in data files. Brand strings live only in `packages/shared/src/theme/*`.
+- Every tunable number lives in data files.
+- Brand strings (store names, colours, tileset and music refs) live only in `packages/shared/src/theme/*`, one file per map. Code reads them through `getTheme()`. `npm test` runs a brand guard (`tests/guards/brand-guard.test.ts`) that fails when a guarded term from any theme's `brand.guardedTerms` appears in a code, data, markup or map file anywhere else, comments included. Lower-case ids such as `kespro` in file names and asset keys are fine. Docs (`*.md`) are not scanned.
+- UI text lives in `packages/client/src/i18n/en.json`; use `t('key', { param })` from `packages/client/src/i18n`. Pass brand names in as params from the theme.
