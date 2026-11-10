@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { entryScene } from '../game/entryScene';
 import { t } from '../i18n';
-import { joinHelloRoom } from '../net/connection';
+import { checkHealth } from '../net/connection';
 import { serverEndpoint } from '../net/endpoint';
 import { gameClient } from '../net/client';
 import { readGame, sceneForPhase } from '../net/gameView';
@@ -11,12 +11,16 @@ import { AFTER_JOIN_SCENE } from './Play';
 /** How long a resumed room may take to send its state before we fall back to the lobby. */
 const RESUME_STATE_TIMEOUT_MS = 5000;
 
+/** How often the connection badge asks the server's health check again. */
+const HEALTH_POLL_MS = 5000;
+
 export type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
 
 /**
- * First scene: connects to the server's hello room and shows the result in the top-left corner, over the
+ * First scene: checks the server's health (`GET /healthz`) and shows the result in the top-left corner, over the
  * scene it starts (Title, or Game with `?scene=game`). The status is mirrored to `<body data-connection="…">`
- * so e2e tests can wait on it. Once the player is in a room, the label also shows the room code.
+ * so e2e tests can wait on it, and checked again every few seconds so a server that goes away turns the
+ * badge red. Once the player is in a room, the label also shows the room code.
  */
 export class BootScene extends Phaser.Scene {
   private label!: Phaser.GameObjects.Text;
@@ -64,16 +68,27 @@ export class BootScene extends Phaser.Scene {
   }
 
   private async connect(): Promise<void> {
+    const endpoint = serverEndpoint(window.location, import.meta.env.DEV);
     try {
-      const room = await joinHelloRoom(serverEndpoint(window.location, import.meta.env.DEV));
-      // The server greets each client with a "hello" message; nothing to do with it yet.
-      room.onMessage('hello', () => undefined);
-      room.onLeave(() => this.setStatus('disconnected', t('boot.disconnected')));
+      await checkHealth(endpoint);
       this.setStatus('connected', t('boot.connected'));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error('[keke] could not join the hello room', err);
+      console.error('[keke] the server health check failed', err);
       this.setStatus('error', t('boot.error', { message }));
+    }
+    this.time.addEvent({ delay: HEALTH_POLL_MS, loop: true, callback: () => void this.recheck(endpoint) });
+  }
+
+  private async recheck(endpoint: string): Promise<void> {
+    try {
+      await checkHealth(endpoint);
+      if (document.body.dataset['connection'] !== 'connected')
+        this.setStatus('connected', t('boot.connected'));
+    } catch {
+      if (document.body.dataset['connection'] === 'connected') {
+        this.setStatus('disconnected', t('boot.disconnected'));
+      }
     }
   }
 

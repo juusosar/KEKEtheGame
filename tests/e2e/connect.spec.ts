@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-// M0 "Done when": the page connects to the server's hello room and shows "connected".
-// The Boot scene mirrors its status to <body data-connection="…">, so we wait on that instead of reading the canvas.
-test('boot scene joins the hello room', async ({ page }) => {
+// M0 "Done when": the page reaches the server and shows "connected". Since M3 review F5 the Boot scene
+// reads the server's health check (GET /healthz) instead of joining a hello room. It mirrors its status
+// to <body data-connection="…">, so we wait on that instead of reading the canvas.
+test('boot scene reaches the server health check', async ({ page }) => {
   const pageErrors: Error[] = [];
   page.on('pageerror', (err) => pageErrors.push(err));
 
@@ -11,4 +12,10 @@ test('boot scene joins the hello room', async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-connection', 'connected', { timeout: 15_000 });
 
   expect(pageErrors).toEqual([]);
+});
+
+test('the health check answers ok', async ({ request }) => {
+  const res = await request.get('/healthz');
+  expect(res.ok()).toBe(true);
+  expect(await res.json()).toMatchObject({ ok: true });
 });

@@ -81,6 +81,7 @@ describe('lobbyErrorKey', () => {
   it('maps every server refusal to a message', () => {
     expect(lobbyErrorKey('not_ready')).toBe('lobby.error.not_ready');
     expect(lobbyErrorKey('teams_off')).toBe('lobby.error.teams_off');
+    expect(lobbyErrorKey('debug_off')).toBe('lobby.error.debug_off');
     expect(lobbyErrorKey('something_new')).toBe('lobby.error.unknown');
     expect(lobbyErrorKey(undefined)).toBe('lobby.error.unknown');
   });

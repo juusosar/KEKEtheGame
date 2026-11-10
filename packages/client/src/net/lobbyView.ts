@@ -122,6 +122,7 @@ export function lobbyErrorKey(code: unknown): `lobby.error.${LobbyErrorCode | 'u
     case 'invalid_payload':
     case 'not_ready':
     case 'teams_off':
+    case 'debug_off':
       return `lobby.error.${code}`;
     default:
       return 'lobby.error.unknown';

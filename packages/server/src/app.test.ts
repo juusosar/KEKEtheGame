@@ -1,34 +1,42 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { boot, type ColyseusTestServer } from '@colyseus/testing';
+import { ColyseusTestServer, boot } from '@colyseus/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createGameServer, resolvePort } from './app';
-import type { HelloMessage } from './rooms/HelloRoom';
+import type { HealthResponse } from '@keke/shared';
 
-describe('hello room (integration)', () => {
+// Ports: boot() defaults to 2568; the debug server needs its own (2591; 2571, 2572 and 2574 to 2580 are taken).
+describe('game server HTTP (integration)', () => {
   let colyseus: ColyseusTestServer;
+  let debugServer: ColyseusTestServer;
   let clientDist: string;
 
   beforeAll(async () => {
     clientDist = mkdtempSync(join(tmpdir(), 'keke-client-dist-'));
     writeFileSync(join(clientDist, 'index.html'), '<!doctype html><title>KEKE test page</title>');
     colyseus = await boot(createGameServer({ clientDist }));
+    // boot() ignores its port argument for a Server instance, so listen here instead.
+    const withDebug = createGameServer({ clientDist, debug: true });
+    await withDebug.listen(2591);
+    debugServer = new ColyseusTestServer(withDebug);
   });
 
   afterAll(async () => {
     await colyseus.shutdown();
+    await debugServer.shutdown();
     rmSync(clientDist, { recursive: true, force: true });
   });
 
-  it('lets a client join the hello room and greets it', async () => {
-    const room = await colyseus.createRoom('hello');
-    const client = await colyseus.connectTo(room);
-    const hello = await new Promise<HelloMessage>((resolve) => client.onMessage('hello', resolve));
+  it('answers /healthz with ok and whether the debug messages are on', async () => {
+    const res = await colyseus.http.get('/healthz');
+    expect(res.data as HealthResponse).toEqual({ ok: true, debug: false });
+    const debug = await debugServer.http.get('/healthz');
+    expect(debug.data as HealthResponse).toEqual({ ok: true, debug: true });
+  });
 
-    expect(room.clients.length).toBe(1);
-    expect(hello).toEqual({ message: 'connected', roomId: room.roomId, sessionId: client.sessionId });
-    await client.leave();
+  it('no longer defines the M0 hello room', async () => {
+    await expect(colyseus.createRoom('hello')).rejects.toThrow();
   });
 
   it('serves the built client on the same port', async () => {

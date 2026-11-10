@@ -4,6 +4,16 @@ import type { LobbySettingsUpdate } from './settings';
 /** Registered room names. */
 export const ROOM_NAMES = { game: 'game', lobby: 'lobby' } as const;
 
+/** HTTP health check on the game server (M3 review F5): the Boot badge and the e2e specs read it. */
+export const HEALTH_PATH = '/healthz';
+
+/** Body of `GET /healthz`. */
+export interface HealthResponse {
+  ok: true;
+  /** The debug-only room messages are accepted (the server runs with KEKE_DEBUG=1). */
+  debug: boolean;
+}
+
 /** Client → server message types. */
 export const ClientMessage = {
   /** `{ ready: boolean }` */
@@ -32,7 +42,16 @@ export const DebugMessage = {
   teleport: 'debugTeleport',
   /** No payload. Host only, any phase but 'lobby': ends the current phase now (short rounds in e2e). */
   endPhase: 'debugEndPhase',
+  /**
+   * `{ weapon }` a weapons.json id: the sender holds that weapon with full uses, as if a pickup rolled it.
+   * Phase 'playing', not spectating, not KO'd. For e2e specs of one weapon.
+   */
+  giveWeapon: 'debugGiveWeapon',
 } as const;
+
+export interface DebugGiveWeaponMessage {
+  weapon: string;
+}
 
 export interface DebugTeleportMessage {
   x: number;
@@ -56,6 +75,8 @@ export const LOBBY_ERROR_CODES = [
   'invalid_payload',
   'not_ready',
   'teams_off',
+  /** A debug-only message (`DebugMessage`) on a server without KEKE_DEBUG=1. */
+  'debug_off',
 ] as const;
 export type LobbyErrorCode = (typeof LOBBY_ERROR_CODES)[number];
 

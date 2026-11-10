@@ -10,6 +10,7 @@
 import {
   addCombatant,
   armOnPickup,
+  armWith,
   attackBlocked,
   attackMode,
   canHit,
@@ -166,6 +167,19 @@ export class CombatSystem {
   onPickup(playerId: string, what: PickupWhat): void {
     if (!this.running) return;
     this.commit(armOnPickup(this.world, playerId, what, this.weapons, this.rng, this.config, this.now));
+  }
+
+  /**
+   * Debug only (`DebugMessage.giveWeapon`): puts `weaponId` in the player's hands with full uses, as a
+   * pickup roll would. False when no round runs, the weapon id is unknown or the player is not in the round.
+   */
+  giveWeapon(playerId: string, weaponId: string): boolean {
+    const def = this.weapons.get(weaponId);
+    if (!this.running || !def) return false;
+    const result = armWith(this.world, playerId, def, this.now);
+    if (result.rejected) return false;
+    this.commit(result);
+    return true;
   }
 
   /** Step 1 of a tick: respawns due, regen, and the timed flags into the schema. */

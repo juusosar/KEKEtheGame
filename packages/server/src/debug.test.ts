@@ -5,6 +5,7 @@ import {
   DebugMessage,
   ServerMessage,
   defaultThemeId,
+  getWeaponCatalogue,
   getTheme,
   loadConfig,
   playerHalfSize,
@@ -118,16 +119,56 @@ describe('debug room messages with KEKE_DEBUG on', () => {
     expect(errors.slice(1).map((e) => e.code)).toEqual(['invalid_payload', 'invalid_payload']);
     expect([me.x, me.y]).toEqual([spot.x + 4, spot.y + 2]);
   });
+
+  it('give weapon: arms the sender with full uses in playing; refuses unknown ids and other phases', async () => {
+    const { room, host, guest, errors } = await playing();
+    const me = room.state.players.get(guest.sessionId);
+    if (!me) throw new Error('no guest');
+    const baguette = getWeaponCatalogue().require('baguette');
+
+    guest.send(DebugMessage.giveWeapon, { weapon: baguette.id });
+    await waitFor(() => errors.length === 1);
+    expect(errors[0]).toEqual({ code: 'wrong_phase', request: DebugMessage.giveWeapon });
+
+    host.send(DebugMessage.endPhase);
+    await waitFor(() => room.state.phase === 'playing');
+    guest.send(DebugMessage.giveWeapon, { weapon: baguette.id });
+    await waitFor(() => me.weapon === baguette.id);
+    expect(me.weaponUses).toBe(baguette.uses ?? -1);
+    expect(room.state.players.get(host.sessionId)?.weapon).toBe('fists');
+
+    guest.send(DebugMessage.giveWeapon, { weapon: 'no_such_weapon' });
+    guest.send(DebugMessage.giveWeapon, { weapon: 7 });
+    await waitFor(() => errors.length === 3);
+    expect(errors.slice(1).map((e) => e.code)).toEqual(['invalid_payload', 'invalid_payload']);
+    expect(me.weapon).toBe(baguette.id);
+  });
 });
 
 describe('debug room messages with KEKE_DEBUG off (default)', () => {
   const playing = setup(PORT_OFF, false);
 
-  it('are ignored', async () => {
-    const { room, host } = await playing();
+  it('are refused with debug_off, and the sender stays connected (M3 review F1)', async () => {
+    const { room, host, guest, errors } = await playing();
     host.send(DebugMessage.endPhase);
-    host.send(ClientMessage.ready, { ready: true }); // a round trip: refused (wrong phase) after the debug message
-    await new Promise((r) => setTimeout(r, 100));
+    guest.send(DebugMessage.teleport, { x: 100, y: 100 });
+    guest.send(DebugMessage.giveWeapon, { weapon: 'baguette' });
+    await waitFor(() => errors.length === 3);
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        { code: 'debug_off', request: DebugMessage.endPhase },
+        { code: 'debug_off', request: DebugMessage.teleport },
+        { code: 'debug_off', request: DebugMessage.giveWeapon },
+      ]),
+    );
     expect(room.state.phase).toBe('countdown');
+    for (const c of [host, guest]) {
+      expect(c.connection.isOpen).toBe(true);
+      expect(room.state.players.get(c.sessionId)?.connected).toBe(true);
+    }
+    // Still served: a later request gets its normal answer.
+    host.send(ClientMessage.ready, { ready: true });
+    await waitFor(() => errors.length === 4);
+    expect(errors[3]).toEqual({ code: 'wrong_phase', request: ClientMessage.ready });
   });
 });

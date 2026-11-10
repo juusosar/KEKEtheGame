@@ -191,6 +191,12 @@ export interface KekeHook {
    * when asked; false offline.
    */
   endPhase(): boolean;
+  /**
+   * Online: asks the server to put a weapon (weapons.json id) in our hands with full uses
+   * (`DebugMessage.giveWeapon`, phase 'playing', needs `KEKE_DEBUG=1`). For e2e specs of one weapon; the
+   * change shows in `net().weapon` with the next patch. Returns true when asked; false offline.
+   */
+  giveWeapon(weapon: string): boolean;
   /** Zone id at a pixel position, or null. */
   zoneAt(x: number, y: number): string | null;
   /** Room and prediction state; null offline. */

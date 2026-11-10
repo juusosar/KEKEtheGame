@@ -1,6 +1,16 @@
 import { expect, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
-import { aimMouse, createRoom, game, joinRoom, players, test, toPlay, waitControlling } from './helpers';
+import {
+  aimMouse,
+  createRoom,
+  game,
+  joinRoom,
+  players,
+  requireDebugServer,
+  test,
+  toPlay,
+  waitControlling,
+} from './helpers';
 
 // M4-2: melee in a real round. Two players stand next to each other in the store (debug teleport), the
 // host aims at the guest with the mouse and clicks: one fist swing lands on the server, both clients see
@@ -47,7 +57,8 @@ async function teleportNear(page: Page, at: { x: number; y: number }, reach: num
   return spot as { x: number; y: number };
 }
 
-test('a fist swing hits the player in front: HP drops on both screens', async ({ newPlayer }) => {
+test('a fist swing hits the player in front: HP drops on both screens', async ({ newPlayer, request }) => {
+  await requireDebugServer(request);
   test.setTimeout(90_000);
   const pageErrors: Error[] = [];
   const host = await newPlayer(pageErrors);

@@ -73,6 +73,7 @@
   "lobby.error.invalid_payload": "The server did not accept that request.",
   "lobby.error.not_ready": "Everyone has to be ready before the host can start.",
   "lobby.error.teams_off": "Turn teams on before shuffling.",
+  "lobby.error.debug_off": "Debug commands are off on this server.",
   "lobby.error.unknown": "The server refused that request.",
   "room.joined": "room {code}",
   "game.lost": "Lost the connection to the room.",

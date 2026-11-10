@@ -1,6 +1,16 @@
 import { expect, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
-import { aimMouse, createRoom, game, joinRoom, players, test, toPlay, waitControlling } from './helpers';
+import {
+  aimMouse,
+  createRoom,
+  game,
+  joinRoom,
+  players,
+  requireDebugServer,
+  test,
+  toPlay,
+  waitControlling,
+} from './helpers';
 
 // M4-7: the combat HUD and visuals in a real round. The host punches the guest down from full HP: the
 // host's held fist swings at once, damage numbers float, the guest's HUD HP bar drops, the KO overlay
@@ -55,7 +65,11 @@ async function teleportNear(page: Page, at: { x: number; y: number }, reach: num
   return spot as { x: number; y: number };
 }
 
-test('punching a player down: held swing, HP bar, KO overlay, feed and respawn', async ({ newPlayer }) => {
+test('punching a player down: held swing, HP bar, KO overlay, feed and respawn', async ({
+  newPlayer,
+  request,
+}) => {
+  await requireDebugServer(request);
   test.setTimeout(150_000);
   const pageErrors: Error[] = [];
   const host = await newPlayer(pageErrors);
