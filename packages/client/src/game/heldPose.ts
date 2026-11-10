@@ -23,6 +23,8 @@ export interface HeldSwing {
   aim: number;
   /** Full swing width for melee, degrees. */
   arcDegrees: number;
+  /** Set once a frame has drawn it (combatFx shows every swing at least once). */
+  drawn?: boolean;
 }
 
 export interface HeldInput {

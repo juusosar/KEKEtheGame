@@ -4,7 +4,6 @@
 // The Game scene feeds every combat broadcast to `onEvent` and calls `draw` once per frame.
 import {
   CombatEventMessage,
-  attackMode,
   type AttackMessage,
   type AttackMode,
   type HitMessage,
@@ -16,9 +15,10 @@ import type Phaser from 'phaser';
 import type { CombatPlayerView } from '../net/combatView';
 import { combatLook, hpBarFill, swingAngles, type CombatLook } from './combatLook';
 import { attackFx, hitFx, koFx, type FxConfig, type FxSpec } from './fxPlan';
-import type { KekeFxSnapshot, KekeHeldSnapshot } from './hookTypes';
-import { heldPose, turnToward, type HeldPose, type HeldSwing } from './heldPose';
+import type { KekeFxSnapshot, KekeHeldSnapshot, KekeSwingsSnapshot } from './hookTypes';
+import { heldPose, swingProgress, turnToward, type HeldPose, type HeldSwing } from './heldPose';
 import { renderConfig } from './renderConfig';
+import { predictedSwingMode } from './swingPrediction';
 
 /** A combat event as recorded for the debug hook. */
 export interface CombatLogEntry {
@@ -58,11 +58,23 @@ const AIM_TURN_RAD_PER_SECOND = 18;
 /** A local swing predicted on the press hides the server's echo of it for this long, s. */
 const ECHO_WINDOW_SECONDS = 0.6;
 
+function fxSnapshot(spec: FxSpec): FxSnapshot {
+  if (spec.kind === 'sprite') {
+    return spec.follow === null
+      ? { kind: spec.kind, frame: spec.frame }
+      : { kind: spec.kind, frame: spec.frame, target: spec.follow };
+  }
+  if (spec.kind === 'number') return { kind: spec.kind, target: spec.target, text: spec.text };
+  return { kind: spec.kind };
+}
+
 export class CombatFx {
   private readonly g: Phaser.GameObjects.Graphics;
   private readonly flashUntil = new Map<string, number>();
   private readonly log: CombatLogEntry[] = [];
   private live: LiveFx[] = [];
+  /** Snapshots of recently started effects, kept after they end (see `startedSnapshots`). */
+  private readonly started: FxSnapshot[] = [];
   private readonly swings = new Map<string, HeldSwing>();
   private readonly held = new Map<string, Phaser.GameObjects.Sprite>();
   private readonly poses = new Map<string, { weapon: string; pose: HeldPose }>();
@@ -74,6 +86,9 @@ export class CombatFx {
   /** Scene time of our last predicted swing (see `predictAttack`). */
   private predictedAt = -Infinity;
   private readyAt = 0;
+  /** Swings predicted on our own presses so far, and the last one (`__KEKE__.swings()`). */
+  private predicted = 0;
+  private lastPredicted: KekeSwingsSnapshot['last'] = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -112,22 +127,29 @@ export class CombatFx {
    * weapon's cooldown so a press the server will refuse does not swing. Returns true when it swung.
    */
   predictAttack(combat: CombatPlayerView, aim: number, now: number): boolean {
-    if (!combat.alive || combat.stunned || now < this.readyAt) return false;
     const def = this.weapons.get(combat.weapon);
-    if (!def) return false;
-    const mode = attackMode(def, combat.uses);
-    // Sprays run while held; the server's per-step attack events animate them.
-    if (mode === 'spray') return false;
+    const mode = predictedSwingMode(combat, def, now, this.readyAt);
+    if (mode === null || !def) return false;
     this.readyAt = now + def.cooldownSeconds;
     this.predictedAt = now;
+    this.predicted++;
+    this.lastPredicted = { weapon: combat.weapon, mode, at: now };
     this.startSwing(this.me, mode, aim, combat.weapon, now);
     return true;
+  }
+
+  /**
+   * Swings predicted on our own presses. A counter rather than the 0.18 s `held().swinging` window, so a
+   * spec on a slow page (a few fps) can still prove the press swung (M4 review F1).
+   */
+  swingSnapshot(): KekeSwingsSnapshot {
+    return { predicted: this.predicted, last: this.lastPredicted ? { ...this.lastPredicted } : null };
   }
 
   private startSwing(id: string, mode: AttackMode, aim: number, weapon: string, now: number): void {
     const def = this.weapons.get(weapon);
     const arc = def && 'melee' in def ? def.melee.arcDegrees : 0;
-    this.swings.set(id, { mode, start: now, aim, arcDegrees: arc });
+    this.swings.set(id, { mode, start: now, aim, arcDegrees: arc, drawn: false });
   }
 
   /** Recent combat events, oldest first (debug hook). */
@@ -159,15 +181,12 @@ export class CombatFx {
   }
 
   fxSnapshots(): FxSnapshot[] {
-    return this.live.map(({ spec }) => {
-      if (spec.kind === 'sprite') {
-        return spec.follow === null
-          ? { kind: spec.kind, frame: spec.frame }
-          : { kind: spec.kind, frame: spec.frame, target: spec.follow };
-      }
-      if (spec.kind === 'number') return { kind: spec.kind, target: spec.target, text: spec.text };
-      return { kind: spec.kind };
-    });
+    return this.live.map(({ spec }) => fxSnapshot(spec));
+  }
+
+  /** The last 50 effects started, oldest first, also those already over (`__KEKE__.fxStarted()`). */
+  startedSnapshots(): FxSnapshot[] {
+    return this.started.map((f) => ({ ...f }));
   }
 
   /** Redraws everything. `bodies` are the players drawn this frame. */
@@ -235,6 +254,8 @@ export class CombatFx {
           .setDepth(this.depth + 2);
       }
       this.live.push({ spec, start: now, obj });
+      this.started.push(fxSnapshot(spec));
+      if (this.started.length > LOG_LIMIT) this.started.shift();
     }
   }
 
@@ -298,6 +319,13 @@ export class CombatFx {
         : turnToward(prev, body.aim, AIM_TURN_RAD_PER_SECOND * dt);
     this.drawnAim.set(body.id, aim);
     const swing = this.swings.get(body.id) ?? null;
+    // A swing is shown at least once: on a page drawing a few frames a second the whole 0.18 s swing
+    // can fall between two frames, so the first frame after it started draws it from the beginning.
+    if (swing !== null && !swing.drawn) {
+      swing.drawn = true;
+      if (swingProgress(swing, now, renderConfig.heldSwingSeconds) === null && now >= swing.start)
+        swing.start = now;
+    }
     const pose = heldPose(
       {
         x: body.pos.x,

@@ -15,6 +15,15 @@ import {
 // M2-7: the M2 "done when" in one spec. One player creates a room, the others join it by its code,
 // everyone readies up and the host starts; then each player in turn walks right and every other player
 // sees that avatar walk too, smoothly (no jumps or snapping back in the interpolated position).
+//
+// Runs in the 'heavy' Playwright project (playwright.config.ts), after every other spec, one test at a
+// time: 4 Phaser pages on software WebGL take a whole small machine (M4 review F2). The checks are
+// time-based, not frame-count-based, so a page drawing at a few fps still passes.
+
+test.describe.configure({ mode: 'default' });
+
+/** Test-only frame cap (debugFlag.ts): idle pages do not compete for CPU at full rate. */
+const QUERY = '?debug=1&fps=30';
 
 interface Seat {
   page: Page;
@@ -32,10 +41,10 @@ async function startRound(
   const [host, ...guests] = seats;
   if (!host) throw new Error('no players');
 
-  await toPlay(host.page, host.name, '?debug=1');
+  await toPlay(host.page, host.name, QUERY);
   const code = await createRoom(host.page);
   for (const guest of guests) {
-    await toPlay(guest.page, guest.name, '?debug=1');
+    await toPlay(guest.page, guest.name, QUERY);
     await joinRoom(guest.page, code);
   }
   for (const { page } of seats) await expect(players(page)).toHaveCount(seats.length);
@@ -96,8 +105,10 @@ async function walkAndWatch(mover: Seat, watchers: Seat[]): Promise<void> {
   const samples = Promise.all(watchers.map((w) => sampleRemoteX(w.page, mover.name, 1_200)));
   await mover.page.locator('canvas').click({ position: { x: 5, y: 5 } });
   await mover.page.keyboard.down('KeyD');
+  // At a few fps the page sends fewer inputs a second (FixedStepClock runs at most 4 steps a frame),
+  // so the walk is slower than on an idle machine.
   await expect
-    .poll(async () => (await game(mover.page)).player.x, { timeout: 5_000 })
+    .poll(async () => (await game(mover.page)).player.x, { timeout: 10_000 })
     .toBeGreaterThan(ownStart + 40);
   await mover.page.keyboard.up('KeyD');
   const traces = await samples;
@@ -107,7 +118,7 @@ async function walkAndWatch(mover: Seat, watchers: Seat[]): Promise<void> {
     // The watcher's view catches up with the mover (interpolation runs ~100 ms behind).
     await expect
       .poll(async () => (await remoteSeen(watcher.page, mover.name))?.x ?? 0, {
-        timeout: 5_000,
+        timeout: 10_000,
         message: `${watcher.name} sees ${mover.name} move`,
       })
       .toBeGreaterThan(start + 30);
@@ -115,7 +126,7 @@ async function walkAndWatch(mover: Seat, watchers: Seat[]): Promise<void> {
     // walking speed (a snap to a far server position would). Frame rate varies under load, so the
     // limit scales with the time between frames.
     const trace = traces[i] ?? [];
-    expect(trace.length, `${watcher.name} drew frames`).toBeGreaterThan(4);
+    expect(trace.length, `${watcher.name} drew frames`).toBeGreaterThanOrEqual(2);
     for (const [k, cur] of trace.entries()) {
       const prev = trace[k - 1];
       if (!prev) continue;
@@ -135,8 +146,8 @@ for (const names of [
   ['Anna', 'Bert', 'Cilla', 'Dano'],
 ]) {
   test(`${names.length} players join one room by code and see each other move`, async ({ newPlayer }) => {
-    // The 4-player run takes about 50 s alone and over a minute beside other workers (M2 review F6).
-    test.setTimeout(150_000);
+    // The 4-player run takes about 50 s alone, longer on a slow machine (M2 review F6, M4 review F2).
+    test.setTimeout(names.length > 2 ? 240_000 : 150_000);
     const pageErrors: Error[] = [];
     const seats = await startRound(newPlayer, names, pageErrors);
 

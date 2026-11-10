@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { debugFpsLimit } from './game/debugFlag';
 import { BootScene } from './scenes/Boot';
 import { GameScene } from './scenes/Game';
 import { LobbyScene } from './scenes/Lobby';
@@ -8,6 +9,7 @@ import { TitleScene } from './scenes/Title';
 import './ui/ui.css';
 
 // Client entry point (loaded by index.html).
+const fpsLimit = debugFpsLimit(window.location.search);
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
@@ -15,6 +17,8 @@ new Phaser.Game({
   pixelArt: true,
   // §13.3: gamepads are read through Phaser's gamepad plugin by the InputManager.
   input: { gamepad: true },
+  // Uncapped by default; e2e specs with many pages pass `?debug=1&fps=N` (debugFlag.ts).
+  ...(fpsLimit === undefined ? {} : { fps: { limit: fpsLimit } }),
   scale: {
     mode: Phaser.Scale.RESIZE,
     width: '100%',

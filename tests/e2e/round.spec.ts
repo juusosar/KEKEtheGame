@@ -175,7 +175,8 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
   expect(await endPhase(host)).toBe(true);
   await forBoth(async (page) => {
     const podium = page.getByRole('dialog', { name: 'Session podium' });
-    await expect(podium).toBeVisible();
+    // The podium phase lasts 15 s; a page drawing a few fps can take more than the default 5 s to show it.
+    await expect(podium).toBeVisible({ timeout: 12_000 });
     const sides = podium.locator('li[data-side-id]');
     await expect(sides).toHaveCount(2);
     await expect(sides.first()).toHaveAttribute('data-side-id', hostId);

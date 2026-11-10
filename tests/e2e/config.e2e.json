@@ -1,3 +1,4 @@
 {
-  "countdownSeconds": 6
+  "countdownSeconds": 6,
+  "respawnSeconds": 6
 }
