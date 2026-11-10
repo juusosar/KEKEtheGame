@@ -217,7 +217,7 @@ export class ProjectileSystem implements BehaviourModule {
     if (!area) return;
     const aim = Math.atan2(hit.dir.y, hit.dir.x);
     const others = this.candidates(ctx, hit.owner).filter((c) => c.id !== direct);
-    for (const id of areaTargets(hit.at, area.radiusPx, others, ctx.bodyRadius)) {
+    for (const id of areaTargets(hit.at, area.radiusPx, others, ctx.bodyRadius, ctx.map.collision)) {
       const target = ctx.position(id);
       if (!target) continue;
       ctx.hit({

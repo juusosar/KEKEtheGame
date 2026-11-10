@@ -3,7 +3,7 @@
 // step ran into (a body, a wall, or the end of its range), and finds who a splash or burst reaches with
 // `areaTargets`. Eggs, the shaken soda bottle and (M4-6) the champagne cork all fly through here.
 import type { Vec2 } from '../types';
-import { isSolidTile, type CollisionGrid } from './collision';
+import { clearLine, isSolidTile, type CollisionGrid } from './collision';
 
 /** A body a projectile or an area may reach: centre position and an id. */
 export interface ProjectileCandidate {
@@ -129,17 +129,20 @@ export function stepProjectile(
 
 /**
  * Ids of the candidates an area of `radiusPx` around `centre` reaches (a body counts when its circle of
- * `bodyRadius` overlaps the area), nearest first (ties keep input order).
+ * `bodyRadius` overlaps the area), nearest first (ties keep input order). With a grid, a body needs a
+ * clear line from the centre, so a soda bursting on a shelf does not hit the next aisle (M4 review F3).
  */
 export function areaTargets(
   centre: Vec2,
   radiusPx: number,
   candidates: readonly ProjectileCandidate[],
   bodyRadius: number,
+  grid?: CollisionGrid,
 ): string[] {
   return candidates
     .map((c, i) => ({ c, i, d: Math.hypot(c.x - centre.x, c.y - centre.y) }))
     .filter(({ d }) => d <= radiusPx + bodyRadius)
+    .filter(({ c }) => !grid || clearLine(grid, centre, c))
     .sort((a, b) => a.d - b.d || a.i - b.i)
     .map(({ c }) => c.id);
 }

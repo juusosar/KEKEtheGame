@@ -146,3 +146,21 @@ describe('syncedCombatSpeed', () => {
     ).toBeCloseTo(0.3);
   });
 });
+
+describe('meleeTargets with a grid (M4 review F3)', () => {
+  const wall = gridFrom(['....', '.#..', '....']);
+  const open = gridFrom(['....', '....', '....']);
+  const stats = { rangePx: 50, arcDegrees: 360 };
+  const origin = { x: 28, y: 28 };
+  // Diagonally past the wall tile's corner: 48 px away, the straight line crosses tile (1, 1).
+  const body = { id: 'b', x: 52, y: 70 };
+
+  it('does not reach around a wall corner', () => {
+    expect(meleeTargets(origin, 0, [body], stats, 10)).toEqual(['b']);
+    expect(meleeTargets(origin, 0, [body], stats, 10, wall)).toEqual([]);
+  });
+
+  it('hits the same body with the wall gone', () => {
+    expect(meleeTargets(origin, 0, [body], stats, 10, open)).toEqual(['b']);
+  });
+});

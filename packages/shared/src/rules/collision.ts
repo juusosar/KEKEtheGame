@@ -155,3 +155,21 @@ export function circleSeparation(a: Circle, b: Circle): Vec2 | null {
   if (dist === 0) return { x: -depth, y: 0 };
   return { x: (dx / dist) * depth, y: (dy / dist) * depth };
 }
+
+/**
+ * True when nothing solid lies on the straight line from `a` to `b`: sampled every quarter tile, so a
+ * spray, a swing or a splash cannot reach through a shelf or a wall. Both end tiles count too (a body is never inside a wall).
+ */
+export function clearLine(grid: CollisionGrid, a: Vec2, b: Vec2): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  const steps = Math.max(1, Math.ceil(dist / (grid.tileSize / 4)));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const tx = Math.floor((a.x + dx * t) / grid.tileSize);
+    const ty = Math.floor((a.y + dy * t) / grid.tileSize);
+    if (isSolidTile(grid, tx, ty)) return false;
+  }
+  return true;
+}

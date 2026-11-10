@@ -154,7 +154,20 @@ describe('GameRoom banana peels (integration)', () => {
     const drop = b.events.find((e) => e.type === 'drop')?.payload as DropMessage;
     expect(drop).toMatchObject({ player: b.conn.sessionId, reason: 'slip', item: { id: carried } });
     await waitFor(() => b.conn.state.players.get(b.conn.sessionId)?.sliding === true);
+    // E while sliding, standing on the dropped item, does not take it back (M4 review F4).
+    const lying = room.state.items.get(String(carried));
+    if (!lying) throw new Error('dropped item is gone');
+    place(b, lying.x, lying.y);
+    await press(b, 0); // release E from the first pickup, so the next frame is a new press
+    await press(b, Button.Interact);
+    expect(b.me.stunned || b.me.sliding).toBe(true);
+    expect(b.me.carrying).toBe(0);
     // Out of control for the slide time (a wall may end the slide itself sooner).
     await waitFor(() => !b.me.sliding && !b.me.stunned, 2000);
+    // Back on their feet, b can pick it up again.
+    place(b, lying.x, lying.y);
+    await press(b, 0);
+    await press(b, Button.Interact);
+    await waitFor(() => b.me.carrying === carried);
   }, 15000);
 });

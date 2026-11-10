@@ -4,7 +4,7 @@
 import type { GameConfig } from '../config';
 import type { Vec2 } from '../types';
 import type { MeleeStats } from '../weapons/catalogue';
-import { moveAabb, type CollisionGrid, type HalfSize } from './collision';
+import { clearLine, moveAabb, type CollisionGrid, type HalfSize } from './collision';
 
 /** Smallest signed difference between two angles in radians, in (-π, π]. */
 export function angleDelta(a: number, b: number): number {
@@ -44,17 +44,23 @@ export function inMeleeArc(
   return Math.abs(angleDelta(Math.atan2(dy, dx), aim)) <= half + slack;
 }
 
-/** Ids of the candidates a swing from `origin` along `aim` reaches, nearest first (ties keep input order). */
+/**
+ * Ids of the candidates a swing from `origin` along `aim` reaches, nearest first (ties keep input order).
+ * With a grid, a body needs a clear line from the attacker's centre, so a swing does not reach around a
+ * wall corner (M4 review F3).
+ */
 export function meleeTargets(
   origin: Vec2,
   aim: number,
   candidates: readonly MeleeCandidate[],
   stats: Pick<MeleeStats, 'rangePx' | 'arcDegrees'>,
   targetRadius: number,
+  grid?: CollisionGrid,
 ): string[] {
   return candidates
     .map((c, i) => ({ c, i, d: Math.hypot(c.x - origin.x, c.y - origin.y) }))
     .filter(({ c }) => inMeleeArc(origin, aim, c, stats, targetRadius))
+    .filter(({ c }) => !grid || clearLine(grid, origin, c))
     .sort((a, b) => a.d - b.d || a.i - b.i)
     .map(({ c }) => c.id);
 }

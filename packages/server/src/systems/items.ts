@@ -113,11 +113,14 @@ export class ItemSystem {
   /**
    * After each applied input frame: Q drops the carried item, E picks up the nearest lying item in
    * range, and a carrier at their own van deposits automatically. `now` is the round clock in seconds.
+   * `handsFree` false (stunned or sliding, CombatSystem.canPickUp) ignores Q and E but still deposits.
    */
-  afterFrame(player: PlayerState, pressed: number, now: number): void {
+  afterFrame(player: PlayerState, pressed: number, now: number, handsFree = true): void {
     if (!this.running || !findCarryPlayer(this.world, player.sessionId)) return;
     const pos = { x: player.x, y: player.y };
-    if (pressed & Button.Drop && player.carrying !== 0) {
+    if (!handsFree) {
+      // Neither drop nor pick up; fall through to the deposit check.
+    } else if (pressed & Button.Drop && player.carrying !== 0) {
       this.commit(drop(this.world, player.sessionId, pos, now, 'drop'));
     } else if (pressed & Button.Interact && player.carrying === 0) {
       const lying = this.world.items.filter((i) => i.state !== 'carried');
