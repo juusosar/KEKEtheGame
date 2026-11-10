@@ -54,5 +54,23 @@ describe('sanitizeNickname', () => {
   it('falls back when nothing is left', () => {
     expect(sanitizeNickname('   ', 16)).toBe(DEFAULT_NICKNAME);
     expect(sanitizeNickname(42, 16)).toBe(DEFAULT_NICKNAME);
+    expect(sanitizeNickname('\u200b\u200b', 16)).toBe(DEFAULT_NICKNAME);
+    expect(sanitizeNickname('\u200d \u0301', 16)).toBe(DEFAULT_NICKNAME);
+  });
+
+  it.each([
+    ['C1 controls', 'Bob\u0085\u009b', 'Bob'],
+    ['zero-width characters', 'B\u200bo\u200cb\ufeff', 'Bob'],
+    ['direction marks', '\u200eBob\u200f', 'Bob'],
+    ['bidi overrides', 'Bob\u202e', 'Bob'],
+    ['bidi embeddings and pops', '\u202aB\u202bo\u202cb\u202d', 'Bob'],
+    ['bidi isolates', '\u2066B\u2067o\u2068b\u2069', 'Bob'],
+  ])('strips %s (M2 review F4)', (_name, raw, expected) => {
+    expect(sanitizeNickname(raw, 16)).toBe(expected);
+  });
+
+  it('keeps the zero width joiner inside emoji sequences', () => {
+    const family = '👩\u200d👩\u200d👧';
+    expect(sanitizeNickname(family, 16)).toBe(family);
   });
 });

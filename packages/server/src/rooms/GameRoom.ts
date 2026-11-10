@@ -80,11 +80,15 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
     this.clock.setInterval(() => this.refreshSecondsLeft(), TIMER_REFRESH_MS);
     this.publishMetadata();
+    // Locked until the creator is in (M2 review F3): a join without a code matches any open room, so
+    // an unlocked new room could give its first seat to someone else. The creator's seat is reserved
+    // directly by create(), which a lock does not stop.
+    void this.lock();
   }
 
   /** The creator joins without a code; everyone after them must name this room's code. */
   override onAuth(_client: Client, options: GameJoinOptions | undefined, _context: AuthContext): boolean {
-    if (this.state.players.size === 0) return true;
+    if (this.joinCounter === 0) return true;
     if (normalizeRoomCode(options?.code) !== this.state.code) {
       throw new ServerError(WRONG_CODE_ERROR, 'No room with that code.');
     }
@@ -105,6 +109,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.state.players.set(client.sessionId, player);
 
     if (this.state.hostId === '') this.state.hostId = client.sessionId;
+    if (player.joinOrder === 0) void this.unlock();
     this.publishMetadata();
   }
 

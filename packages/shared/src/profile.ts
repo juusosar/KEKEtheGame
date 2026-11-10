@@ -41,18 +41,26 @@ export function isPlayerColor(value: unknown): value is PlayerColor {
 }
 
 /**
- * Cleans a nickname: drops control characters, collapses whitespace, trims and cuts it to
- * `maxLength` characters (code points, so emoji are not split). Empty → DEFAULT_NICKNAME.
+ * Control and format characters a nickname drops (M2 review F4): every control character (C0, DEL,
+ * C1) and every invisible format character, such as zero-width spaces, direction marks, bidi
+ * overrides and isolates, and the byte order mark. U+200D ZERO WIDTH JOINER stays, because emoji
+ * sequences need it.
+ */
+const STRIPPED_CHARACTERS = /(?!\u200d)[\p{Cc}\p{Cf}]/gu;
+
+/** A character that shows on its own: not whitespace, a joiner or a combining mark. */
+const VISIBLE_CHARACTER = /[^\s\u200d\p{M}]/u;
+
+/**
+ * Cleans a nickname: drops control and invisible format characters, collapses whitespace, trims and
+ * cuts it to `maxLength` characters (code points, so emoji are not split). Nothing visible left →
+ * DEFAULT_NICKNAME.
  */
 export function sanitizeNickname(raw: unknown, maxLength: number): string {
   if (typeof raw !== 'string') return DEFAULT_NICKNAME;
-  const cleaned = raw
-    // eslint-disable-next-line no-control-regex -- stripping control characters is the point
-    .replace(/[\u0000-\u001f\u007f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const cleaned = raw.replace(STRIPPED_CHARACTERS, '').replace(/\s+/g, ' ').trim();
   const cut = Array.from(cleaned).slice(0, Math.max(0, maxLength)).join('').trim();
-  return cut === '' ? DEFAULT_NICKNAME : cut;
+  return VISIBLE_CHARACTER.test(cut) ? cut : DEFAULT_NICKNAME;
 }
 
 /**
