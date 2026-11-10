@@ -69,24 +69,31 @@ export function readCombat(state: unknown): Map<string, CombatPlayerView> {
 
 /**
  * The speed multiplier the server moves us with, from synced state only (M2 review H1): carry slowdown
- * times the combat part (0 while KO'd or stunned, slow, pan block). Same formula as the server's
- * GameRoom.tick modifiers.
+ * times the combat part (0 while KO'd, stunned or charging, slow). Same formula as the server's
+ * GameRoom.tick modifiers. The pan block is per frame: see `blockSpeed`.
  */
 export function predictionSpeed(
   combat: CombatPlayerView,
   carrying: boolean,
   config: Pick<GameConfig, 'carrySpeedMultiplier'>,
-  weapons: WeaponCatalogue,
 ): number {
-  const block = combat.blocking ? (weapons.get(combat.weapon)?.block?.moveSpeedMultiplier ?? 1) : 1;
   return (
     carryMultiplier(config, carrying) *
     syncedCombatSpeed({
       alive: combat.alive,
       stunned: combat.stunned,
       slowMultiplier: combat.slowMultiplier,
-      blockSpeedMultiplier: block,
       charging: combat.charging,
     })
   );
+}
+
+/**
+ * Speed multiplier for our frames that hold Block (M4 review F7), or undefined when we cannot raise a
+ * block now (no pan, KO'd, stunned). Same rule as the server's CombatSystem.blockSpeedMultiplier, so a
+ * block press needs no correction.
+ */
+export function blockSpeed(combat: CombatPlayerView, weapons: WeaponCatalogue): number | undefined {
+  if (!combat.alive || combat.stunned) return undefined;
+  return weapons.get(combat.weapon)?.block?.moveSpeedMultiplier;
 }

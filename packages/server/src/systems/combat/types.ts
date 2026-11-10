@@ -132,4 +132,6 @@ export interface BehaviourModule {
   reset?(): void;
   /** A player left for good, or was KO'd (`ko: true`): stop anything they were doing. */
   removePlayer?(id: string, ko: boolean): void;
+  /** The player dropped (reconnect window open, M4 review F8): stop anything they keep doing unattended. */
+  onDisconnect?(id: string): void;
 }

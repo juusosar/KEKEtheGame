@@ -9,7 +9,7 @@
 // - A player only moves when one of their frames is applied, so a client cannot move faster by
 //   sending more frames, and a stalled client stands still instead of being extrapolated.
 import type { GameConfig } from '../config';
-import type { InputFrame } from '../types';
+import { Button, type InputFrame } from '../types';
 import {
   normalizeMove,
   step,
@@ -27,12 +27,26 @@ export function inputStepSeconds(config: Pick<GameConfig, 'inputHz'>): number {
 /** Advances a player by one InputFrame: `step()` with the fixed input dt. */
 export function applyInput(
   state: MovementState,
-  frame: Pick<InputFrame, 'move'>,
+  frame: Pick<InputFrame, 'move'> & { readonly buttons?: number },
   map: MovementMap,
   config: MovementConfig & Pick<GameConfig, 'inputHz'>,
   modifiers: StepModifiers = {},
 ): MovementState {
-  return step(state, frame, inputStepSeconds(config), map, config, modifiers);
+  return step(
+    state,
+    frame,
+    inputStepSeconds(config),
+    map,
+    config,
+    frameModifiers(modifiers, frame.buttons ?? 0),
+  );
+}
+
+/** The modifiers one frame moves with: `blockSpeedMultiplier` applies while that frame holds Block. */
+export function frameModifiers(modifiers: StepModifiers, buttons: number): StepModifiers {
+  const block = modifiers.blockSpeedMultiplier;
+  if (block === undefined || (buttons & Button.Block) === 0) return modifiers;
+  return { ...modifiers, speedMultiplier: (modifiers.speedMultiplier ?? 1) * block };
 }
 
 /** Largest seq a client may use; it is synced as a uint32. */

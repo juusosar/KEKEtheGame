@@ -23,6 +23,15 @@ export type PredictionConfig = MovementConfig & Pick<GameConfig, 'inputHz'>;
 
 /** Below this many pixels a correction counts as agreement (float maths can differ between engines). */
 export const CORRECTION_EPSILON_PX = 0.01;
+/**
+ * Corrections between these many pixels are drawn smoothed (M4 review F7): the body is where the server
+ * says at once, but the drawn position eases onto it over about `SMOOTH_SECONDS`, so a dash, slide or
+ * shove decided by the server does not show as patch-rate jumps. Smaller ones are drawn as they are;
+ * larger ones (teleport, respawn) snap.
+ */
+export const SMOOTH_MIN_PX = 4;
+export const SMOOTH_MAX_PX = 64;
+export const SMOOTH_SECONDS = 0.1;
 
 export class Predictor {
   private pending: InputFrame[] = [];
@@ -30,6 +39,8 @@ export class Predictor {
   /** The fixed state before the last step, for render interpolation between fixed steps. */
   private previous: MovementState;
   private correction = 0;
+  /** Drawn minus true position while a correction is being smoothed out (see `smooth`). */
+  private offset = { x: 0, y: 0 };
   /** Movement modifiers from synced state (carry slowdown), the same ones the server applies (review H1). */
   private modifiers: StepModifiers = {};
 
@@ -95,6 +106,8 @@ export class Predictor {
     const dy = replayed.y - this.body.y;
     const moved = Math.hypot(dx, dy);
     this.correction = moved < CORRECTION_EPSILON_PX ? 0 : moved;
+    if (moved >= SMOOTH_MAX_PX) this.offset = { x: 0, y: 0 };
+    else if (moved > SMOOTH_MIN_PX) this.offset = { x: this.offset.x - dx, y: this.offset.y - dy };
     this.previous = { ...this.previous, x: this.previous.x + dx, y: this.previous.y + dy };
     this.body = replayed;
     return this.body;
@@ -104,6 +117,7 @@ export class Predictor {
   reset(state: MovementState): void {
     this.pending = [];
     this.correction = 0;
+    this.offset = { x: 0, y: 0 };
     this.body = state;
     this.previous = state;
   }
@@ -112,9 +126,22 @@ export class Predictor {
   renderPosition(alpha: number): { x: number; y: number } {
     const a = Math.min(1, Math.max(0, alpha));
     return {
-      x: this.previous.x + (this.body.x - this.previous.x) * a,
-      y: this.previous.y + (this.body.y - this.previous.y) * a,
+      x: this.previous.x + (this.body.x - this.previous.x) * a + this.offset.x,
+      y: this.previous.y + (this.body.y - this.previous.y) * a + this.offset.y,
     };
+  }
+
+  /** Eases a smoothed correction out; call once per render frame with its length in seconds. */
+  smooth(dtSeconds: number): void {
+    const k = Math.exp((-3 * Math.max(0, dtSeconds)) / SMOOTH_SECONDS); // 95% gone after SMOOTH_SECONDS
+    const x = this.offset.x * k;
+    const y = this.offset.y * k;
+    this.offset = Math.hypot(x, y) < 0.05 ? { x: 0, y: 0 } : { x, y };
+  }
+
+  /** Pixels the drawn body is still away from the true one (0 when not smoothing). */
+  get smoothing(): number {
+    return Math.hypot(this.offset.x, this.offset.y);
   }
 }
 
