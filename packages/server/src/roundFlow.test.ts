@@ -21,7 +21,9 @@ const PORT = 2576;
 const ROUND_SECONDS = 2;
 const config = loadConfig({
   ...loadConfig(),
-  countdownSeconds: 0.05,
+  // Long enough that the 5 ms waitFor poll sees the countdown phase even on a busy test machine
+  // (at 0.05 s a slow poll could miss it and time out waiting for 'countdown').
+  countdownSeconds: 0.3,
   timedRoundSeconds: ROUND_SECONDS,
   roundResultsSeconds: 60,
   podiumSeconds: 60,
