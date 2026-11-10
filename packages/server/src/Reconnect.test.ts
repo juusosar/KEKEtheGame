@@ -215,4 +215,33 @@ describe('GameRoom reconnect + spectators (integration)', () => {
     room.advancePhase(); // podium → lobby
     expect(room.state.players.get(late.sessionId)?.spectator).toBe(false);
   });
+
+  it('accepts a reloaded client restarting its seq past its ack, while old frames are still queued (M2 review F2)', async () => {
+    const { client: host, room } = await create();
+    const guest = await join(room.state.code, { nickname: 'Guest' });
+    await startRound(room, [host, guest]);
+    const player = room.state.players.get(guest.sessionId);
+    if (!player) throw new Error('guest missing');
+    // Step the simulation by hand so the queue does not drain while the guest is away.
+    (room as unknown as { simulation?: { pause(): void } }).simulation?.pause();
+    const frame = (seq: number) => ({ seq, move: { x: 1, y: 0 }, aim: 0, buttons: 0 });
+
+    // The old socket's frames are still queued (the newest maxQueuedInputs of a flood), so the
+    // high-water mark is far past the ack the client last saw.
+    const sent = config.maxQueuedInputs * 4;
+    for (let s = 1; s <= sent; s++) guest.send(ClientMessage.input, frame(s));
+    await new Promise((r) => setTimeout(r, 100));
+    const restart = player.ack + config.maxQueuedInputs + 1; // where a reloaded page restarts (InputSequence)
+    expect(restart).toBeLessThan(sent); // the old high-water mark would refuse it
+
+    const token = guest.reconnectionToken;
+    await drop(guest);
+    await waitFor(() => player.connected === false);
+    const back = await reconnect(token);
+    await waitFor(() => player.connected === true);
+    back.send(ClientMessage.input, frame(restart));
+    await new Promise((r) => setTimeout(r, 100));
+    room.tick();
+    expect(player.ack).toBe(restart);
+  });
 });

@@ -143,9 +143,9 @@ export class FixedStepClock {
 
 /**
  * Input sequence numbers for one room connection (keep one per Room object, see `inputSequenceFor`). The server refuses any seq at or below the highest
- * it has queued, also across a reconnect (its queue for us survives the drop). It can hold at most
- * `maxQueuedInputs` frames we have not seen acked, so starting `maxQueuedInputs` past our ack is always
- * new to it. Gaps are fine: seq only has to increase.
+ * it has queued. On a reconnect it drops what is still queued and restarts that check from its ack,
+ * which can be ahead of the last ack we saw by at most the `maxQueuedInputs` frames it held, so
+ * starting `maxQueuedInputs` past our ack is always new to it. Gaps are fine: seq only has to increase.
  */
 export class InputSequence {
   private last: number | null = null;

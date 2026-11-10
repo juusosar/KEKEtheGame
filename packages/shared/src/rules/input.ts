@@ -62,21 +62,36 @@ export function sanitizeInputFrame(raw: unknown, lastSeq: number): InputFrame | 
 /** The config keys the input queue reads. */
 export type InputQueueConfig = Pick<
   GameConfig,
-  'inputHz' | 'serverTickHz' | 'maxInputsPerTick' | 'maxQueuedInputs'
+  | 'inputHz'
+  | 'serverTickHz'
+  | 'maxInputsPerTick'
+  | 'maxQueuedInputs'
+  | 'maxInputCreditSeconds'
+  | 'inputQueueTargetDepth'
+  | 'inputQueueTrimSeconds'
 >;
 
 /**
  * One player's pending inputs on the server, plus the rate limit that decides how many run per tick.
  *
- * Each tick earns `inputHz / serverTickHz` frames of credit (1.5 at 30 Hz input, 20 Hz tick), capped at
- * `maxInputsPerTick`; each applied frame spends one. So over time a player runs at most `inputHz`
- * frames per second, and after a network hiccup a short backlog catches up at up to
- * `maxInputsPerTick` frames per tick. The queue keeps at most `maxQueuedInputs`; when a client floods,
- * the oldest frames are dropped.
+ * Each tick earns `inputHz / serverTickHz` frames of credit (1.5 at 30 Hz input, 20 Hz tick) and each
+ * applied frame spends one. Credit is saved up to `maxInputCreditSeconds` worth of frames while the
+ * queue is empty (a network stall), so when the held-back frames arrive together the backlog drains
+ * at up to `maxInputsPerTick` frames per tick instead of staying queued as extra latency. Over any
+ * window a player runs at most `inputHz` frames per second plus that small saved allowance, so sending
+ * faster never gives more speed.
+ *
+ * A backlog the credit cannot clear (a long stall, or a client clock that runs slightly fast) is
+ * trimmed: when the queue has held more than `inputQueueTargetDepth` frames after every tick for
+ * `inputQueueTrimSeconds`, the oldest frames are dropped down to that depth. The queue never holds more
+ * than `maxQueuedInputs`. Buttons of dropped frames are merged into the oldest kept frame, so a press
+ * is never lost to a drop.
  */
 export class InputQueue {
   private readonly frames: InputFrame[] = [];
   private credit = 0;
+  /** Ticks in a row that ended with more than `inputQueueTargetDepth` frames queued. */
+  private ticksOverTarget = 0;
   /** Highest seq accepted into the queue (applied or not). */
   private lastQueuedSeq: number;
 
@@ -97,22 +112,65 @@ export class InputQueue {
     if (!frame) return false;
     this.lastQueuedSeq = frame.seq;
     this.frames.push(frame);
-    if (this.frames.length > this.config.maxQueuedInputs) this.frames.shift();
+    if (this.frames.length > this.config.maxQueuedInputs) this.dropOldest(1);
     return true;
   }
 
   /** The frames to apply this tick, in seq order, removed from the queue. */
   take(): InputFrame[] {
-    const perTick = this.config.inputHz / this.config.serverTickHz;
-    this.credit = Math.min(this.credit + perTick, Math.max(this.config.maxInputsPerTick, perTick));
-    const count = Math.min(Math.floor(this.credit), this.frames.length);
+    const { inputHz, serverTickHz, maxInputsPerTick } = this.config;
+    const perTick = inputHz / serverTickHz;
+    const maxCredit = Math.max(this.config.maxInputCreditSeconds * inputHz, maxInputsPerTick, perTick);
+    this.credit = Math.min(this.credit + perTick, maxCredit);
+    const count = Math.min(
+      Math.floor(this.credit),
+      Math.max(maxInputsPerTick, Math.floor(perTick)),
+      this.frames.length,
+    );
     this.credit -= count;
-    return this.frames.splice(0, count);
+    const taken = this.frames.splice(0, count);
+    this.trimBacklog();
+    return taken;
   }
 
   /** Drops queued frames and credit, e.g. when a round starts or ends. Keeps the seq high-water mark. */
   clear(): void {
     this.frames.length = 0;
     this.credit = 0;
+    this.ticksOverTarget = 0;
+  }
+
+  /**
+   * Restarts the seq check from `lastSeq` (the player's ack) and drops queued frames, for a client that
+   * reconnected. A reloaded page restarts its seq a fixed distance past its ack and must not be refused
+   * because frames from the old socket (applied, queued or dropped) went further. Saved credit is kept,
+   * so frames the SDK buffered during the drop still catch up.
+   */
+  rewind(lastSeq: number): void {
+    this.frames.length = 0;
+    this.ticksOverTarget = 0;
+    this.lastQueuedSeq = lastSeq;
+  }
+
+  private trimBacklog(): void {
+    const target = this.config.inputQueueTargetDepth;
+    if (this.frames.length <= target) {
+      this.ticksOverTarget = 0;
+      return;
+    }
+    this.ticksOverTarget++;
+    if (this.ticksOverTarget < this.config.inputQueueTrimSeconds * this.config.serverTickHz) return;
+    this.dropOldest(this.frames.length - target);
+    this.ticksOverTarget = 0;
+  }
+
+  /** Drops the `count` oldest frames, keeping their buttons on the oldest frame that stays. */
+  private dropOldest(count: number): void {
+    const dropped = this.frames.splice(0, count);
+    const kept = this.frames[0];
+    if (!kept) return;
+    let buttons = kept.buttons;
+    for (const frame of dropped) buttons |= frame.buttons;
+    this.frames[0] = { ...kept, buttons: buttons >>> 0 };
   }
 }
