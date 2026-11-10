@@ -39,6 +39,16 @@ export {
 export { findSpawn, vanSpawn, type SpawnMap } from './rules/spawn';
 export { NORMAL_ITEM_VALUE, itemValue } from './rules/scoring';
 export {
+  assignVans,
+  inDepositRange,
+  inPickupRange,
+  nearestInReach,
+  vanCentre,
+  type ReachConfig,
+  type VanAssignmentOptions,
+  type VanRosterEntry,
+} from './rules/vans';
+export {
   eligibleSpawns,
   modelCAssigner,
   spawnsForItem,

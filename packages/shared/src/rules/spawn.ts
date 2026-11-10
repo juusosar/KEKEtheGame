@@ -46,7 +46,7 @@ export interface SpawnMap {
 /**
  * Spawn position for the player in van slot `slot` (0-based, wraps when there are more players than
  * slots): the nearest free spot to that van's centre, or to the map centre when the map has no vans.
- * Until M3-4 assigns vans, the server passes the player's order among active players.
+ * The server passes `PlayerState.van` from `assignVans` (rules/vans.ts).
  */
 export function vanSpawn(map: SpawnMap, slot: number, half: HalfSize): Vec2 {
   const count = map.vanSlots.length;

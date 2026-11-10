@@ -29,10 +29,58 @@ export const PlayerState = schema(
     aim: t.float32().default(0),
     /** `seq` of the last InputFrame the server applied for this player; 0 before any (§15.3). */
     ack: t.uint32().default(0),
+    /**
+     * Van slot (0-based; map van `index` = van + 1) that banks this player's deposits; -1 before the
+     * first round. Teammates share one van (§4.3). Kept across reconnects and rounds (§15.3, M3-4).
+     */
+    van: t.int8().default(-1),
+    /** World item id (key in `GameState.items`) this player carries; 0 = nothing. Movement is 0.85× while set. */
+    carrying: t.uint32().default(0),
+    /** World item id of this player's current target; 0 = none (while carrying their own, or no spawn free). */
+    target: t.uint32().default(0),
+    /** Item points this player deposited this round (§5 tie-break, Timed ranking input). */
+    deposited: t.uint16().default(0),
   },
   'PlayerState',
 );
 export type PlayerState = SchemaType<typeof PlayerState>;
+
+/** An item lying in the world or carried (§3.1, §3.2). Keyed by String(id) in `GameState.items`. */
+export const ItemState = schema(
+  {
+    /** World item id, unique within the round; starts at 1. */
+    id: t.uint32().default(0),
+    /** Catalogue item id (`getItemCatalogue(theme).get(itemId)` for name, sprite, zone). */
+    itemId: t.string().default(''),
+    /** ItemRarity: 'normal' | 'joke'. */
+    rarity: t.string().default('normal'),
+    /** WorldItemState: 'target' | 'loose' | 'carried'. */
+    state: t.string().default('target'),
+    /** Position in pixels. For a carried item, draw it at the carrier instead. */
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    /** sessionId whose target this is ('' unless state is 'target'). Outline in the owner's colour. */
+    owner: t.string().default(''),
+    /** sessionId carrying it ('' unless state is 'carried'). */
+    carrier: t.string().default(''),
+  },
+  'ItemState',
+);
+export type ItemState = SchemaType<typeof ItemState>;
+
+/** One van in use this round. Keyed by String(van) in `GameState.vans`. */
+export const VanState = schema(
+  {
+    /** Van slot, 0-based (map van `index` = van + 1). */
+    van: t.uint8().default(0),
+    /** Item points banked this round (§3.2: cannot be stolen). */
+    points: t.uint16().default(0),
+    /** Team using this van (0 when teams are off). */
+    team: t.uint8().default(0),
+  },
+  'VanState',
+);
+export type VanState = SchemaType<typeof VanState>;
 
 /** Host settings (§13.1). */
 export const RoomSettingsState = schema(
@@ -62,6 +110,10 @@ export const GameState = schema(
     /** Whole seconds left in the current phase, rounded up; 0 when the phase has no timer. */
     secondsLeft: t.uint16().default(0),
     players: t.map(PlayerState),
+    /** Items in the world this round (M3-4). Emptied in the lobby, refilled at each countdown. */
+    items: t.map(ItemState),
+    /** Vans in use this round with their banked item points (M3-4). */
+    vans: t.map(VanState),
   },
   'GameState',
 );

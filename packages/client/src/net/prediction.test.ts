@@ -153,3 +153,18 @@ describe('InputSequence', () => {
     expect(inputSequenceFor({}, 15)).not.toBe(a);
   });
 });
+
+describe('Predictor carry slowdown (M2 review H1)', () => {
+  const slow = { speedMultiplier: config.carrySpeedMultiplier };
+
+  it('applies and replays with the modifiers from synced state, matching the server', () => {
+    const p = new Predictor(map, config, start);
+    p.setModifiers(slow);
+    const frames = [1, 2, 3, 4].map((s) => frame(s, 1));
+    for (const f of frames) p.apply(f);
+    const server = frames.slice(0, 2).reduce((s, f) => applyInput(s, f, map, config, slow), start);
+    p.reconcile({ ...server, ack: 2 });
+    expect(p.lastCorrection).toBe(0);
+    expect(p.state.x).toBeLessThan(serverRun(start, frames).x);
+  });
+});

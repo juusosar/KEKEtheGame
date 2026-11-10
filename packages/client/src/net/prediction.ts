@@ -10,6 +10,7 @@ import {
   type MovementConfig,
   type MovementMap,
   type MovementState,
+  type StepModifiers,
 } from '@keke/shared';
 
 /** The server's view of our player, read from a state patch. */
@@ -29,6 +30,8 @@ export class Predictor {
   /** The fixed state before the last step, for render interpolation between fixed steps. */
   private previous: MovementState;
   private correction = 0;
+  /** Movement modifiers from synced state (carry slowdown), the same ones the server applies (review H1). */
+  private modifiers: StepModifiers = {};
 
   constructor(
     private readonly map: MovementMap,
@@ -56,10 +59,19 @@ export class Predictor {
     return this.correction;
   }
 
+  /**
+   * Sets the modifiers used for every later step and replay, from synced state such as
+   * `PlayerState.carrying`. A change between a frame's send and its ack replays with the new value;
+   * the next reconcile corrects the small difference.
+   */
+  setModifiers(modifiers: StepModifiers): void {
+    this.modifiers = modifiers;
+  }
+
   /** Predicts one fixed step. `track` false applies the frame without waiting for an ack (offline play). */
   apply(frame: InputFrame, track = true): MovementState {
     this.previous = this.body;
-    this.body = applyInput(this.body, frame, this.map, this.config);
+    this.body = applyInput(this.body, frame, this.map, this.config, this.modifiers);
     if (track) {
       this.pending.push(frame);
       if (this.pending.length > this.maxPending)
@@ -75,7 +87,9 @@ export class Predictor {
   reconcile(server: ServerBody): MovementState {
     this.pending = this.pending.filter((f) => f.seq > server.ack);
     let replayed: MovementState = { x: server.x, y: server.y, vx: server.vx, vy: server.vy };
-    for (const frame of this.pending) replayed = applyInput(replayed, frame, this.map, this.config);
+    for (const frame of this.pending) {
+      replayed = applyInput(replayed, frame, this.map, this.config, this.modifiers);
+    }
 
     const dx = replayed.x - this.body.x;
     const dy = replayed.y - this.body.y;

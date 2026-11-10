@@ -25,6 +25,8 @@ export const configSchema = z
     respawnSeconds: nonNegative,
     spawnProtectionSeconds: nonNegative,
     looseItemDespawnSeconds: positive,
+    pickupRangeTiles: positive,
+    depositRangeTiles: positive,
     targetMinDistanceFromVanTiles: nonNegative,
     timedRoundSeconds: positive,
     raceRoundSeconds: positive,
