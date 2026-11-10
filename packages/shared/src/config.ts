@@ -34,6 +34,7 @@ export const configSchema = z
     placementPoints: z.array(z.number().int().nonnegative()).min(1),
     placementPointsOther: z.number().int().nonnegative(),
     wantedSeconds: positive,
+    wantedGuardRangeTiles: positive,
     npcRespawnSeconds: nonNegative,
     reconnectWindowSeconds: nonNegative,
     coldRoomFriction: fraction,

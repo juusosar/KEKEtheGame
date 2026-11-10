@@ -24,6 +24,7 @@
   "placementPoints": [10, 7, 5, 3],
   "placementPointsOther": 1,
   "wantedSeconds": 20,
+  "wantedGuardRangeTiles": 6,
   "npcRespawnSeconds": 30,
   "reconnectWindowSeconds": 30,
   "coldRoomFriction": 0.92,
