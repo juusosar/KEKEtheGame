@@ -153,12 +153,14 @@ describe('debug room messages with KEKE_DEBUG off (default)', () => {
     host.send(DebugMessage.endPhase);
     guest.send(DebugMessage.teleport, { x: 100, y: 100 });
     guest.send(DebugMessage.giveWeapon, { weapon: 'baguette' });
-    await waitFor(() => errors.length === 3);
+    guest.send(DebugMessage.vanPoints, { points: 5 });
+    await waitFor(() => errors.length === 4);
     expect(errors).toEqual(
       expect.arrayContaining([
         { code: 'debug_off', request: DebugMessage.endPhase },
         { code: 'debug_off', request: DebugMessage.teleport },
         { code: 'debug_off', request: DebugMessage.giveWeapon },
+        { code: 'debug_off', request: DebugMessage.vanPoints },
       ]),
     );
     expect(room.state.phase).toBe('countdown');
@@ -168,7 +170,7 @@ describe('debug room messages with KEKE_DEBUG off (default)', () => {
     }
     // Still served: a later request gets its normal answer.
     host.send(ClientMessage.ready, { ready: true });
-    await waitFor(() => errors.length === 4);
-    expect(errors[3]).toEqual({ code: 'wrong_phase', request: ClientMessage.ready });
+    await waitFor(() => errors.length === 5);
+    expect(errors[4]).toEqual({ code: 'wrong_phase', request: ClientMessage.ready });
   });
 });
