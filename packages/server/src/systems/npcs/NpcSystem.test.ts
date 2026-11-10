@@ -12,7 +12,7 @@ import {
 } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
 import { config, give, must, spot, weapons } from '../combat/testKit';
-import { npcIdle, npcPress, npcSetup, npcTick, putNpc } from './testKit';
+import { npcIdle, npcPress, npcSetup, npcTick, putNpc, type NpcSetup } from './testKit';
 import { createStockerBehaviour } from './stocker';
 import type { NpcBehaviourModule } from './types';
 
@@ -222,6 +222,83 @@ describe('NpcSystem', () => {
       seen = Math.max(seen, s.state.stockCarts.size);
     });
     expect(seen).toBeGreaterThan(0);
+  });
+
+  describe('swing targets (M5 review F2, F6)', () => {
+    /** A stocker module that swings once, right (aim 0), with a long reach, at whoever is there. */
+    function swinger(hits: string[][]): NpcBehaviourModule {
+      let done = false;
+      return {
+        behaviour: 'stocker',
+        spawn: () => undefined,
+        tick(ctx, npc) {
+          if (done || npc.id !== 'stocker_1') return;
+          done = true;
+          hits.push(ctx.swing(npc, { aim: 0, melee: { ...stocker.retaliation.melee, rangePx: 60 } }));
+        },
+      };
+    }
+
+    /** A wall one tile thick with open floor two tiles either side, over 3 rows. */
+    function thinWall(s: NpcSetup): { left: number; y: number } {
+      const grid = s.live.collision;
+      const open = (tx: number, ty: number) => !grid.isSolid(tx, ty);
+      for (let ty = 2; ty < grid.height - 2; ty++) {
+        for (let tx = 3; tx < grid.width - 3; tx++) {
+          const ok = [-1, 0, 1].every(
+            (dy) =>
+              !open(tx, ty + dy) && [1, 2].every((dx) => open(tx - dx, ty + dy) && open(tx + dx, ty + dy)),
+          );
+          if (ok) return { left: tx * grid.tileSize, y: ty * grid.tileSize + grid.tileSize / 2 };
+        }
+      }
+      throw new Error('no thin wall on the map');
+    }
+
+    it('a swing does not reach a player behind a wall; on open floor at the same distance it does', () => {
+      const hits: string[][] = [];
+      const s = npcSetup(1, undefined, { modules: [swinger(hits)] });
+      const a = must(s.players[0]);
+      const wall = thinWall(s);
+      putNpc(s, 'stocker_1', { x: wall.left - 4, y: wall.y });
+      a.x = wall.left + 40;
+      a.y = wall.y;
+      npcTick(s);
+      expect(hits).toEqual([[]]);
+      expect(a.hp).toBe(config.maxHp);
+
+      const hits2: string[][] = [];
+      const open = npcSetup(1, undefined, { modules: [swinger(hits2)] });
+      const b = must(open.players[0]);
+      putNpc(open, 'stocker_1', { x: b.x - 44, y: b.y });
+      npcTick(open);
+      expect(hits2).toEqual([[b.sessionId]]);
+    });
+
+    it('ignores a disconnected body: no swing lands, no target, not in ctx.players()', () => {
+      const hits: string[][] = [];
+      const seen: number[] = [];
+      const s = npcSetup(1, undefined, {
+        modules: [
+          swinger(hits),
+          {
+            behaviour: 'security',
+            spawn: () => undefined,
+            tick(ctx) {
+              seen.push(ctx.players().length + (ctx.player('p0') ? 10 : 0));
+            },
+          },
+        ],
+      });
+      const a = must(s.players[0]);
+      a.connected = false;
+      putNpc(s, 'stocker_1', { x: a.x - 20, y: a.y });
+      npcTick(s);
+      expect(hits).toEqual([[]]);
+      expect(a.hp).toBe(config.maxHp);
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((n) => n === 0)).toBe(true);
+    });
   });
 
   it('reset clears NPCs and carts', () => {

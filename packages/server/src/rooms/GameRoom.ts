@@ -93,6 +93,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private phaseTimer: Delayed | undefined;
   private phaseEndsAt = 0;
   private movement!: MovementSystem;
+  /** The map with parked stock carts as walls (built in onCreate). */
+  private liveMap!: MapModel;
   private items!: ItemSystem;
   private combat!: CombatSystem;
   private npcs!: NpcSystem;
@@ -147,6 +149,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       ...this.map,
       collision: gridWithBlocked(this.map.collision, (tx, ty) => this.npcs.isCartTile(tx, ty)),
     };
+    this.liveMap = liveMap;
     this.movement = new MovementSystem(this.config, liveMap);
     this.items = new ItemSystem(
       this.state,
@@ -668,7 +671,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
           const p = this.state.players.get(id);
           return p ? { x: p.x, y: p.y } : undefined;
         },
-        grid: this.map.collision,
+        // The live map: a parked cart blocks a guard's view of a fight like it blocks its chase (M5 F5).
+        grid: this.liveMap.collision,
       },
       now,
       this.config,

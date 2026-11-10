@@ -59,6 +59,15 @@ export interface NpcHooks {
   dropCarried?(player: PlayerState, reason: DropReason): void;
 }
 
+/**
+ * A player store workers notice: in the round, up, and connected. A disconnected body stays in the
+ * world for the reconnect window (§15.3), but workers ignore it (M5 review F6): the butcher does not
+ * cleave it, guards and stockers stop chasing it, forklifts pass it.
+ */
+function isTargetable(p: PlayerState): boolean {
+  return !p.spectator && p.alive && p.connected;
+}
+
 /** Zones a stock cart is never parked in: the vans and the player spawn must stay open. */
 const NO_CART_ZONES: readonly string[] = ['loading_dock'];
 
@@ -368,7 +377,7 @@ export class NpcSystem implements NpcTargets {
 
   private alivePlayer(id: string): PlayerState | undefined {
     const p = this.state.players.get(id);
-    return p && !p.spectator && p.alive ? p : undefined;
+    return p && isTargetable(p) ? p : undefined;
   }
 
   private context(): NpcContext {
@@ -378,7 +387,7 @@ export class NpcSystem implements NpcTargets {
       catalogue: this.catalogue,
       now: this.now,
       rng: this.rng,
-      players: () => [...this.state.players.values()].filter((p) => !p.spectator && p.alive),
+      players: () => [...this.state.players.values()].filter(isTargetable),
       player: (id) => this.alivePlayer(id),
       wantedPlayers: () => this.hooks.wantedPlayers?.() ?? [],
       guards: () => this.guards(),
@@ -444,7 +453,7 @@ export class NpcSystem implements NpcTargets {
     npc.state.aim = swing.aim;
     const only = swing.only;
     const candidates = [...this.state.players.values()]
-      .filter((p) => !p.spectator && p.alive && (only === undefined || only.includes(p.sessionId)))
+      .filter((p) => isTargetable(p) && (only === undefined || only.includes(p.sessionId)))
       .map((p) => ({ id: p.sessionId, x: p.x, y: p.y }));
     this.broadcast({
       type: 'npcAttack',
@@ -452,7 +461,8 @@ export class NpcSystem implements NpcTargets {
     });
     const hit: string[] = [];
     const radius = this.config.playerHitboxSize / 2;
-    for (const id of meleeTargets(origin, swing.aim, candidates, swing.melee, radius)) {
+    // Every hit needs a clear line from its origin, like player swings (PR #55); the live map, so carts block.
+    for (const id of meleeTargets(origin, swing.aim, candidates, swing.melee, radius, this.map.collision)) {
       const target = this.state.players.get(id);
       if (!target) continue;
       const dx = target.x - origin.x;
