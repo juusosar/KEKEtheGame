@@ -23,7 +23,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present",
-    "gen:art": "tsx tools/gen-placeholder-art.ts"
+    "gen:art": "tsx tools/gen-placeholder-art.ts",
+    "gen:map": "tsx tools/gen-kespro-map.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
