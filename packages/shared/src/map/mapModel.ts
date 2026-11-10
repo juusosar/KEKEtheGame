@@ -187,6 +187,19 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
         return;
       }
       const layer = parsed.data;
+      if (layer.type !== 'imagelayer') {
+        const { offsetx, offsety, parallaxx, parallaxy } = layer;
+        if (offsetx !== 0 || offsety !== 0) {
+          issues.push(
+            `${path}[${i}] ("${layer.name}"): layer offset ${offsetx},${offsety} is not supported, move the contents instead (Layer > Offset must be 0,0)`,
+          );
+        }
+        if (parallaxx !== 1 || parallaxy !== 1) {
+          issues.push(
+            `${path}[${i}] ("${layer.name}"): parallax factor ${parallaxx},${parallaxy} is not supported (must be 1,1)`,
+          );
+        }
+      }
       if (layer.type === 'group') {
         visit(layer.layers, `${path}[${i}].layers`);
         return;

@@ -14,6 +14,7 @@ import {
 } from '@keke/shared';
 import Phaser from 'phaser';
 import { isDebugEnabled } from '../game/debugFlag';
+import { placeZoneLabels } from '../game/debugLayout';
 import { animKey, facingFromMove, type Facing } from '../game/facing';
 import { installHook, removeHook, type KekeHook } from '../game/hook';
 import type { AssetManifest } from '../game/manifest';
@@ -174,15 +175,48 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    const zoneColor = new Map<string, number>();
     model.zones.forEach((zone, i) => {
       const color = Phaser.Display.Color.HSLToColor((0.12 + i * 0.381966) % 1, 0.75, 0.5).color;
+      zoneColor.set(zone.id, color);
       const points = zone.polygon.map((p) => new Phaser.Math.Vector2(p.x, p.y));
       g.fillStyle(color, renderConfig.debugZoneAlpha);
       g.fillPoints(points, true);
       g.lineStyle(1, color, 1);
       g.strokePoints(points, true);
-      this.debugLabel((zone.bounds.minX + zone.bounds.maxX) / 2, zone.bounds.minY + 4, zone.id, color);
     });
+    for (const label of placeZoneLabels(model.zones)) {
+      this.debugLabel(label.x, label.y, label.id, zoneColor.get(label.id) ?? 0xffffff);
+    }
+
+    // Forklift routes loop back from the last point to the first.
+    for (const route of model.forkliftRoutes) {
+      const points = route.points.map((p) => new Phaser.Math.Vector2(p.x, p.y));
+      g.lineStyle(2, 0xffa500, 1);
+      g.strokePoints(points, true);
+      for (const p of route.points) g.fillStyle(0xffa500, 1).fillRect(p.x - 3, p.y - 3, 6, 6);
+      const start = route.points[0];
+      // Above the point: route starts often sit on a waypoint, whose label goes below.
+      if (start) this.debugLabel(start.x, start.y - 6, `forklift ${route.name || route.id}`, 0xffa500, 1);
+    }
+
+    for (const wp of model.npcWaypoints) {
+      g.lineStyle(1, 0x00ffff, 1);
+      g.lineBetween(wp.x - 4, wp.y - 4, wp.x + 4, wp.y + 4);
+      g.lineBetween(wp.x - 4, wp.y + 4, wp.x + 4, wp.y - 4);
+      this.debugLabel(wp.x, wp.y + 5, wp.name || String(wp.id), 0x00ffff);
+    }
+
+    for (const npc of model.npcSpawns) {
+      g.fillStyle(0xff00ff, 1).fillCircle(npc.x, npc.y, 5);
+      this.debugLabel(npc.x, npc.y + 6, npc.type, 0xff00ff);
+    }
+
+    // Item spawns: dots in their zone's colour, outlined so they show on top of the zone fill.
+    for (const spawn of model.itemSpawns) {
+      g.fillStyle(zoneColor.get(spawn.zone) ?? 0xffffff, 1).fillCircle(spawn.x, spawn.y, 3);
+      g.lineStyle(1, 0x000000, 1).strokeCircle(spawn.x, spawn.y, 3);
+    }
 
     g.lineStyle(1, 0xffffff, 1);
     g.strokePoints(
@@ -244,7 +278,8 @@ export class GameScene extends Phaser.Scene {
     installHook(hook);
   }
 
-  private debugLabel(x: number, y: number, text: string, color: number): void {
+  /** `originY` 0 hangs the label below (x, y), 1 puts it above. */
+  private debugLabel(x: number, y: number, text: string, color: number, originY = 0): void {
     this.add
       .text(x, y, text, {
         fontFamily: 'monospace',
@@ -252,7 +287,7 @@ export class GameScene extends Phaser.Scene {
         color: Phaser.Display.Color.IntegerToColor(color).rgba,
         backgroundColor: 'rgba(0,0,0,0.5)',
       })
-      .setOrigin(0.5, 0)
+      .setOrigin(0.5, originY)
       .setDepth(DEPTH.debug + 1);
   }
 
