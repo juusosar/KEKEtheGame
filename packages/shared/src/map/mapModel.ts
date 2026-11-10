@@ -74,6 +74,8 @@ export interface NpcSpawn {
   readonly y: number;
   /** NPC type id from npcs.json, e.g. `stocker`. */
   readonly type: string;
+  /** Optional `post` property: the NPC stands guard here instead of walking (security, §8). Default false. */
+  readonly post: boolean;
 }
 
 export interface NpcWaypoint {
@@ -304,7 +306,8 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     const pos = ctx.point(o, where);
     const type = ctx.string(o, 'type', where) ?? nonEmpty(o.type) ?? nonEmpty(o.class);
     if (type === undefined) issues.push(`${where}: needs a "type" property or class`);
-    return pos === undefined || type === undefined ? [] : [{ ...pos, type }];
+    const post = ctx.optionalBoolean(o, 'post', where) ?? false;
+    return pos === undefined || type === undefined ? [] : [{ ...pos, type, post }];
   });
 
   const npcWaypoints = objects('npc_waypoints').flatMap((o) => {

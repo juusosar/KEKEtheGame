@@ -2008,6 +2008,11 @@
               "name": "type",
               "type": "string",
               "value": "security"
+            },
+            {
+              "name": "post",
+              "type": "bool",
+              "value": true
             }
           ]
         },
