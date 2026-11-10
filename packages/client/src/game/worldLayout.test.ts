@@ -40,15 +40,15 @@ describe('outlines', () => {
       ['a', slot(0)],
       ['b', slot(3)],
     ]);
-    expect(vanOutlineColor({ van: 3, points: 0, team: 0 }, { players, teams: false }, [a, b])).toBe(
-      '#222222',
-    );
     expect(
-      vanOutlineColor({ van: 5, points: 0, team: 0 }, { players, teams: false }, [a, b]),
+      vanOutlineColor({ van: 3, points: 0, team: 0, controlled: 0 }, { players, teams: false }, [a, b]),
+    ).toBe('#222222');
+    expect(
+      vanOutlineColor({ van: 5, points: 0, team: 0, controlled: 0 }, { players, teams: false }, [a, b]),
     ).toBeUndefined();
-    expect(vanOutlineColor({ van: 1, points: 0, team: 2 }, { players, teams: true }, [a, b])).toBe(
-      TEAM_COLORS[1],
-    );
+    expect(
+      vanOutlineColor({ van: 1, points: 0, team: 2, controlled: 0 }, { players, teams: true }, [a, b]),
+    ).toBe(TEAM_COLORS[1]);
   });
 });
 

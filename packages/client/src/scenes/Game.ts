@@ -5,6 +5,7 @@ import {
   CombatEventMessage,
   DebugMessage,
   NpcEventMessage,
+  RaceEventMessage,
   TILE_LAYERS,
   aabbOverlapsSolid,
   defaultThemeId,
@@ -34,7 +35,12 @@ import { SprayFx } from '../game/sprayFx';
 import { isDebugEnabled } from '../game/debugFlag';
 import { placeZoneLabels } from '../game/debugLayout';
 import { installHook, removeHook, type KekeHook } from '../game/hook';
-import type { KekeCombatSnapshot, KekeNetSnapshot, KekeRemoteSnapshot } from '../game/hookTypes';
+import type {
+  KekeCombatSnapshot,
+  KekeNetSnapshot,
+  KekeRaceEvent,
+  KekeRemoteSnapshot,
+} from '../game/hookTypes';
 import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
@@ -49,9 +55,12 @@ import {
   COMBAT_FEED_MESSAGES,
   FEED_MESSAGES,
   NPC_FEED_MESSAGES,
+  RACE_FEED_MESSAGES,
   combatFeedLine,
   feedLine,
   npcFeedLine,
+  raceFeedLine,
+  type RaceNames,
 } from '../hud/feed';
 import { readHud, type HudContext } from '../hud/hudState';
 import { RoundScreen } from '../hud/RoundScreen';
@@ -126,6 +135,8 @@ export class GameScene extends Phaser.Scene {
   /** Round intro / results / podium panels (§13.1); online only. */
   private roundScreen: RoundScreen | undefined;
   private hudContext!: HudContext;
+  /** Race broadcasts received (M6-3), newest last, for the debug hook. */
+  private raceEvents: KekeRaceEvent[] = [];
   private icons = new Map<string, string | null>();
   /** Swings, hit flashes, stun rings and HP bars (M4-2); online only. */
   private combatFx: CombatFx | undefined;
@@ -346,7 +357,7 @@ export class GameScene extends Phaser.Scene {
         room === null
           ? offlineMinimapWorld(this.profileColor, at)
           : withSelfAt(readMinimapWorld(room.state, room.sessionId), at);
-      return buildMinimapMarkers(world, this.model);
+      return buildMinimapMarkers(world, { vanSlots: this.model.vanSlots, office: this.officeCentre() });
     });
   }
 
@@ -368,6 +379,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.roundScreen = new RoundScreen();
     this.createNpcs(room);
+    this.createRace(room);
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
 
@@ -697,22 +709,77 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // --- race mode (M6-3, §4.2) -----------------------------------------------------------------------
+
+  /** Centre of the office trigger: the arrow's goal while carrying an order box, and the minimap marker. */
+  private officeCentre(): Vec2 {
+    const b = this.model.officeTrigger.bounds;
+    return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+  }
+
+  /** Who a van belongs to as the feed names it: the team with Teams on, else its first player. */
+  private vanName(van: number): string {
+    const world = this.worldView;
+    const view = this.view;
+    if (world?.teams) {
+      const team = world.vans.find((v) => v.van === van)?.team ?? 0;
+      if (team > 0) return t('hud.score.team', { team });
+    }
+    const owner = view?.players.find((p) => world?.players.get(p.id)?.van === van);
+    return owner?.nickname ?? t('hud.feed.somebody');
+  }
+
+  private raceNames(): RaceNames {
+    return {
+      boxVan: (id) => this.worldView?.items.find((i) => i.id === id)?.packedVan,
+      vanOf: (id) => this.worldView?.players.get(id)?.van ?? -1,
+      vanName: (van) => this.vanName(van),
+    };
+  }
+
+  /** Race broadcasts: feed lines and placeholder sounds for a packed box and the winning delivery. */
+  private createRace(room: Room): void {
+    this.raceEvents = [];
+    const me = room.sessionId;
+    const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
+    const ctx = { me, nameOf, vanName: (van: number) => this.vanName(van) };
+    for (const type of RACE_FEED_MESSAGES) {
+      this.unsubscribe.push(
+        room.onMessage(type, (message: unknown) => {
+          this.raceEvents.push({ type, payload: message });
+          if (this.raceEvents.length > 50) this.raceEvents.shift();
+          const line = raceFeedLine(type, message, ctx);
+          if (line) this.hud?.pushFeed(line, performance.now());
+          const player = (message as { player?: unknown } | null)?.player;
+          if (type === RaceEventMessage.boxPacked && player === me) this.sfx?.play('boxPacked');
+          if (type === RaceEventMessage.delivery) this.sfx?.play('delivery');
+        }),
+      );
+    }
+  }
+
   // --- HUD (§13.2) -----------------------------------------------------------------------------------
 
   /** Online only: the HUD shows round state, so `?scene=game` walk mode has none. */
   private createHud(room: Room): void {
     const catalogue = getItemCatalogue(this.theme.id);
-    this.hudContext = { catalogue, vanSlots: this.model.vanSlots };
+    this.hudContext = {
+      catalogue,
+      vanSlots: this.model.vanSlots,
+      office: this.officeCentre(),
+      raceQuota: this.config.raceQuota,
+    };
     const hud = new Hud({
-      iconFor: (sprite) => this.itemIcon(sprite),
+      iconFor: (sprite, atlas) => this.itemIcon(sprite, atlas),
       weaponIconFor: (sprite) => this.weaponIcon(sprite),
     });
     this.hud = hud;
     const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
+    const race = this.raceNames();
     for (const type of FEED_MESSAGES) {
       this.unsubscribe.push(
         room.onMessage(type, (message: unknown) => {
-          const line = feedLine(type, message, { catalogue, nameOf });
+          const line = feedLine(type, message, { catalogue, nameOf, race });
           if (line) hud.pushFeed(line, performance.now());
         }),
       );
@@ -740,15 +807,16 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  /** Data URL of an `items` atlas frame for the HUD card and carry slot, cached per frame. */
-  private itemIcon(sprite: string): string | null {
-    const cached = this.icons.get(sprite);
+  /** Data URL of an atlas frame (`items`, or `order_box`) for the HUD card and carry slot, cached per frame. */
+  private itemIcon(sprite: string, atlas: string): string | null {
+    const key = `${atlas}/${sprite}`;
+    const cached = this.icons.get(key);
     if (cached !== undefined) return cached;
     let url: string | null = null;
-    if (this.textures.exists('items') && this.textures.get('items').has(sprite)) {
-      url = this.textures.getBase64('items', sprite) || null;
+    if (this.textures.exists(atlas) && this.textures.get(atlas).has(sprite)) {
+      url = this.textures.getBase64(atlas, sprite) || null;
     }
-    this.icons.set(sprite, url);
+    this.icons.set(key, url);
     return url;
   }
 
@@ -1071,6 +1139,7 @@ export class GameScene extends Phaser.Scene {
       minimap: () => (this.minimap?.markers ?? []).map((m) => ({ ...m })),
       items: () => this.world.itemSnapshots(),
       vans: () => this.world.vanSnapshots(),
+      raceEvents: () => this.raceEvents.map((e) => ({ ...e })),
       combatEvents: () => this.combatFx?.events() ?? [],
       sprayClouds: () => this.sprayFx?.clouds(this.time.now / 1000) ?? [],
       projectiles: () => this.projectiles?.snapshots() ?? [],

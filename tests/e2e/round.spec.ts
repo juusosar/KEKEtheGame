@@ -7,6 +7,7 @@ import {
   joinRoom,
   players,
   requireDebugServer,
+  teleportNear,
   test,
   toPlay,
   waitControlling,
@@ -31,36 +32,6 @@ const hook = (page: Page) =>
     if (!keke) throw new Error('window.__KEKE__ is missing (load the page with ?debug=1)');
     return { tile: keke.map.tileSize, items: keke.items(), vans: keke.vans(), player: keke.player() };
   });
-
-/**
- * Asks the server to move us next to `at`, trying spots around it until one is free of walls (the
- * hook checks the map locally), then waits until our predicted body is there.
- */
-async function teleportNear(page: Page, at: { x: number; y: number }, reach: number): Promise<void> {
-  const spot = await page.evaluate(
-    ({ x, y, reach }) => {
-      const keke = (globalThis as WithHook).__KEKE__;
-      if (!keke) throw new Error('window.__KEKE__ is missing');
-      const offsets: [number, number][] = [[0, 0]];
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2;
-        offsets.push([Math.cos(a) * reach, Math.sin(a) * reach]);
-      }
-      for (const [dx, dy] of offsets) {
-        if (keke.teleport(x + dx, y + dy)) return { x: x + dx, y: y + dy };
-      }
-      return null;
-    },
-    { ...at, reach },
-  );
-  expect(spot, 'a free spot next to the destination').not.toBeNull();
-  await expect
-    .poll(async () => {
-      const p = (await hook(page)).player;
-      return Math.hypot(p.x - (spot?.x ?? 0), p.y - (spot?.y ?? 0));
-    })
-    .toBeLessThan(2);
-}
 
 const endPhase = (page: Page) => page.evaluate(() => (globalThis as WithHook).__KEKE__?.endPhase() ?? false);
 

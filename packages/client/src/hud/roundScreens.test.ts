@@ -150,3 +150,37 @@ describe('readRoundScreen', () => {
     ]);
   });
 });
+
+describe('race results banner (M6-3)', () => {
+  const race = (extra: P, teams = false, me = 'a'): ReturnType<typeof readRoundScreen> =>
+    readRoundScreen(
+      {
+        ...state(
+          'roundResults',
+          [player('a', 0, { place: 1, team: 1 }), player('b', 1, { place: 2, team: 1 })],
+          extra,
+          teams,
+        ),
+        settings: { mode: 'race', roundsPerMap: 1, teams },
+      },
+      me,
+    );
+
+  it('names the deliverer, and whether the box was stolen', () => {
+    expect(race({ raceWinner: 'b', raceStolen: false })).toMatchObject({
+      race: { outcome: 'delivered', winner: 'b', name: 'B', mine: false },
+    });
+    expect(race({ raceWinner: 'a', raceStolen: true })).toMatchObject({
+      race: { outcome: 'stolen', winner: 'a', name: 'A', mine: true },
+    });
+  });
+
+  it('counts a teammate’s delivery as ours with Teams on', () => {
+    expect(race({ raceWinner: 'b' }, true)).toMatchObject({ race: { mine: true } });
+  });
+
+  it('says time is up when nobody delivered, and is absent in Timed', () => {
+    expect(race({ raceWinner: '' })).toMatchObject({ race: { outcome: 'timeUp', winner: '', mine: false } });
+    expect(readRoundScreen(state('roundResults', [player('a', 0)]), 'a')).toMatchObject({ race: null });
+  });
+});

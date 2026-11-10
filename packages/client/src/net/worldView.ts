@@ -19,6 +19,10 @@ export interface WorldItemView {
   owner: string;
   /** Session id of the player carrying it ('' unless state is 'carried'). */
   carrier: string;
+  /** Race (M6-2): van slot that packed this order box; -1 for a normal item. */
+  packedVan: number;
+  /** Race: item points packed into this order box; 0 for a normal item. */
+  points: number;
 }
 
 export interface WorldVanView {
@@ -28,6 +32,8 @@ export interface WorldVanView {
   points: number;
   /** 0 when teams are off. */
   team: number;
+  /** Race (M6-2): "items you control" (banked + own boxes carried by this van's players); = points in Timed. */
+  controlled: number;
 }
 
 /** The item fields of one player (PlayerState, M3-4). */
@@ -73,6 +79,8 @@ export function readWorld(state: unknown): WorldView {
       y: num(value, 'y'),
       owner: str(value, 'owner'),
       carrier: str(value, 'carrier'),
+      packedVan: num(value, 'packedVan', -1),
+      points: num(value, 'points'),
     });
   }
   view.items.sort((a, b) => a.id - b.id);
@@ -83,6 +91,7 @@ export function readWorld(state: unknown): WorldView {
       van: num(value, 'van', Number(key) || 0),
       points: num(value, 'points'),
       team: num(value, 'team'),
+      controlled: num(value, 'controlled', num(value, 'points')),
     });
   }
   view.vans.sort((a, b) => a.van - b.van);

@@ -199,3 +199,93 @@ describe('formatClock', () => {
     expect(formatClock(-3)).toBe('0:00');
   });
 });
+
+describe('readHud in race mode (M6-3)', () => {
+  const raceCtx: HudContext = { ...ctx, office: { x: 3696, y: 1280 }, raceQuota: 6 };
+  const race = (players: P[], items: P, vans: P, teams = false): P => ({
+    ...state(players),
+    settings: { mode: 'race', roundsPerMap: 1, teams },
+    items,
+    vans,
+  });
+  const box = (carrier: string, packedVan: number): P => ({
+    '5': { id: 5, itemId: 'order_box', state: 'carried', x: 0, y: 0, carrier, packedVan, points: 6 },
+  });
+
+  it('shows our van’s quota progress', () => {
+    const hud = readHud(
+      race([player('a', 0, { van: 0 })], {}, { '0': { van: 0, points: 4, team: 0, controlled: 4 } }),
+      'a',
+      raceCtx,
+    );
+    expect(hud.mode).toBe('race');
+    expect(hud.race).toEqual({ points: 4, quota: 6, controlled: 4, carryingBox: false, stolen: false });
+  });
+
+  it('points the arrow at the office while carrying a box and names it in the carry slot', () => {
+    const hud = readHud(
+      race([player('a', 0, { van: 0, carrying: 5 })], box('a', 0), {
+        '0': { van: 0, points: 0, controlled: 6 },
+      }),
+      'a',
+      raceCtx,
+    );
+    expect(hud.arrow).toEqual({ kind: 'office', at: { x: 3696, y: 1280 } });
+    expect(hud.carried).toMatchObject({
+      itemId: 'order_box',
+      name: 'Order box',
+      atlas: 'order_box',
+      sprite: 'order_box',
+      box: { packedVan: 0, points: 6 },
+    });
+    expect(hud.race).toMatchObject({ carryingBox: true, stolen: false });
+  });
+
+  it('flags a stolen box', () => {
+    const hud = readHud(race([player('a', 0, { van: 0, carrying: 5 })], box('a', 1), {}), 'a', raceCtx);
+    expect(hud.race).toMatchObject({ carryingBox: true, stolen: true });
+  });
+
+  it('ranks the scoreboard by items each van controls, not by deposits', () => {
+    const hud = readHud(
+      race(
+        [player('a', 0, { van: 0, deposited: 6 }), player('b', 1, { van: 1, deposited: 2 })],
+        {},
+        {
+          '0': { van: 0, points: 0, team: 0, controlled: 0 },
+          '1': { van: 1, points: 2, team: 0, controlled: 2 },
+        },
+      ),
+      'a',
+      raceCtx,
+    );
+    expect(hud.rows.map((r) => [r.id, r.place, r.points])).toEqual([
+      ['b', 1, 2],
+      ['a', 2, 0],
+    ]);
+  });
+
+  it('ranks teams by their shared van’s control', () => {
+    const hud = readHud(
+      race(
+        [player('a', 0, { van: 0, team: 1 }), player('b', 1, { van: 1, team: 2 })],
+        {},
+        {
+          '0': { van: 0, points: 1, team: 1, controlled: 1 },
+          '1': { van: 1, points: 0, team: 2, controlled: 6 },
+        },
+        true,
+      ),
+      'a',
+      raceCtx,
+    );
+    expect(hud.teamRows).toEqual([
+      { team: 2, points: 6, place: 1 },
+      { team: 1, points: 1, place: 2 },
+    ]);
+  });
+
+  it('has no race model in Timed', () => {
+    expect(readHud(state([player('a', 0)]), 'a', raceCtx).race).toBeNull();
+  });
+});
