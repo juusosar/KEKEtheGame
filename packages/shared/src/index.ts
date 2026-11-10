@@ -3,6 +3,28 @@
 export { Rng, createRng, type Weighted } from './rng';
 export { Button, buttonsOf, isPressed, type ButtonName, type InputFrame, type Vec2 } from './types';
 export { ConfigError, configSchema, formatIssues, loadConfig, type GameConfig } from './config';
+export {
+  aabbOverlapsSolid,
+  circleSeparation,
+  circlesOverlap,
+  isSolidTile,
+  moveAabb,
+  type Circle,
+  type CollisionGrid,
+  type HalfSize,
+  type MoveResult,
+} from './rules/collision';
+export {
+  carryMultiplier,
+  normalizeMove,
+  playerHalfSize,
+  step,
+  type FloorZone,
+  type MovementConfig,
+  type MovementMap,
+  type MovementState,
+  type StepModifiers,
+} from './rules/movement';
 
 /** Clamps `value` into the inclusive range [min, max]. */
 export function clamp(value: number, min: number, max: number): number {
