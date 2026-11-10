@@ -31,6 +31,7 @@ import type { KekeCombatSnapshot, KekeNetSnapshot, KekeRemoteSnapshot } from '..
 import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
+import { PeelRenderer } from '../game/peels';
 import { WorldRenderer } from '../game/worldItems';
 import { ProjectileRenderer } from '../game/projectiles';
 import { Hud } from '../hud/Hud';
@@ -45,6 +46,7 @@ import { SnapshotBuffer } from '../net/interpolation';
 import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
+import { readTraps } from '../net/trapView';
 import { readWorld, type WorldView } from '../net/worldView';
 import { readProjectiles } from '../net/projectileView';
 import { browserStorage, loadProfile } from '../profile/storage';
@@ -106,6 +108,8 @@ export class GameScene extends Phaser.Scene {
   private sprayFx: SprayFx | undefined;
   private projectiles: ProjectileRenderer | undefined;
   private combat = new Map<string, CombatPlayerView>();
+  /** Banana peels on the floor (M4-5); online only. */
+  private peels: PeelRenderer | undefined;
 
   private debug = false;
   private hitbox?: Phaser.GameObjects.Rectangle;
@@ -206,6 +210,7 @@ export class GameScene extends Phaser.Scene {
     this.icons = new Map();
     this.combatFx = undefined;
     this.sprayFx = undefined;
+    this.peels = undefined;
     this.combat = new Map();
   }
 
@@ -299,6 +304,7 @@ export class GameScene extends Phaser.Scene {
     this.createHud(room);
     this.createCombatFx(room);
     this.projectiles = new ProjectileRenderer(this, DEPTH.fx);
+    this.peels = new PeelRenderer(this, DEPTH.player - 0.6);
     this.roundScreen = new RoundScreen();
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
@@ -397,6 +403,7 @@ export class GameScene extends Phaser.Scene {
       this.remotes.delete(id);
     }
     this.syncWorld(room.state, view);
+    this.peels?.sync(readTraps(room.state));
   }
 
   private updateRemotes(dt: number): void {
@@ -587,6 +594,8 @@ export class GameScene extends Phaser.Scene {
     this.sprayFx = undefined;
     this.projectiles?.destroy();
     this.projectiles = undefined;
+    this.peels?.destroy();
+    this.peels = undefined;
     this.teardownDebug();
     delete document.body.dataset['scene'];
     delete document.body.dataset['phase'];
@@ -627,6 +636,7 @@ export class GameScene extends Phaser.Scene {
       blocking: c.blocking,
       charging: c.charging,
       respawnIn: c.respawnIn,
+      sliding: c.sliding,
     };
   }
 
@@ -785,6 +795,15 @@ export class GameScene extends Phaser.Scene {
       combatEvents: () => this.combatFx?.events() ?? [],
       sprayClouds: () => this.sprayFx?.clouds(this.time.now / 1000) ?? [],
       projectiles: () => this.projectiles?.snapshots() ?? [],
+      traps: () =>
+        (this.peels?.snapshots() ?? []).map(({ id, weapon, owner, x, y, armed }) => ({
+          id,
+          weapon,
+          owner,
+          x,
+          y,
+          armed,
+        })),
     };
     this.hook = hook;
     installHook(hook);

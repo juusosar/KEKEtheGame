@@ -167,6 +167,18 @@ export {
   sideOfLine,
   sweepTargets,
 } from './rules/charge';
+export {
+  peelArmed,
+  peelExpired,
+  peelSpares,
+  peelTrips,
+  placePeel,
+  slipDirection,
+  startSlide,
+  trippingPeel,
+  type Peel,
+  type PeelCandidate,
+} from './rules/trap';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,
