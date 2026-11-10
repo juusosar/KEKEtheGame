@@ -23,6 +23,8 @@ export interface CombatPlayerView {
   respawnIn: number;
   /** Slipped on a banana peel: sliding out of control (M4-5). */
   sliding: boolean;
+  /** Aim of the player's last applied input, radians (PlayerState.aim): the held weapon points here. */
+  aim: number;
 }
 
 export const DEFAULT_COMBAT: CombatPlayerView = Object.freeze({
@@ -37,6 +39,7 @@ export const DEFAULT_COMBAT: CombatPlayerView = Object.freeze({
   charging: false,
   respawnIn: 0,
   sliding: false,
+  aim: 0,
 });
 
 /** Combat fields of every player, keyed by session id. */
@@ -58,6 +61,7 @@ export function readCombat(state: unknown): Map<string, CombatPlayerView> {
       charging: bool(value, 'charging'),
       respawnIn: num(value, 'respawnIn'),
       sliding: bool(value, 'sliding'),
+      aim: num(value, 'aim'),
     });
   }
   return out;

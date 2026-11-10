@@ -131,3 +131,21 @@ export async function requireDebugServer(request: APIRequestContext): Promise<vo
     'the server on the e2e port was not started with KEKE_DEBUG=1; stop it or run with CI=1',
   ).toBe(true);
 }
+
+/**
+ * Points the mouse from `from` toward `to` (world pixels), 120 CSS px out from where `from` is on screen.
+ * Uses the hook's `screenPoint`, so it works when the camera is clamped at a map edge or still catching up.
+ */
+export async function aimMouse(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): Promise<void> {
+  const origin = await page.evaluate(({ x, y }) => {
+    const k = (globalThis as WithHook).__KEKE__;
+    if (!k) throw new Error('window.__KEKE__ is missing (load the page with ?debug=1)');
+    return k.screenPoint(x, y);
+  }, from);
+  const angle = Math.atan2(to.y - from.y, to.x - from.x);
+  await page.mouse.move(origin.x + Math.cos(angle) * 120, origin.y + Math.sin(angle) * 120);
+}

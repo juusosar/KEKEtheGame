@@ -62,6 +62,32 @@ export interface RenderConfig {
   readonly sprayCloudAlpha: number;
   /** A vision cloud fades out over its last this-many seconds. */
   readonly sprayCloudFadeSeconds: number;
+  /** Life of a one-off FX frame (hit spark, splat, puff), seconds. */
+  readonly fxBurstSeconds: number;
+  /** How long a floating damage number stays, seconds. */
+  readonly damageNumberSeconds: number;
+  /** How far a damage number floats up over its life, px. */
+  readonly damageNumberRisePx: number;
+  /** Held weapon distance from the body centre along the aim, px (§11.1). */
+  readonly heldWeaponReachPx: number;
+  /** Held weapon (hand) height above the player's position, px. */
+  readonly heldWeaponLiftPx: number;
+  /** Scale of the 32 × 32 held weapon frame. */
+  readonly heldWeaponScale: number;
+  /** Length of one swing or use animation of the held weapon, seconds. */
+  readonly heldSwingSeconds: number;
+  /** How far a throw, spray, peel, cork or charge kicks the hand forward, px. */
+  readonly heldUseKickPx: number;
+  /** KO stars height above a KO'd body's position, px. */
+  readonly koStarsOffsetY: number;
+  /** KO stars turns per second. */
+  readonly koStarsSpinHz: number;
+  /** The HUD HP bar turns amber at or below this share of max HP. */
+  readonly hudHpWarnFraction: number;
+  /** The HUD HP bar turns red at or below this share of max HP. */
+  readonly hudHpLowFraction: number;
+  /** How long the HUD weapon slot glows after a new weapon, seconds. */
+  readonly hudWeaponFlashSeconds: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -104,6 +130,19 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const sprayFxAlpha = num('sprayFxAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
   const sprayCloudAlpha = num('sprayCloudAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
   const sprayCloudFadeSeconds = num('sprayCloudFadeSeconds', (n) => n >= 0, '>= 0');
+  const fxBurstSeconds = num('fxBurstSeconds', (n) => n > 0, 'positive');
+  const damageNumberSeconds = num('damageNumberSeconds', (n) => n > 0, 'positive');
+  const damageNumberRisePx = num('damageNumberRisePx', (n) => n >= 0, '>= 0');
+  const heldWeaponReachPx = num('heldWeaponReachPx', (n) => n >= 0, '>= 0');
+  const heldWeaponLiftPx = num('heldWeaponLiftPx', () => true, 'a number');
+  const heldWeaponScale = num('heldWeaponScale', (n) => n > 0, 'positive');
+  const heldSwingSeconds = num('heldSwingSeconds', (n) => n > 0, 'positive');
+  const heldUseKickPx = num('heldUseKickPx', (n) => n >= 0, '>= 0');
+  const koStarsOffsetY = num('koStarsOffsetY', () => true, 'a number');
+  const koStarsSpinHz = num('koStarsSpinHz', (n) => n > 0, 'positive');
+  const hudHpWarnFraction = num('hudHpWarnFraction', (n) => n >= 0 && n <= 1, 'in [0, 1]');
+  const hudHpLowFraction = num('hudHpLowFraction', (n) => n >= 0 && n <= 1, 'in [0, 1]');
+  const hudWeaponFlashSeconds = num('hudWeaponFlashSeconds', (n) => n > 0, 'positive');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -137,6 +176,19 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     sprayFxAlpha,
     sprayCloudAlpha,
     sprayCloudFadeSeconds,
+    fxBurstSeconds,
+    damageNumberSeconds,
+    damageNumberRisePx,
+    heldWeaponReachPx,
+    heldWeaponLiftPx,
+    heldWeaponScale,
+    heldSwingSeconds,
+    heldUseKickPx,
+    koStarsOffsetY,
+    koStarsSpinHz,
+    hudHpWarnFraction,
+    hudHpLowFraction,
+    hudWeaponFlashSeconds,
   });
 }
 

@@ -530,6 +530,126 @@
   border-left-color: #4fd1ff;
 }
 
+.keke-hud .hud-feed li.feed-hit {
+  border-right: 3px solid #ffe14d;
+}
+.keke-hud .hud-feed li.feed-ko {
+  border-right: 3px solid #ff5a4f;
+  font-weight: 700;
+}
+/* HP bar and weapon slot (M4-7), bottom-centre between the debug readout and the minimap. */
+.keke-hud .hud-combat {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: min(340px, calc(100vw - 2 * 200px));
+  min-width: 220px;
+}
+.keke-hud .hud-status {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #ffe14d;
+}
+.keke-hud .hud-hp {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 2px solid #111;
+}
+.keke-hud .hud-hp-fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 120ms linear;
+}
+.keke-hud .hud-hp[data-level='warn'] .hud-hp-fill {
+  background: #ffc107;
+}
+.keke-hud .hud-hp[data-level='low'] .hud-hp-fill {
+  background: #e53935;
+  animation: keke-hp-low 0.8s ease-in-out infinite alternate;
+}
+@keyframes keke-hp-low {
+  to {
+    filter: brightness(1.5);
+  }
+}
+.keke-hud .hud-hp-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font:
+    700 12px/1 ui-monospace,
+    monospace;
+}
+.keke-hud .hud-weapon {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.62);
+  border-left: 4px solid var(--keke-accent);
+}
+.keke-hud .hud-weapon .hud-text {
+  flex: 1;
+}
+.keke-hud .hud-weapon .hud-slot {
+  border-style: solid;
+}
+.keke-hud .hud-uses {
+  font:
+    700 20px/1 ui-monospace,
+    monospace;
+  font-variant-numeric: tabular-nums;
+}
+.keke-hud .hud-weapon.new {
+  animation: keke-weapon-new 0.4s ease-out 3 alternate;
+}
+@keyframes keke-weapon-new {
+  to {
+    background: color-mix(in srgb, var(--keke-accent) 55%, rgba(0, 0, 0, 0.62));
+  }
+}
+/* KO countdown overlay (§13.2), above the KO'd body in the screen centre. */
+.keke-hud .hud-ko {
+  position: absolute;
+  top: 27%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 28px;
+  background: rgba(0, 0, 0, 0.7);
+  border-top: 4px solid #ff5a4f;
+  text-align: center;
+}
+.keke-hud .hud-ko strong {
+  font-size: 40px;
+  letter-spacing: 0.06em;
+  color: #ff5a4f;
+}
+.keke-hud .hud-ko-by {
+  font-size: 15px;
+}
+.keke-hud .hud-ko-count {
+  font:
+    700 18px/1.2 ui-monospace,
+    monospace;
+}
+
 /* Round intro, results and podium panels (§13.1), see hud/RoundScreen.ts. Above the HUD (z 10). */
 .keke-round {
   --keke-accent: #ff6a13;
