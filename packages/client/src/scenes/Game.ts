@@ -13,21 +13,20 @@ import {
   type MovementState,
 } from '@keke/shared';
 import Phaser from 'phaser';
+import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { isDebugEnabled } from '../game/debugFlag';
 import { placeZoneLabels } from '../game/debugLayout';
 import { animKey, facingFromMove, type Facing } from '../game/facing';
 import { installHook, removeHook, type KekeHook } from '../game/hook';
-import type { AssetManifest } from '../game/manifest';
 import { rawMapFor } from '../game/mapSource';
 import { renderConfig } from '../game/renderConfig';
 import { findSpawn } from '../game/spawn';
 import { t } from '../i18n';
 import { InputManager } from '../input';
+import { browserStorage, loadProfile } from '../profile/storage';
 
 /** Draw order (§15.4): ground, walls, decor, characters, then `above` over them; debug on top. */
 const DEPTH = { ground: 0, walls: 1, decor: 2, player: 10, above: 20, debug: 30 } as const;
-
-const MANIFEST_KEY = 'manifest';
 
 /**
  * M1 game scene: one local player walking the map. Movement runs through the shared rules
@@ -53,16 +52,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.setPath('assets/');
-    this.load.json(MANIFEST_KEY, 'manifest.json');
-    // Everything else is listed in the manifest, so queue it once the manifest itself has arrived.
-    this.load.once(
-      `filecomplete-json-${MANIFEST_KEY}`,
-      (_key: string, _type: string, data: AssetManifest) => {
-        for (const atlas of data.atlases) this.load.atlas(atlas.key, atlas.texture, atlas.atlas);
-        for (const tileset of data.tilesets) this.load.image(tileset.key, tileset.image);
-      },
-    );
+    preloadManifestAssets(this);
   }
 
   create(): void {
@@ -72,7 +62,7 @@ export class GameScene extends Phaser.Scene {
     const raw = rawMapFor(this.theme);
     this.model = loadMap(raw, this.theme.assets.map);
 
-    this.createAnimations(this.cache.json.get(MANIFEST_KEY) as AssetManifest);
+    createManifestAnimations(this);
     this.createTilemap(raw);
     this.createPlayer();
 
@@ -103,18 +93,6 @@ export class GameScene extends Phaser.Scene {
     if (this.debug) this.updateDebug();
   }
 
-  private createAnimations(manifest: AssetManifest): void {
-    for (const anim of manifest.animations) {
-      if (this.anims.exists(anim.key)) continue;
-      this.anims.create({
-        key: anim.key,
-        frames: anim.frames.map((frame) => ({ key: anim.atlas, frame })),
-        frameRate: anim.frameRate,
-        repeat: anim.repeat,
-      });
-    }
-  }
-
   private createTilemap(raw: unknown): void {
     const key = `map:${this.theme.id}`;
     if (!this.cache.tilemap.exists(key)) {
@@ -140,14 +118,16 @@ export class GameScene extends Phaser.Scene {
     const spawn = findSpawn(this.model.collision, preferred, playerHalfSize(this.config));
     this.state = { x: spawn.x, y: spawn.y, vx: 0, vy: 0 };
 
-    const tint = Phaser.Display.Color.HexStringToColor(renderConfig.defaultPlayerColor).color;
+    // The local player wears the saved profile (§13.1); first-time players get the profile defaults.
+    const { profile } = loadProfile(browserStorage(), this.config.nicknameMaxLength);
+    const tint = Phaser.Display.Color.HexStringToColor(profile.color).color;
     this.playerBody = this.add
       .sprite(spawn.x, spawn.y, 'body')
       .setOrigin(0.5, renderConfig.playerOriginY)
       .setTint(tint)
       .setDepth(DEPTH.player);
     this.hat = this.add
-      .sprite(spawn.x, spawn.y, `hat_${renderConfig.defaultHat}`)
+      .sprite(spawn.x, spawn.y, `hat_${profile.hat}`)
       .setOrigin(0.5, renderConfig.playerOriginY)
       .setDepth(DEPTH.player + 0.5);
     this.playerBody.play(animKey('body', false, this.facing));

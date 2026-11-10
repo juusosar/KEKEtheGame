@@ -1,5 +1,6 @@
 // Character sheets (§11.1): greyscale player body, hat overlays and NPC sheets.
 // Every sheet has the same frames: <anim>_<dir>_<i> for the animations below.
+import { HAT_IDS } from '@keke/shared';
 import { Canvas, OUTLINE, hex, type Rgba } from './canvas';
 import type { Frame } from './atlas';
 
@@ -16,7 +17,8 @@ export const CHARACTER_ANIMS = [
 ] as const;
 export type CharacterAnim = (typeof CHARACTER_ANIMS)[number]['anim'];
 
-export const HATS = ['chef', 'cap', 'beanie', 'hairnet', 'hardhat'] as const;
+/** Hat sheets come from the shared profile list, so the picker and the art can't drift apart. */
+export const HATS = HAT_IDS;
 export const NPC_SHEETS = ['stocker', 'security', 'butcher', 'customer'] as const;
 
 export const FRAME = 32;

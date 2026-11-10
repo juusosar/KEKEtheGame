@@ -1,17 +1,20 @@
 import Phaser from 'phaser';
+import { entryScene } from '../game/entryScene';
 import { t } from '../i18n';
 import { joinHelloRoom } from '../net/connection';
 import { serverEndpoint } from '../net/endpoint';
+import { ROOM_CODE_REGISTRY_KEY } from '../net/session';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
 
 /**
  * First scene: connects to the server's hello room and shows the result in the top-left corner, over the
- * Game scene it starts. The status is mirrored to `<body data-connection="…">` so e2e tests can wait on it.
- * Until the lobby flow (M2) exists, the Game scene runs locally whatever the connection does.
+ * scene it starts (Title, or Game with `?scene=game`). The status is mirrored to `<body data-connection="…">`
+ * so e2e tests can wait on it. Once the player is in a room, the label also shows the room code.
  */
 export class BootScene extends Phaser.Scene {
   private label!: Phaser.GameObjects.Text;
+  private statusText = '';
 
   constructor() {
     super('Boot');
@@ -25,8 +28,9 @@ export class BootScene extends Phaser.Scene {
       backgroundColor: 'rgba(0,0,0,0.6)',
       padding: { x: 6, y: 3 },
     });
-    this.scene.launch('Game');
+    this.scene.launch(entryScene(window.location.search));
     this.scene.bringToTop();
+    this.registry.events.on(`changedata-${ROOM_CODE_REGISTRY_KEY}`, () => this.render());
 
     this.setStatus('connecting', t('boot.connecting'));
     void this.connect();
@@ -48,7 +52,14 @@ export class BootScene extends Phaser.Scene {
 
   private setStatus(status: ConnectionStatus, text: string): void {
     document.body.dataset['connection'] = status;
-    this.label.setText(text);
+    this.statusText = text;
+    this.render();
     this.label.setColor(status === 'connected' ? '#7CFC00' : status === 'connecting' ? '#ffffff' : '#ff5555');
+  }
+
+  private render(): void {
+    const code: unknown = this.registry.get(ROOM_CODE_REGISTRY_KEY);
+    const room = typeof code === 'string' && code !== '' ? `  ·  ${t('room.joined', { code })}` : '';
+    this.label.setText(this.statusText + room);
   }
 }
