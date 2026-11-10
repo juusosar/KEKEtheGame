@@ -88,6 +88,12 @@ export interface RenderConfig {
   readonly hudHpLowFraction: number;
   /** How long the HUD weapon slot glows after a new weapon, seconds. */
   readonly hudWeaponFlashSeconds: number;
+  /** Wanted ❗ icon bottom edge, px above the player's position (over the nameplate; M5-7). */
+  readonly wantedIconOffsetY: number;
+  /** Forklift warning light blinks per second (M5-7). */
+  readonly forkliftLightBlinkHz: number;
+  /** A forklift beep fades to silence at this distance from the camera's player, px (M5-7). */
+  readonly forkliftBeepHearingPx: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -143,6 +149,9 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const hudHpWarnFraction = num('hudHpWarnFraction', (n) => n >= 0 && n <= 1, 'in [0, 1]');
   const hudHpLowFraction = num('hudHpLowFraction', (n) => n >= 0 && n <= 1, 'in [0, 1]');
   const hudWeaponFlashSeconds = num('hudWeaponFlashSeconds', (n) => n > 0, 'positive');
+  const wantedIconOffsetY = num('wantedIconOffsetY', () => true, 'a number');
+  const forkliftLightBlinkHz = num('forkliftLightBlinkHz', (n) => n > 0, 'positive');
+  const forkliftBeepHearingPx = num('forkliftBeepHearingPx', (n) => n >= 0, '>= 0');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -189,6 +198,9 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     hudHpWarnFraction,
     hudHpLowFraction,
     hudWeaponFlashSeconds,
+    wantedIconOffsetY,
+    forkliftLightBlinkHz,
+    forkliftBeepHearingPx,
   });
 }
 

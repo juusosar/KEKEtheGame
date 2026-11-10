@@ -235,3 +235,25 @@ describe('buildMinimapMarkers', () => {
     for (const style of Object.values(MARKER_STYLES)) expect(style.color).toMatch(/^#[0-9A-F]{6}$/i);
   });
 });
+
+describe('forklift markers (M5-7)', () => {
+  it('marks every NPC whose behaviour is forklift, and no other worker', () => {
+    const world = readMinimapWorld(
+      {
+        ...state(),
+        npcs: {
+          forklift_1: { id: 'forklift_1', type: 'forklift', behaviour: 'forklift', x: 640, y: 320 },
+          stocker_1: { id: 'stocker_1', type: 'stocker', behaviour: 'stocker', x: 10, y: 10 },
+        },
+      },
+      'a',
+    );
+    const forklifts = buildMinimapMarkers(world, map).filter((m) => m.kind === 'forklift');
+    expect(forklifts).toEqual([{ kind: 'forklift', id: 'npc:forklift_1', x: 640, y: 320 }]);
+  });
+
+  it('draws nothing offline', () => {
+    const markers = buildMinimapMarkers(offlineMinimapWorld('#FFFFFF', { x: 0, y: 0 }), map);
+    expect(markers.some((m) => m.kind === 'forklift')).toBe(false);
+  });
+});

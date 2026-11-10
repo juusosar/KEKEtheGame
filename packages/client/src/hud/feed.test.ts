@@ -1,6 +1,6 @@
 import { getItemCatalogue, getWeaponCatalogue } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
-import { combatFeedLine, feedLine, type FeedContext } from './feed';
+import { combatFeedLine, feedLine, npcFeedLine, type FeedContext } from './feed';
 
 const names: Record<string, string> = { a: 'Juuso', b: 'Mikko' };
 const ctx: FeedContext = { catalogue: getItemCatalogue('kespro'), nameOf: (id) => names[id] ?? id };
@@ -50,6 +50,13 @@ describe('slip drops', () => {
       text: 'Juuso slipped on a banana peel and dropped Paulig Juhla Mokka 500 g',
     });
     expect(feedLine('drop', { player: 'a', item: voi, reason: 'drop' }, ctx)).toBeNull();
+  });
+
+  it('announces a forklift run-over drop (M5-5)', () => {
+    expect(feedLine('drop', { player: 'b', item: voi, reason: 'forklift' }, ctx)).toEqual({
+      kind: 'runover',
+      text: 'Mikko got run over by a forklift and dropped Paulig Juhla Mokka 500 g',
+    });
   });
 });
 
@@ -110,5 +117,74 @@ describe('combatFeedLine', () => {
         combatCtx,
       ),
     ).toBeNull();
+  });
+});
+
+describe('store workers and Wanted in the feed (M5-7)', () => {
+  const npcCtx = {
+    weapons: getWeaponCatalogue(),
+    me: 'a',
+    nameOf: (id: string) => names[id] ?? id,
+    npcName: (id: string) => (id.startsWith('security') ? 'security guard' : 'stocker'),
+  };
+  const npc = (id: string) => ({ kind: 'npc' as const, id });
+  const player = (id: string) => ({ kind: 'player' as const, id });
+
+  it('names the worker that hit or knocked us out', () => {
+    expect(
+      combatFeedLine(
+        'hit',
+        { source: npc('security_1'), target: 'a', damage: 15, weapon: null, hp: 85 },
+        npcCtx,
+      )?.text,
+    ).toBe('Security guard hit you (-15)');
+    expect(
+      combatFeedLine(
+        'ko',
+        { player: 'a', source: npc('stocker_2'), weapon: null, respawnInSeconds: 3 },
+        npcCtx,
+      )?.text,
+    ).toBe('Stocker knocked you out');
+    expect(
+      combatFeedLine(
+        'hit',
+        { source: { kind: 'hazard', id: 'forklift_1' }, target: 'a', damage: 25, weapon: null, hp: 75 },
+        { ...npcCtx, npcName: () => 'forklift' },
+      )?.text,
+    ).toBe('Forklift hit you (-25)');
+  });
+
+  it("announces a worker we knocked out, not other people's", () => {
+    expect(
+      npcFeedLine(
+        'npcKo',
+        { npc: 'stocker_1', source: player('a'), weapon: 'fists', respawnInSeconds: 30 },
+        npcCtx,
+      ),
+    ).toEqual({ kind: 'ko', text: 'You knocked out the stocker' });
+    expect(
+      npcFeedLine(
+        'npcKo',
+        { npc: 'stocker_1', source: player('b'), weapon: 'fists', respawnInSeconds: 30 },
+        npcCtx,
+      ),
+    ).toBeNull();
+  });
+
+  it('announces a new Wanted status, not a refresh', () => {
+    const wanted = (player: string, refreshed: boolean) => ({
+      player,
+      reason: 'npc_damage',
+      refreshed,
+      seconds: 20,
+    });
+    expect(npcFeedLine('wanted', wanted('a', false), npcCtx)).toEqual({
+      kind: 'wanted',
+      text: 'You are WANTED! Security is after you',
+    });
+    expect(npcFeedLine('wanted', wanted('b', false), npcCtx)?.text).toBe('Mikko is wanted');
+    expect(npcFeedLine('wanted', wanted('a', true), npcCtx)).toBeNull();
+    expect(npcFeedLine('wantedEnded', { player: 'a' }, npcCtx)).toBeNull();
+    expect(npcFeedLine('wanted', null, npcCtx)).toBeNull();
   });
 });
