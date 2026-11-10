@@ -30,7 +30,20 @@ export const tiledObjectSchema = z.object({
   properties: z.array(tiledPropertySchema).optional(),
 });
 
+/**
+ * Layer placement fields. The loader rejects anything but the defaults on tile, object and group
+ * layers (see `loadMap`), because Phaser would draw a shifted layer somewhere other than where
+ * the rules put its collision and objects.
+ */
+const layerTransform = {
+  offsetx: finite.default(0),
+  offsety: finite.default(0),
+  parallaxx: finite.default(1),
+  parallaxy: finite.default(1),
+};
+
 export const tiledTileLayerSchema = z.object({
+  ...layerTransform,
   type: z.literal('tilelayer'),
   name: z.string(),
   width: z.number().int().positive(),
@@ -39,6 +52,7 @@ export const tiledTileLayerSchema = z.object({
 });
 
 export const tiledObjectLayerSchema = z.object({
+  ...layerTransform,
   type: z.literal('objectgroup'),
   name: z.string(),
   objects: z.array(tiledObjectSchema),
@@ -46,12 +60,13 @@ export const tiledObjectLayerSchema = z.object({
 
 /** A group layer; its children are validated one by one after flattening. */
 export const tiledGroupLayerSchema = z.object({
+  ...layerTransform,
   type: z.literal('group'),
   name: z.string(),
   layers: z.array(z.unknown()),
 });
 
-/** Image layers are decor only; the loader skips them. */
+/** Image layers are decor only; the loader skips them, so their offset and parallax are allowed. */
 export const tiledImageLayerSchema = z.object({
   type: z.literal('imagelayer'),
   name: z.string(),

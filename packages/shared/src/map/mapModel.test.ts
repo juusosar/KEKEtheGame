@@ -233,6 +233,33 @@ describe('loadMap: errors', () => {
     expect(issuesOf(raw)).toContainEqual(expect.stringContaining('CSV encoding'));
   });
 
+  it('rejects layer offsets on tile, object and group layers', () => {
+    const raw = cloneFixture();
+    Object.assign(layerOf(raw, 'walls'), { offsetx: 4, offsety: 0 });
+    Object.assign(layerOf(raw, 'zones'), { offsety: -8 });
+    Object.assign(layerOf(raw, 'overlay'), { offsetx: 0.5 });
+    expect(issuesOf(raw)).toEqual([
+      'layers[1] ("walls"): layer offset 4,0 is not supported, move the contents instead (Layer > Offset must be 0,0)',
+      'layers[2] ("overlay"): layer offset 0.5,0 is not supported, move the contents instead (Layer > Offset must be 0,0)',
+      'layers[8] ("zones"): layer offset 0,-8 is not supported, move the contents instead (Layer > Offset must be 0,0)',
+    ]);
+  });
+
+  it('rejects parallax, including on a layer inside a group', () => {
+    const raw = cloneFixture();
+    Object.assign(layerOf(raw, 'above'), { parallaxx: 1.2 });
+    expect(issuesOf(raw)).toEqual([
+      'layers[2].layers[1] ("above"): parallax factor 1.2,1 is not supported (must be 1,1)',
+    ]);
+  });
+
+  it('accepts explicit default offset and parallax, and any on image layers', () => {
+    const raw = cloneFixture();
+    Object.assign(layerOf(raw, 'ground'), { offsetx: 0, offsety: 0, parallaxx: 1, parallaxy: 1 });
+    raw.layers.push({ type: 'imagelayer', name: 'backdrop', offsetx: 20, parallaxx: 0.5 } as never);
+    expect(() => loadMap(raw, 'test-map')).not.toThrow();
+  });
+
   it('rejects a tile layer whose size does not match the map', () => {
     const raw = cloneFixture();
     Object.assign(layerOf(raw, 'walls'), { width: 11, data: new Array(110).fill(0) });
