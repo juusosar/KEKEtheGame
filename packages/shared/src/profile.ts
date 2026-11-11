@@ -43,6 +43,21 @@ export interface PlayerProfile {
   hat: HatId;
 }
 
+/**
+ * A colour nobody in `taken` wears (playtest 1: every default profile was the same blue): `wanted`
+ * itself when it is free, otherwise the next free palette colour after it, wrapping round. When every
+ * palette colour is taken, `wanted` is kept. Comparison ignores case.
+ */
+export function distinctColor(wanted: PlayerColor, taken: Iterable<string>): PlayerColor {
+  const used = new Set(Array.from(taken, (c) => c.toUpperCase()));
+  const start = Math.max(0, PLAYER_COLORS.indexOf(wanted));
+  for (let i = 0; i < PLAYER_COLORS.length; i++) {
+    const color = PLAYER_COLORS[(start + i) % PLAYER_COLORS.length] as PlayerColor;
+    if (!used.has(color)) return color;
+  }
+  return wanted;
+}
+
 export function isHatId(value: unknown): value is HatId {
   return typeof value === 'string' && (HAT_IDS as readonly string[]).includes(value);
 }

@@ -100,6 +100,20 @@ describe('GameRoom (integration)', () => {
     expect(room.maxClients).toBe(3);
   });
 
+  it('gives every joiner a colour nobody else wears (playtest 1)', async () => {
+    const { room } = await create({ color: '#3FA9F5' });
+    const second = await join(room.state.code, { color: '#3fa9f5' });
+    const third = await join(room.state.code, { color: '#E53935' });
+    const colors = [...room.state.players.values()].map((p) => p.color);
+    expect(new Set(colors).size).toBe(3);
+    expect(room.state.players.get(second.sessionId)?.color).toBe('#E53935');
+    expect(room.state.players.get(third.sessionId)?.color).toBe('#43A047');
+    // A profile change in the lobby cannot take someone else's colour either.
+    second.send(ClientMessage.profile, { color: '#3FA9F5' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(room.state.players.get(second.sessionId)?.color).toBe('#E53935');
+  });
+
   it('refuses a map this server has not loaded (P1-1)', async () => {
     const { client, room } = await create();
     for (const maps of ['prisma', 'both']) {
