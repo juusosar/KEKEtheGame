@@ -148,7 +148,10 @@ export async function expectSettled(page: Page): Promise<void> {
   await expect
     .poll(async () => (await game(page)).net?.lastCorrection ?? Infinity, { timeout: 5_000 })
     .toBeLessThan(1);
-  expect((await game(page)).net?.pendingInputs ?? Infinity).toBeLessThan(10);
+  // Polled like the two above: under load a page can still be draining its queue (M6 review F3).
+  await expect
+    .poll(async () => (await game(page)).net?.pendingInputs ?? Infinity, { timeout: 5_000 })
+    .toBeLessThan(10);
 }
 
 /**

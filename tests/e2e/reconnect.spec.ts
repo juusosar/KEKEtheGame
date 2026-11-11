@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectSettled, game, waitControlling } from './helpers';
+import { createRoom, expectSettled, game, toPlay, waitControlling } from './helpers';
 
 // M2-6: a reload inside the server's reconnect window (§15.3) puts the player back into the same
 // room with the same session, skipping the menus. <body data-session> holds our session id.
@@ -8,12 +8,9 @@ test('a reload goes straight back into the same room as the same player', async 
   const pageErrors: Error[] = [];
   page.on('pageerror', (err) => pageErrors.push(err));
 
-  await page.goto('/');
-  await expect(page.locator('body')).toHaveAttribute('data-scene', 'title', { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Play' }).click();
-  await page.getByLabel('Nickname').fill('Reloader');
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByRole('button', { name: 'Create room' }).click();
+  // createRoom re-clicks a lost click (M6 review F3).
+  await toPlay(page, 'Reloader');
+  await createRoom(page);
   await expect(page.locator('body')).toHaveAttribute('data-room', /^[A-Z]{4}$/, { timeout: 10_000 });
   const body = page.locator('body');
   const code = (await body.getAttribute('data-room')) ?? '';
@@ -37,12 +34,8 @@ test('a solo round: the server acks our moves, and a reload mid-round returns to
   page.on('pageerror', (err) => pageErrors.push(err));
   const body = page.locator('body');
 
-  await page.goto('/?debug=1');
-  await expect(body).toHaveAttribute('data-scene', 'title', { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Play' }).click();
-  await page.getByLabel('Nickname').fill('Solo');
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByRole('button', { name: 'Create room' }).click();
+  await toPlay(page, 'Solo', '?debug=1');
+  await createRoom(page);
   await expect(body).toHaveAttribute('data-scene', 'lobby', { timeout: 10_000 });
   await page.getByRole('button', { name: 'Ready', exact: true }).click();
   await page.getByRole('button', { name: 'Start' }).click();
