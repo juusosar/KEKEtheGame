@@ -2112,3 +2112,17 @@ body[data-phase='podium'] .keke-minimap {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 0 16px;
 }
+/* The first-time tutorial over the lobby (Lobby.ts): the pages on a dim backdrop. */
+.keke-menu .howto-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.6);
+}
+.keke-menu .howto-overlay .howto {
+  background: var(--keke-panel);
+}
