@@ -41,6 +41,7 @@ git rm --cached -r . && git reset --hard
 | `npm run gen:items`    | Regenerates the item catalogue JSON from `tools/items/*.md`             |
 | `npm run gen:sfx`      | Regenerates the placeholder sound effects and music (see below)         |
 | `npm run docker:smoke` | Builds the Docker image and checks that it runs the game (needs Docker) |
+| `npm run soak`         | 8-player multi-session soak test (see below)                            |
 
 ## Development
 
@@ -51,6 +52,12 @@ git rm --cached -r . && git reset --hard
 ## End-to-end tests
 
 Run `npm run e2e:install` once to download Playwright's Chromium. After that, `npm run test:e2e` builds everything, starts the built server on port 2568 (`E2E_PORT` to change it) and runs the specs in `tests/e2e/`. Locally it reuses a server that is already listening on that port; with `CI` set it always starts a fresh one. Specs wait on `<body data-connection="connected">` and `<body data-scene="game">`, and read game state through the `?debug=1` hook `window.__KEKE__`, instead of reading the canvas. On Linux, a fresh machine may also need the browser's system libraries: `npx playwright install-deps chromium`. Failure traces and the HTML report land in `test-results/` and `playwright-report/` (open it with `npx playwright show-report`).
+
+## Soak test
+
+`npm run soak` plays whole sessions with 8 simulated players against an in-process server: a 3-round Timed, a 3-round Race, then both again with teams on, back to back in the same room (about 13 minutes with the soak's shorter rounds and a race quota of 2). The bots (`packages/server/src/soak/bot.ts`) play from their own decoded copy of the state like real clients: they walk with the shared pathfinder, fetch their target, deposit it, carry race boxes to the office, steal, fight each other and hit store workers (so they get Wanted). The soak fails on any server or client error, any desync (it pauses the simulation now and then and compares every client's state with the server's), a podium or lobby that is not clean, bots that never picked up, deposited, knocked someone out, got Wanted, packed a box or delivered one, and growth of tick time or heap between the first and the last session. It prints a summary and writes `test-results/soak/report.json`.
+
+Options: `--players 8`, `--sessions timed,race,timed+teams,race+teams`, `--rounds 3`, `--timed 45 --race 75` (round seconds; `--timed 180 --race 240` for the real lengths), `--port 2597`, `--seed 7`. `--browsers 2` makes two of the players real game clients in headless Chromium that join through the menus and mash keys, and fails on their console errors (run `npm run build` first). `npm test` runs a short version (2 Race rounds with teams).
 
 ## Placeholder art
 
