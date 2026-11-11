@@ -33,7 +33,7 @@ export interface FrameIntent {
 }
 
 /** How a hit was delivered; `adjustHit` hooks use it (e.g. the pan block only softens melee). */
-export type HitDelivery = 'melee' | 'projectile' | 'area' | 'spray' | 'trap' | 'charge';
+export type HitDelivery = 'melee' | 'projectile' | 'area' | 'spray' | 'trap' | 'charge' | 'hazard';
 
 /** A hit plus how it arrived and the shove that comes with it. */
 export interface CombatHit extends HitSpec {

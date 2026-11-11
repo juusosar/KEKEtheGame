@@ -91,7 +91,9 @@ export const GATES: readonly { rect: Rect; dir: 'n' | 'e' | 's' | 'w'; kind: 'ch
 
 /** Oven: oven tiles on the west wall, hot floor in front of them (the `oven` hazard sub-zone). */
 const OVEN_ROWS: readonly [number, number] = [16, 21];
-const OVEN_HEAT: Rect = [4, OVEN_ROWS[0], 5, OVEN_ROWS[1]];
+export const OVEN_HEAT: Rect = [4, OVEN_ROWS[0], 5, OVEN_ROWS[1]];
+/** HP per second on the hot floor (phase 2 decision 10), burnt in `hazardTickSeconds` steps. */
+export const OVEN_DAMAGE_PER_SECOND = 8;
 
 /** Deli service counter: a row with a west end column and an opening at its east end. */
 const DELI_COUNTER_Y = 19;
@@ -329,6 +331,8 @@ interface ZoneSpec {
   /** Polygon in tile-edge coordinates. */
   polygon: readonly TilePoint[];
   wantedOnEnter?: boolean;
+  /** Floor hazard (P2-2): HP per second taken while standing in the zone. */
+  damagePerSecond?: number;
 }
 
 const rectPolygon = ([x0, y0, x1, y1]: Rect): TilePoint[] => [
@@ -344,7 +348,7 @@ function zoneSpecs(): ZoneSpec[] {
     { id: 'dairy', name: 'Dairy', polygon: rectPolygon([3, 3, 42, 13]) },
     { id: 'stockroom', name: 'Stockroom', polygon: rectPolygon([44, 3, 72, 12]), wantedOnEnter: true },
     { id: 'bakery', name: 'Bakery', polygon: rectPolygon([3, 14, 16, 24]) },
-    { id: 'oven', name: 'Oven', polygon: rectPolygon(OVEN_HEAT) },
+    { id: 'oven', name: 'Oven', polygon: rectPolygon(OVEN_HEAT), damagePerSecond: OVEN_DAMAGE_PER_SECOND },
     { id: 'produce', name: 'Fruit & vegetables', polygon: rectPolygon([3, 25, 16, 35]) },
     { id: 'pantry', name: 'Pantry aisles', polygon: rectPolygon([17, 14, 42, 35]) },
     { id: 'frozen', name: 'Freezers', polygon: rectPolygon([43, 14, 56, 35]) },
@@ -589,6 +593,9 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     const [ox, oy] = z.polygon[0] as TilePoint;
     const properties: Property[] = [{ name: 'id', type: 'string', value: z.id }];
     if (z.wantedOnEnter) properties.push({ name: 'wantedOnEnter', type: 'bool', value: true });
+    if (z.damagePerSecond !== undefined) {
+      properties.push({ name: 'damagePerSecond', type: 'float', value: z.damagePerSecond });
+    }
     return object(
       {
         name: z.name,

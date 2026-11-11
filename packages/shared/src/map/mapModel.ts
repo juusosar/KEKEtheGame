@@ -58,6 +58,8 @@ export interface Zone {
   readonly speedMultiplier?: number;
   /** Entering makes the player Wanted (e.g. staff_only). */
   readonly wantedOnEnter: boolean;
+  /** HP per second taken by a player standing in the zone (the bakery oven, Phase 2 P2-2). Undefined = none. */
+  readonly damagePerSecond?: number;
 }
 
 export interface VanSlot {
@@ -283,6 +285,10 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     const friction = ctx.optionalNumber(o, 'friction', where);
     const speedMultiplier = ctx.optionalNumber(o, 'speedMultiplier', where);
     const wantedOnEnter = ctx.optionalBoolean(o, 'wantedOnEnter', where) ?? false;
+    const damagePerSecond = ctx.optionalNumber(o, 'damagePerSecond', where);
+    if (damagePerSecond !== undefined && !(damagePerSecond > 0)) {
+      issues.push(`${where}: damagePerSecond must be positive, got ${damagePerSecond}`);
+    }
     if (friction !== undefined && (friction < 0 || friction > 1)) {
       issues.push(`${where}: friction must be between 0 and 1, got ${friction}`);
     }
@@ -298,6 +304,7 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
       wantedOnEnter,
       ...(friction !== undefined && { friction }),
       ...(speedMultiplier !== undefined && { speedMultiplier }),
+      ...(damagePerSecond !== undefined && { damagePerSecond }),
     };
     return [zone];
   });

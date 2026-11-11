@@ -228,6 +228,15 @@ export {
   type PeelCandidate,
 } from './rules/trap';
 export {
+  hazardAt,
+  hazardTick,
+  hazardZones,
+  type HazardBody,
+  type HazardBurn,
+  type HazardClock,
+  type HazardResult,
+} from './rules/hazard';
+export {
   applyWantedHits,
   createWantedWorld,
   expireWanted,
