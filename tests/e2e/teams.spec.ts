@@ -66,12 +66,13 @@ test('Teams: team colour outlines on bodies and vans, a ring in the lobby', asyn
         return [s.net?.team, s.net?.outline, remote?.team, remote?.outline];
       })
       .toEqual([teamOf[me], teamColor(teamOf[me]), teamOf[other], teamColor(teamOf[other])]);
-    // Each team's van (slot team - 1) is painted in its team colour on the minimap.
+    // Each team's van is painted in its team colour on the minimap. On the first map (kespro) the team
+    // vans are slots 5 and 6 (0-based 4 and 5), either side of the middle dock gate.
     await expect
       .poll(async () => (await vanMarkers(page)).sort((x, y) => x.id.localeCompare(y.id)))
       .toEqual([
-        { id: 'van:0', color: TEAM_COLORS[0] },
-        { id: 'van:1', color: TEAM_COLORS[1] },
+        { id: 'van:4', color: TEAM_COLORS[0] },
+        { id: 'van:5', color: TEAM_COLORS[1] },
       ]);
   };
   await Promise.all([forBoth(host, 'Punainen', 'Sininen'), forBoth(guest, 'Sininen', 'Punainen')]);
