@@ -7,7 +7,7 @@ import { test, toPlay } from './helpers';
 async function toProfile(page: Page): Promise<void> {
   await page.goto('/');
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'title', { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Play' }).click();
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'profile');
 }
 
