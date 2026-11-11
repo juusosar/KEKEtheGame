@@ -31,7 +31,13 @@ describe('readLobby', () => {
       expect(view.synced).toBe(false);
       expect(view.phase).toBe('lobby');
       expect(view.players).toEqual([]);
-      expect(view.settings).toEqual({ mode: 'timed', roundsPerMap: 1, teams: false, maps: 'both' });
+      expect(view.settings).toEqual({
+        mode: 'timed',
+        roundsPerMap: 1,
+        teams: false,
+        maps: 'both',
+        rules: {},
+      });
       expect(view.isHost).toBe(false);
       expect(view.everyoneReady).toBe(false);
     }
@@ -43,7 +49,16 @@ describe('readLobby', () => {
         code: 'KXBD',
         phase: 'lobby',
         hostId: 'a',
-        settings: { mode: 'race', roundsPerMap: 3, teams: true, maps: 'both' },
+        settings: {
+          mode: 'race',
+          roundsPerMap: 3,
+          teams: true,
+          maps: 'both',
+          rules: new Map<string, unknown>([
+            ['raceQuota', 10],
+            ['tileSize', 8],
+          ]),
+        },
         mapId: 'kespro',
         loadedMaps: schemaArray(['kespro', 'prisma']),
         players: schemaMap({ b: player('b', 2, { team: 2 }), a: player('a', 1, { ready: true, team: 1 }) }),
@@ -56,7 +71,13 @@ describe('readLobby', () => {
     expect(view.me).toMatchObject({ id: 'b', isMe: true, isHost: false, team: 2 });
     expect(view.isHost).toBe(false);
     expect(view.synced).toBe(true);
-    expect(view.settings).toEqual({ mode: 'race', roundsPerMap: 3, teams: true, maps: 'both' });
+    expect(view.settings).toEqual({
+      mode: 'race',
+      roundsPerMap: 3,
+      teams: true,
+      maps: 'both',
+      rules: { raceQuota: 10 },
+    });
     expect(view.mapId).toBe('kespro');
     expect(view.loadedMaps).toEqual(['kespro', 'prisma']);
   });

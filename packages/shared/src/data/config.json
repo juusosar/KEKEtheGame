@@ -46,7 +46,7 @@
   "knockbackSeconds": 0.15,
   "weaponRarityWeights": { "common": 55, "uncommon": 33, "rare": 12 },
   "nicknameMaxLength": 16,
-  "maxRoundsPerMap": 3,
+  "maxRoundsPerMap": 5,
   "countdownSeconds": 3,
   "roundResultsSeconds": 10,
   "podiumSeconds": 15,

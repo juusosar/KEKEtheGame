@@ -125,6 +125,11 @@ export interface GameJoinOptions {
   nickname?: string;
   color?: string;
   hat?: string;
+  /**
+   * On create only: the host's settings from the room setup menu, validated like a lobby settings
+   * update. A create with invalid settings fails; on join they are ignored.
+   */
+  settings?: LobbySettingsUpdate;
 }
 
 /** Room listing metadata shown in the room list (LobbyRoom). */

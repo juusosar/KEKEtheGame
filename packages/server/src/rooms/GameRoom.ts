@@ -43,6 +43,8 @@ import {
   distinctColor,
   sanitizeProfile,
   settingsUpdateSchema,
+  changedRules,
+  withHostRules,
   shuffleTeams,
   teamForJoiner,
   teamSideId,
@@ -51,6 +53,7 @@ import {
   configForMap,
   type GameConfig,
   type GameJoinOptions,
+  type HostRules,
   type GameMode,
   type MapChoice,
   type MapModel,
@@ -81,6 +84,8 @@ import { NpcSystem } from '../systems/npcs/NpcSystem';
 
 /** Close/auth error code for a join with a missing or wrong room code. */
 export const WRONG_CODE_ERROR = 4404;
+/** A create with settings the server refuses (out of range, unknown key, map it has not loaded). */
+export const INVALID_SETTINGS_ERROR = 4422;
 
 /** How often `secondsLeft` is refreshed, in ms. Only whole seconds are synced, so 4 Hz is plenty. */
 const TIMER_REFRESH_MS = 250;
@@ -97,8 +102,13 @@ function randomSeed(): number {
 }
 
 export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRoomMetadata }> {
-  /** Validated game config; `gameRoomWithConfig` supplies it. */
+  /** Validated server config; `gameRoomWithConfig` supplies it. The room plays `sessionConfig`. */
   protected abstract readonly config: GameConfig;
+  /**
+   * The server config with the host's rules on top (`withHostRules`): what every round of this room
+   * plays, before the map's overrides. Changes only in the lobby.
+   */
+  private sessionConfig!: GameConfig;
   /** The maps this server runs (Phase 2, P1-1); `gameRoomWithConfig` supplies it. */
   protected abstract readonly maps: MapRegistry;
   /** Debug-only messages (teleport, end phase) are accepted. Off unless the server runs with KEKE_DEBUG=1. */
@@ -150,8 +160,16 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   /** Race (§4.2, M6-2): the round's first and only counted delivery; null until then and in Timed. */
   private delivery: RaceDelivery | null = null;
 
-  override onCreate(): void {
+  override onCreate(options?: GameJoinOptions): void {
+    // The room setup menu's choices (host rules) are checked before anything is reserved: a refused
+    // set fails the create. They are applied once the map systems exist, like a lobby update.
+    const setup = options?.settings;
+    if (setup !== undefined) {
+      const error = this.checkSettings(setup);
+      if (error !== null) throw new ServerError(INVALID_SETTINGS_ERROR, `Room settings refused: ${error}`);
+    }
     this.maxClients = this.config.maxPlayersPerRoom;
+    this.sessionConfig = this.config;
     this.state.code = generateRoomCode(this.rng, codesInUse);
     codesInUse.add(this.state.code);
 
@@ -202,6 +220,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.state.loadedMaps.push(...this.maps.ids);
     this.state.mapId = mapForRound(choice, 0, 1);
     this.buildMapSystems(this.maps.get(this.state.mapId as ThemeId));
+    if (setup !== undefined) this.applySettings(setup);
     // One state patch per simulation tick.
     this.setPatchRate(1000 / this.config.serverTickHz);
 
@@ -299,14 +318,28 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   private handleSettings(client: Client, message: unknown): void {
     if (!this.checkHostInLobby(client, ClientMessage.settings)) return;
+    const error = this.applySettings(message);
+    if (error !== null) this.refuse(client, ClientMessage.settings, error);
+  }
+
+  /** Why a host settings update would be refused, or null when it is valid. */
+  private checkSettings(message: unknown): LobbyErrorCode | null {
     const parsed = settingsUpdateSchema(this.config).safeParse(message);
-    if (!parsed.success) return this.refuse(client, ClientMessage.settings, 'invalid_payload');
-    const { mode, roundsPerMap, teams, maps } = parsed.data;
-    if (maps !== undefined && !mapChoiceAvailable(maps, this.maps.ids)) {
-      return this.refuse(client, ClientMessage.settings, 'map_unavailable');
-    }
+    if (!parsed.success) return 'invalid_payload';
+    const { maps } = parsed.data;
+    if (maps !== undefined && !mapChoiceAvailable(maps, this.maps.ids)) return 'map_unavailable';
+    return null;
+  }
+
+  /** Validates and applies a host settings update (lobby message or create options). Null when applied. */
+  private applySettings(message: unknown): LobbyErrorCode | null {
+    const error = this.checkSettings(message);
+    if (error !== null) return error;
+    const parsed = settingsUpdateSchema(this.config).parse(message);
+    const { mode, roundsPerMap, teams, maps, rules } = parsed;
     const settings = this.state.settings;
     if (mode !== undefined) settings.mode = mode;
+    if (rules !== undefined) this.applyRules(rules);
     if (maps !== undefined) {
       settings.maps = maps;
       // The lobby shows the session's first map; each countdown sets the round's map.
@@ -319,6 +352,20 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       else this.state.players.forEach((p) => (p.team = 0));
     }
     this.publishMetadata();
+    return null;
+  }
+
+  /**
+   * Replaces the host's rules. Values equal to the server's are dropped, so the synced set lists only real
+   * changes. The map systems are rebuilt on the new config (they hold nothing in the lobby).
+   */
+  private applyRules(rules: HostRules): void {
+    const changed = changedRules(this.config, rules);
+    const synced = this.state.settings.rules;
+    synced.clear();
+    for (const [key, value] of Object.entries(changed)) if (value !== undefined) synced.set(key, value);
+    this.sessionConfig = withHostRules(this.config, changed);
+    if (this.mapEntry) this.buildMapSystems(this.mapEntry);
   }
 
   private handleShuffle(client: Client): void {
@@ -457,7 +504,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private buildMapSystems(entry: MapEntry): void {
     this.resetMapSystems();
     this.mapEntry = entry;
-    const config = configForMap(this.config, entry.id);
+    const config = configForMap(this.sessionConfig, entry.id);
     this.mapConfig = config;
     // The client's quota meter follows the server (M6 review F5), and now the map too.
     this.state.raceQuota = Math.min(255, config.raceQuota);
