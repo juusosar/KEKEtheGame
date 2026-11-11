@@ -56,5 +56,6 @@
   "wantedIconOffsetY": 34,
   "forkliftLightBlinkHz": 2,
   "forkliftBeepHearingPx": 320,
-  "sfxHearingPx": 720
+  "sfxHearingPx": 720,
+  "customerGaspMinGapSeconds": 0.4
 }

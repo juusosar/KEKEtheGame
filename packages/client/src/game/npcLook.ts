@@ -37,10 +37,40 @@ export interface NpcLook {
   flash: boolean;
   /** Draw the red anger mark: the NPC is after someone (stocker retaliating, guard chasing). */
   hostile: boolean;
+  /** Draw the yellow fright mark: a customer panicking (Phase 2 decision 8; P2-4). */
+  alarmed: boolean;
   /** Forklift warning light on. */
   light: boolean;
   /** Show the small HP bar (hurt, not invulnerable, up). */
   hpFill: number | null;
+}
+
+/** Synced `mode` of a panicking customer (server systems/npcs/customer.ts). */
+export const PANIC_MODE = 'panic';
+
+/**
+ * True when a customer just started to panic (P2-4): the gasp plays and the fright mark pops. A panic
+ * that restarts while running (new violence) is not a new start.
+ */
+export function panicStarted(
+  previousMode: string | undefined,
+  npc: Pick<NpcView, 'mode' | 'alive'>,
+): boolean {
+  return npc.alive && npc.mode === PANIC_MODE && previousMode !== undefined && previousMode !== PANIC_MODE;
+}
+
+/**
+ * Which sheet an NPC is drawn with (P2-4): its base sheet or one of the look variants the art tool makes
+ * (`<sheet>_2`, `<sheet>_3`, ...; tools/art/characters.ts NPC_VARIANTS), picked by the number in its id
+ * so every client draws the same NPC alike and a group's members differ. Variants stop at the first
+ * missing key.
+ */
+export function npcSheetVariant(id: string, sheet: string, exists: (key: string) => boolean): string {
+  const looks = [sheet];
+  for (let n = 2; exists(`${sheet}_${n}`); n++) looks.push(`${sheet}_${n}`);
+  const match = /(\d+)$/.exec(id);
+  const index = match ? Number(match[1]) - 1 : 0;
+  return looks[((index % looks.length) + looks.length) % looks.length] ?? sheet;
 }
 
 /** Opacity of a KO'd worker lying where it fell. */
@@ -56,6 +86,7 @@ export function npcLook(input: NpcLookInput, sheetHasAnims: (key: string) => boo
       alpha: 1,
       flash: false,
       hostile: false,
+      alarmed: false,
       light: npc.alive && input.playing !== false,
       hpFill: null,
     };
@@ -74,6 +105,7 @@ export function npcLook(input: NpcLookInput, sheetHasAnims: (key: string) => boo
     alpha: npc.alive ? 1 : NPC_KO_ALPHA,
     flash,
     hostile: npc.alive && npc.target !== '',
+    alarmed: npc.alive && npc.mode === PANIC_MODE,
     light: false,
     hpFill: hurt ? npc.hp / npc.maxHp : null,
   };

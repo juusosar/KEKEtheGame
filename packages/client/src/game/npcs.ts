@@ -4,8 +4,12 @@
 // KO pose and stars while down, a fresh start on `npcRespawn`. A red anger mark shows while an NPC is
 // after someone (synced `target`), a small HP bar while hurt, and a blinking warning light around a
 // forklift. Stock carts are drawn over the tiles they block. The pose rules are in npcLook.ts.
+// Customers (P2-4): each one uses its sheet or a look variant (`customer_2`...), shows a yellow fright
+// mark while it panics (a `gasp` callback fires when a panic starts), and its drawn body is a solid
+// circle for our prediction (`solidBodies`), like the server's.
 import {
   NpcEventMessage,
+  type Circle,
   type NpcAttackMessage,
   type NpcCatalogue,
   type NpcHitMessage,
@@ -16,7 +20,15 @@ import { SnapshotBuffer } from '../net/interpolation';
 import type { NpcView, StockCartView } from '../net/npcView';
 import type { Facing } from './facing';
 import type { KekeNpcSpriteSnapshot } from './hookTypes';
-import { facingFromAim, forkliftBeepDue, forkliftBeeping, npcLook, type NpcLook } from './npcLook';
+import {
+  facingFromAim,
+  forkliftBeepDue,
+  forkliftBeeping,
+  npcLook,
+  npcSheetVariant,
+  panicStarted,
+  type NpcLook,
+} from './npcLook';
 import { renderConfig } from './renderConfig';
 
 interface Entry {
@@ -32,6 +44,10 @@ interface Entry {
   lastBeep: number;
   look: NpcLook | null;
   flashed: boolean;
+  /** Synced mode seen on the last frame (panic start); undefined before the first frame. */
+  lastMode: string | undefined;
+  /** Colour the mark text has now (anger red or fright yellow). */
+  markColor: string;
   /** Drawn position this frame, null before the first sample. */
   pos: Vec2 | null;
 }
@@ -40,6 +56,9 @@ interface Entry {
 const ATTACK_POSE_SECONDS = 0.25;
 /** Forklift light colour (amber). */
 const LIGHT = 0xffa000;
+/** Mark colours: anger (after someone) and fright (a panicking customer). */
+const ANGER = '#ff3b30';
+const FRIGHT = '#ffd60a';
 
 export interface NpcDepths {
   /** Characters layer: NPCs sort with players by y in [npc, npc + 0.5]. */
@@ -132,6 +151,7 @@ export class NpcRenderer {
     nowMs: number,
     playing: boolean,
     beep: (id: string, at: Vec2) => void,
+    gasp: (id: string, at: Vec2) => void = () => undefined,
   ): Map<string, Vec2> {
     const positions = new Map<string, Vec2>();
     const g = this.g;
@@ -158,6 +178,8 @@ export class NpcRenderer {
       e.look = look;
       this.apply(e, look, pos);
       positions.set(id, pos);
+      if (panicStarted(e.lastMode, e.view)) gasp(id, pos);
+      e.lastMode = e.view.mode;
 
       if (look.light) this.drawLight(fg, g, e, pos, now);
       if (e.view.behaviour === 'forklift') {
@@ -181,6 +203,23 @@ export class NpcRenderer {
     return positions;
   }
 
+  /**
+   * Solid bodies as drawn (npcs.json `solid`: customers, Phase 2 decision 8), circles of radius
+   * `hitboxPx / 2` at the interpolated positions of the last `draw`. Our prediction walks around them
+   * like the server does (P2-4); the small lag behind the server is corrected by reconcile.
+   */
+  solidBodies(): Circle[] {
+    const out: Circle[] = [];
+    for (const e of this.entries.values()) {
+      if (!e.view.alive) continue;
+      const def = this.catalogue.get(e.view.type);
+      if (def?.solid !== true) continue;
+      const at = e.pos ?? { x: e.view.x, y: e.view.y };
+      out.push({ x: at.x, y: at.y, r: def.hitboxPx / 2 });
+    }
+    return out;
+  }
+
   /** Debug hook. */
   snapshots(): KekeNpcSpriteSnapshot[] {
     const out: KekeNpcSpriteSnapshot[] = [];
@@ -195,6 +234,7 @@ export class NpcRenderer {
         y: e.pos?.y ?? e.view.y,
         alpha: e.sprite.alpha,
         hostile: e.look?.hostile ?? false,
+        alarmed: e.look?.alarmed ?? false,
         light: e.look?.light ?? false,
       });
     }
@@ -213,7 +253,8 @@ export class NpcRenderer {
   private create(view: NpcView): Entry {
     const def = this.catalogue.get(view.type);
     const wanted = def?.sprite ?? view.type;
-    const sheet = this.scene.textures.exists(wanted) ? wanted : 'customer';
+    const exists = (key: string): boolean => this.scene.textures.exists(key);
+    const sheet = exists(wanted) ? npcSheetVariant(view.id, wanted, exists) : 'customer';
     const forklift = view.behaviour === 'forklift';
     const sprite = this.scene.add
       .sprite(view.x, view.y, sheet)
@@ -223,7 +264,7 @@ export class NpcRenderer {
         fontFamily: 'monospace',
         fontSize: '10px',
         fontStyle: 'bold',
-        color: '#ff3b30',
+        color: ANGER,
         stroke: '#000000',
         strokeThickness: 2,
         resolution: renderConfig.cameraZoom * 2,
@@ -248,6 +289,8 @@ export class NpcRenderer {
       lastBeep: -Infinity,
       look: null,
       flashed: false,
+      lastMode: undefined,
+      markColor: ANGER,
       pos: null,
     };
   }
@@ -262,10 +305,15 @@ export class NpcRenderer {
       if (look.flash) sprite.setTintFill(0xffffff);
       else sprite.clearTint();
     }
-    // Anger mark over the head, bobbing.
-    const bob = Math.round(Math.sin(this.scene.time.now / 120) * 1);
+    // Anger (red) or fright (yellow) mark over the head, bobbing; fright bobs faster.
+    const color = look.hostile ? ANGER : FRIGHT;
+    if (color !== e.markColor) {
+      e.markColor = color;
+      e.mark.setColor(color);
+    }
+    const bob = Math.round(Math.sin(this.scene.time.now / (look.alarmed ? 60 : 120)) * 1);
     e.mark
-      .setVisible(look.hostile)
+      .setVisible(look.hostile || look.alarmed)
       .setPosition(Math.round(pos.x), Math.round(pos.y - renderConfig.nameplateOffsetY + bob));
     // KO stars while down (forklifts never go down).
     const down = !e.view.alive && e.view.behaviour !== 'forklift';

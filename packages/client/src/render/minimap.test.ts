@@ -256,6 +256,21 @@ describe('forklift markers (M5-7)', () => {
     const markers = buildMinimapMarkers(offlineMinimapWorld('#FFFFFF', { x: 0, y: 0 }), map);
     expect(markers.some((m) => m.kind === 'forklift')).toBe(false);
   });
+
+  it('leaves customers off the minimap (P2-4)', () => {
+    const plain = buildMinimapMarkers(readMinimapWorld(state(), 'a'), map);
+    const world = readMinimapWorld(
+      {
+        ...state(),
+        npcs: {
+          customer_1: { id: 'customer_1', type: 'customer', behaviour: 'customer', x: 640, y: 320 },
+          customer_2: { id: 'customer_2', type: 'customer', behaviour: 'customer', x: 660, y: 320 },
+        },
+      },
+      'a',
+    );
+    expect(buildMinimapMarkers(world, map)).toEqual(plain);
+  });
 });
 
 describe('race markers (M6-3)', () => {

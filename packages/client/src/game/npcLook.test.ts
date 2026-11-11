@@ -1,5 +1,6 @@
 import { getNpcCatalogue } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
+import manifest from '../../public/assets/manifest.json';
 import type { NpcView } from '../net/npcView';
 import {
   NPC_KO_ALPHA,
@@ -9,7 +10,9 @@ import {
   hearingVolume,
   npcLook,
   npcMelee,
+  npcSheetVariant,
   npcTypeFromId,
+  panicStarted,
   type NpcLookInput,
 } from './npcLook';
 
@@ -146,5 +149,55 @@ describe('npcTypeFromId', () => {
     expect(npcTypeFromId('stocker_2')).toBe('stocker');
     expect(npcTypeFromId('night_guard_10')).toBe('night_guard');
     expect(npcTypeFromId('butcher')).toBe('butcher');
+  });
+});
+
+describe('customers (P2-4)', () => {
+  const customer: NpcView = {
+    ...stocker,
+    id: 'customer_3',
+    type: 'customer',
+    behaviour: 'customer',
+    hp: 30,
+    maxHp: 30,
+  };
+
+  it('shows the fright mark (not the anger mark) while panicking, running with the walk pose', () => {
+    const look = npcLook(input({ ...customer, mode: 'panic', moving: true }), all);
+    expect(look).toMatchObject({ alarmed: true, hostile: false, anim: 'customer/walk_left' });
+    expect(npcLook(input({ ...customer, mode: 'browse' }), all)).toMatchObject({
+      alarmed: false,
+      anim: 'customer/idle_left',
+    });
+    expect(npcLook(input({ ...customer, mode: 'panic', alive: false }), all).alarmed).toBe(false);
+    expect(npcLook(input({ ...stocker, mode: 'angry', target: 'p1' }), all).alarmed).toBe(false);
+  });
+
+  it('starts a panic (gasp) only on the change into panic, not on the first sight or a restart', () => {
+    expect(panicStarted('browse', { mode: 'panic', alive: true })).toBe(true);
+    expect(panicStarted('walk', { mode: 'panic', alive: true })).toBe(true);
+    expect(panicStarted('panic', { mode: 'panic', alive: true })).toBe(false);
+    expect(panicStarted(undefined, { mode: 'panic', alive: true })).toBe(false);
+    expect(panicStarted('browse', { mode: 'browse', alive: true })).toBe(false);
+    expect(panicStarted('browse', { mode: 'panic', alive: false })).toBe(false);
+  });
+
+  it('picks a look variant from the id, the same everywhere, cycling over the sheets that exist', () => {
+    const have = new Set(['customer', 'customer_2', 'customer_3', 'customer_4', 'customer_5']);
+    const exists = (key: string): boolean => have.has(key);
+    const sheets = [1, 2, 3, 4, 5, 6].map((n) => npcSheetVariant(`customer_${n}`, 'customer', exists));
+    expect(sheets).toEqual(['customer', 'customer_2', 'customer_3', 'customer_4', 'customer_5', 'customer']);
+    // A sheet without variants is always itself; an id without a number takes the base sheet.
+    expect(npcSheetVariant('stocker_4', 'stocker', exists)).toBe('stocker');
+    expect(npcSheetVariant('customer', 'customer', exists)).toBe('customer');
+    // Variants stop at the first gap.
+    expect(npcSheetVariant('customer_4', 'customer', (k) => k === 'customer_2')).toBe('customer_2');
+  });
+
+  it('every customer look variant the art tool makes is in the asset manifest', () => {
+    const keys = new Set(manifest.atlases.map((a) => a.key));
+    expect(
+      ['customer', 'customer_2', 'customer_3', 'customer_4', 'customer_5'].every((k) => keys.has(k)),
+    ).toBe(true);
   });
 });

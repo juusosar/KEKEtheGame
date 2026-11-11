@@ -133,6 +133,20 @@ export const SOUNDS: Record<SfxName, readonly Layer[]> = {
     { wave: 'square', seconds: 0.09, freq: 1568, gain: 0.22, duty: 0.25, release: 0.01 },
     { wave: 'square', at: 0.12, seconds: 0.14, freq: 1175, gain: 0.22, duty: 0.25, release: 0.03 },
   ],
+  // Customers panic (P2-4): a short breathy gasp, an airy inhale over a rising "oh!".
+  customerGasp: [
+    { wave: 'noise', seconds: 0.22, freq: 2400, freqEnd: 4200, gain: 0.2, attack: 0.05, fade: 1.4, seed: 9 },
+    {
+      wave: 'triangle',
+      seconds: 0.18,
+      at: 0.03,
+      freq: 420,
+      freqEnd: 720,
+      gain: 0.22,
+      attack: 0.02,
+      fade: 1.2,
+    },
+  ],
   // Race: our order box is packed, a rising triad.
   boxPacked: [
     { wave: 'triangle', seconds: 0.3, freq: 523, steps: [523, 659, 784], gain: 0.4, release: 0.04 },

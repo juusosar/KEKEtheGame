@@ -340,6 +340,8 @@ export interface KekeNpcSpriteSnapshot {
   alpha: number;
   /** Anger mark showing (after a player). */
   hostile: boolean;
+  /** Yellow fright mark showing (a panicking customer, P2-4). */
+  alarmed: boolean;
   /** Forklift warning light on. */
   light: boolean;
 }
