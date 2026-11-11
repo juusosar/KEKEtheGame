@@ -264,7 +264,8 @@ export interface KekeHook {
    * (open while someone walks through, closed otherwise) and the bubble texts shown now.
    */
   gateFx(): {
-    stops: { player: string; gate: number; carrying: boolean; seconds: number }[];
+    /** Each with the bubble text it showed (the bubble itself is gone after the stop). */
+    stops: { player: string; gate: number; carrying: boolean; seconds: number; text: string }[];
     looks: { index: number; look: 'open' | 'closed' }[];
     bubbles: string[];
   };

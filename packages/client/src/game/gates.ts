@@ -35,7 +35,7 @@ interface Bubble {
 export class GateLayer {
   private readonly drawn: DrawnGate[] = [];
   private readonly bubbles = new Map<string, Bubble>();
-  private stops: GateStopMessage[] = [];
+  private stops: (GateStopMessage & { text: string })[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -72,7 +72,7 @@ export class GateLayer {
    * (carriers get the bagging-area line). Remembered for the debug hook.
    */
   stopped(message: GateStopMessage, at: Vec2, text: string, nowSeconds: number): void {
-    this.stops.push(message);
+    this.stops.push({ ...message, text });
     if (this.stops.length > 20) this.stops.shift();
     this.bubbles.get(message.player)?.text.destroy();
     const bubble = this.scene.add
@@ -92,7 +92,7 @@ export class GateLayer {
 
   /** Recent stop events and the gates' looks (debug hook). */
   snapshot(): {
-    stops: GateStopMessage[];
+    stops: (GateStopMessage & { text: string })[];
     looks: { index: number; look: 'open' | 'closed' }[];
     bubbles: string[];
   } {
