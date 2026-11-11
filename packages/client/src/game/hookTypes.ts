@@ -1,7 +1,9 @@
 // `window.__KEKE__`: a test/debug hook installed only with `?debug=1` (§17). E2E specs read state through
 // it instead of reading pixels off the canvas. Grows with later milestones (scripted pickup, deposit, …).
 // Types only (no DOM), so the Playwright specs can import them too.
+import type { CartView } from '../net/cartView';
 import type { NpcView, StockCartView } from '../net/npcView';
+import type { CartLook } from './carts';
 
 export interface KekePlayerSnapshot {
   x: number;
@@ -311,6 +313,10 @@ export interface KekeHook {
   npcs(): NpcView[];
   /** Stock carts parked right now (M5-3), by id; empty offline. */
   stockCarts(): StockCartView[];
+  /** Pushable shopping carts in the synced state (P2-5), by id; empty offline. */
+  carts(): CartView[];
+  /** Pushable carts as drawn this frame (predicted and eased; P2-5), by id. Offline too. */
+  cartsDrawn(): CartLook[];
   /** Store workers as drawn this frame (M5-7), by id; empty offline. */
   npcSprites(): KekeNpcSpriteSnapshot[];
   /** Session ids of players with the Wanted ❗ icon showing this frame (M5-7); empty offline. */

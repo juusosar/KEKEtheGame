@@ -38,6 +38,8 @@ export const SFX_NAMES = [
   'ovenCrackle',
   // Self-checkout gate till beep (P2-1).
   'gateBeep',
+  // Pushable shopping cart starts rolling (P2-5).
+  'cartRattle',
 ] as const;
 
 export type SfxName = (typeof SFX_NAMES)[number];

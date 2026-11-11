@@ -6,7 +6,14 @@
 import {
   applyInput,
   type Circle,
+  cartGrid,
   type GateConfig,
+  playerHalfSize,
+  pushCarts,
+  type Box,
+  type CartBody,
+  type CartConfig,
+  type CollisionGrid,
   type InputFrame,
   type MovementConfig,
   type MovementMap,
@@ -45,6 +52,16 @@ export class Predictor {
   /** Movement modifiers from synced state (carry slowdown), the same ones the server applies (review H1). */
   private modifiers: StepModifiers = {};
   private solids: readonly Circle[] = [];
+  /**
+   * Pushable carts (P2-5): the server's bodies from the last patch, and our copy with the pending frames'
+   * pushes replayed on it. Carts never roll here; the next patch brings the server's roll.
+   */
+  private cartConfig: CartConfig | null = null;
+  /** The grid carts roll on (walls plus gate tiles, `cartGrid`). */
+  private cartGrid: CollisionGrid | null = null;
+  private serverCarts: readonly CartBody[] = [];
+  private carts: CartBody[] = [];
+  private cartObstacles: readonly Box[] = [];
 
   constructor(
     private readonly map: MovementMap,
@@ -95,10 +112,43 @@ export class Predictor {
     return this.solids.length === 0 ? this.modifiers : { ...this.modifiers, solids: this.solids };
   }
 
+  /** Turns on cart pushing (P2-5) with the cart rules' config. */
+  useCarts(config: CartConfig): void {
+    this.cartConfig = config;
+    this.cartGrid = cartGrid(this.map.collision, this.map.gates);
+  }
+
+  /**
+   * The server's carts from the latest patch (taken as the base by the next `reconcile` or `reset`) and the
+   * other bodies they stop at. Offline it is the map's carts, pushed on from there.
+   */
+  setCarts(carts: readonly CartBody[], obstacles: readonly Box[] = []): void {
+    this.serverCarts = carts.map((c) => ({ ...c }));
+    this.cartObstacles = obstacles;
+    if (this.carts.length !== carts.length) this.carts = carts.map((c) => ({ ...c }));
+  }
+
+  /** The predicted carts: the server's with our pending pushes on top. */
+  get predictedCarts(): readonly CartBody[] {
+    return this.carts;
+  }
+
+  private step(state: MovementState, frame: InputFrame, carts: CartBody[]): MovementState {
+    const next = applyInput(state, frame, this.map, this.config, this.stepModifiers());
+    if (this.cartConfig === null || carts.length === 0) return next;
+    return pushCarts(state, next, {
+      world: { grid: this.cartGrid ?? this.map.collision, carts, obstacles: this.cartObstacles },
+      half: playerHalfSize(this.config),
+      dt: 1 / this.config.inputHz,
+      now: 0,
+      config: this.cartConfig,
+    }).state;
+  }
+
   /** Predicts one fixed step. `track` false applies the frame without waiting for an ack (offline play). */
   apply(frame: InputFrame, track = true): MovementState {
     this.previous = this.body;
-    this.body = applyInput(this.body, frame, this.map, this.config, this.stepModifiers());
+    this.body = this.step(this.body, frame, this.carts);
     if (track) {
       this.pending.push(frame);
       if (this.pending.length > this.maxPending)
@@ -120,10 +170,11 @@ export class Predictor {
       vy: server.vy,
       ...(server.gate && { gate: server.gate }),
     };
-    const modifiers = this.stepModifiers();
+    const carts = this.serverCarts.map((c) => ({ ...c }));
     for (const frame of this.pending) {
-      replayed = applyInput(replayed, frame, this.map, this.config, modifiers);
+      replayed = this.step(replayed, frame, carts);
     }
+    this.carts = carts;
 
     const dx = replayed.x - this.body.x;
     const dy = replayed.y - this.body.y;
@@ -139,6 +190,7 @@ export class Predictor {
   /** Puts the body somewhere without prediction (spawn, round end, spectating) and forgets pending frames. */
   reset(state: MovementState): void {
     this.pending = [];
+    this.carts = this.serverCarts.map((c) => ({ ...c }));
     this.correction = 0;
     this.offset = { x: 0, y: 0 };
     this.body = state;
