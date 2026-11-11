@@ -24,7 +24,7 @@ const sprites = (page: Page) => hook(page, (k): KekeNpcSpriteSnapshot[] => k.npc
 const sessionId = (page: Page) => hook(page, (k) => k.net()?.sessionId ?? '');
 
 test('workers are drawn, and punching one makes us Wanted', async ({ page, request }) => {
-  // Stockers stop at shelves only every so often: waiting for one can take a while on a slow machine.
+  // A ceiling only: with the held stocker (M7 review F7) the spec needs one swing.
   test.setTimeout(120_000);
   await requireDebugServer(request);
   const pageErrors: Error[] = [];
@@ -65,23 +65,19 @@ test('workers are drawn, and punching one makes us Wanted', async ({ page, reque
   await expect(page.locator('#keke-hud-wanted')).toBeHidden();
   expect(await hook(page, (k) => k.wantedIcons())).toEqual([]);
 
-  // Walk up to a worker and punch it until a hit lands (they wander, so retry).
+  // Walk up to a stocker and punch it. The debug holdNpc keeps it still (M7 review F7), so a swing from
+  // next to it lands; a few attempts cover a swing aimed from a view that is a tick old.
   let victim = '';
   for (let attempt = 0; victim === ''; attempt++) {
-    expect(attempt, 'punches needed to hit a worker').toBeLessThan(25);
-    // Stockers walk at 80 px/s, faster than a scripted punch: wait for one restocking (1-4 s stops).
-    let stocker: NpcView | undefined;
+    expect(attempt, 'punches needed to hit a held stocker').toBeLessThan(5);
+    // A stocker, not a guard or the butcher: they stun and knock us about.
+    const stocker = (await npcs(page)).find((n) => n.behaviour === 'stocker' && n.alive);
+    if (!stocker) throw new Error('no stocker up');
+    await page.evaluate((id) => (globalThis as WithHook).__KEKE__?.holdNpc(id, 20), stocker.id);
     await expect
-      .poll(
-        async () => {
-          // A stocker at a shelf. Not a guard or the butcher: they stun and knock us about.
-          stocker = (await npcs(page)).find((n) => n.behaviour === 'stocker' && n.alive && !n.moving);
-          return stocker !== undefined;
-        },
-        { timeout: 30_000 },
-      )
-      .toBe(true);
-    if (!stocker) throw new Error('no worker standing still');
+      .poll(async () => (await npcs(page)).find((n) => n.id === stocker.id)?.moving ?? true)
+      .toBe(false);
+    const held = (await npcs(page)).find((n) => n.id === stocker.id) ?? stocker;
     const spot = await page.evaluate(
       ({ x, y }) => {
         const k = (globalThis as WithHook).__KEKE__;
@@ -93,15 +89,12 @@ test('workers are drawn, and punching one makes us Wanted', async ({ page, reque
         }
         return null;
       },
-      { x: stocker.x, y: stocker.y },
+      { x: held.x, y: held.y },
     );
-    if (spot === null) continue;
+    if (spot === null) throw new Error(`no free spot next to ${held.id}`);
     await page.waitForTimeout(150);
-    const target = stocker;
-    const now = (await npcs(page)).find((n) => n.id === target.id);
     const pos = await hook(page, (k) => k.player());
-    if (!now) continue;
-    await aimMouse(page, pos, now);
+    await aimMouse(page, pos, held);
     await page.waitForTimeout(60);
     await page.mouse.down();
     await page.waitForTimeout(60);

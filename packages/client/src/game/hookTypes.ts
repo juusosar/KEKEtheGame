@@ -227,6 +227,12 @@ export interface KekeHook {
    */
   noNpcs(): boolean;
   /**
+   * Online: asks the server to keep store worker `npc` standing still for `seconds` (at most 30) or until it
+   * is hit (`DebugMessage.holdNpc`, phase 'playing', needs `KEKE_DEBUG=1`; M7 review F7). Returns true
+   * when asked; false offline.
+   */
+  holdNpc(npc: string, seconds: number): boolean;
+  /**
    * Online: asks the server to set our van's banked item points (`DebugMessage.vanPoints`, phase
    * 'playing', needs `KEKE_DEBUG=1`). Race e2e (M6-2): set `raceQuota - 1`, then one deposit packs the
    * order box. Returns true when asked; false offline.
