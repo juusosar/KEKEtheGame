@@ -44,7 +44,8 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
   const guest = await newPlayer(pageErrors);
 
   await toPlay(host, 'Hostia', '?debug=1');
-  const code = await createRoom(host);
+  // One map: the default (both maps) would double the rounds.
+  const code = await createRoom(host, { map: 'kespro' });
   await toPlay(guest, 'Vieras', '?debug=1');
   await joinRoom(guest, code);
   for (const page of [host, guest]) await expect(players(page)).toHaveCount(2);
