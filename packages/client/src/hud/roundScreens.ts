@@ -26,6 +26,8 @@ export interface ResultRow {
   sessionPoints: number;
   /** Session standing after this round (`PlayerState.sessionPlace`; the team's with Teams on). */
   sessionPlace: number;
+  /** Race: this player delivered the order box (the box has left the world, so `items` can be 0). */
+  delivered: boolean;
   isMe: boolean;
 }
 
@@ -38,6 +40,8 @@ export interface ResultTeamRow {
   sessionPlace: number;
   /** Member nicknames, join order. */
   members: string[];
+  /** Race: a member of this team delivered the order box. */
+  delivered: boolean;
   /** Our own team. */
   mine: boolean;
 }
@@ -134,6 +138,9 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
   const membersOf = (team: number): string[] => inRound.filter((p) => p.team === team).map((p) => p.nickname);
 
   if (lobby.phase === 'roundResults') {
+    const raceWinner =
+      lobby.settings.mode === 'race' && typeof s['raceWinner'] === 'string' ? s['raceWinner'] : '';
+    const winnerTeam = lobby.players.find((p) => p.id === raceWinner)?.team ?? 0;
     // Race without Teams ranks each player on the items their van controls (M6-2), so show that.
     const controlled = lobby.settings.mode === 'race' && !teams;
     const vanControlled = new Map<number, number>();
@@ -151,6 +158,7 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       roundPoints: field(p.id, 'roundPoints'),
       sessionPoints: field(p.id, 'sessionPoints'),
       sessionPlace: field(p.id, 'sessionPlace'),
+      delivered: raceWinner !== '' && p.id === raceWinner,
       isMe: p.isMe,
     }));
     rows.sort((a, b) => byPlace(a.place, b.place) || a.nickname.localeCompare(b.nickname));
@@ -163,6 +171,7 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
         sessionPoints: num(bag, 'sessionPoints'),
         sessionPlace: num(bag, 'sessionPlace'),
         members: membersOf(team),
+        delivered: raceWinner !== '' && team === winnerTeam,
         mine: team === myTeam,
       }))
       .sort((a, b) => byPlace(a.place, b.place) || a.team - b.team);

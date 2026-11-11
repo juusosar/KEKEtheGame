@@ -133,13 +133,13 @@ export class RoundScreen {
       },
       h('h2', { id: 'keke-results-title' }, title),
       model.race ? raceBanner(model.race) : null,
-      model.teams && model.teamRows.length > 0 ? this.teamTable(model.teamRows) : null,
-      this.playerTable(model.rows, model.teams, model.items),
+      model.teams && model.teamRows.length > 0 ? this.teamTable(model.teamRows, model.race !== null) : null,
+      this.playerTable(model.rows, model.teams, playerItemsHeader(model)),
       next,
     );
   }
 
-  private teamTable(rows: readonly ResultTeamRow[]): HTMLTableElement {
+  private teamTable(rows: readonly ResultTeamRow[], race: boolean): HTMLTableElement {
     return h(
       'table',
       { class: 'results-teams', 'aria-label': t('round.results.teams') },
@@ -151,7 +151,8 @@ export class RoundScreen {
           {},
           h('th', { scope: 'col' }, t('hud.board.place')),
           h('th', { scope: 'col' }, t('hud.board.team')),
-          h('th', { scope: 'col' }, t('hud.board.items')),
+          // Race ranks teams on the items their van controls (M6-2); Timed on the van's banked points.
+          h('th', { scope: 'col' }, t(race ? 'round.results.controlled' : 'hud.board.items')),
           h('th', { scope: 'col' }, t('round.results.earned')),
           h('th', { scope: 'col' }, t('round.results.total')),
           h('th', { scope: 'col' }, t('round.results.standing')),
@@ -168,6 +169,7 @@ export class RoundScreen {
               'data-team': r.team,
               'data-place': r.place,
               'data-session-place': r.sessionPlace,
+              'data-delivered': r.delivered ? 'true' : false,
             },
             h('td', { class: 'place' }, placeText(r.place)),
             h(
@@ -176,7 +178,7 @@ export class RoundScreen {
               h('strong', {}, teamName(r.team)),
               h('span', { class: 'members' }, r.members.join(', ')),
             ),
-            h('td', { class: 'items' }, String(r.itemPoints)),
+            itemsCell(r.itemPoints, r.delivered),
             h('td', { class: 'round-points' }, `+${r.roundPoints}`),
             h('td', { class: 'session' }, String(r.sessionPoints)),
             h('td', { class: 'standing' }, placeText(r.sessionPlace)),
@@ -186,16 +188,12 @@ export class RoundScreen {
     );
   }
 
-  private playerTable(
-    rows: readonly ResultRow[],
-    teams: boolean,
-    items: 'deposited' | 'controlled',
-  ): HTMLTableElement {
+  private playerTable(rows: readonly ResultRow[], teams: boolean, itemsHeader: MessageKey): HTMLTableElement {
     const head = [
       h('th', { scope: 'col' }, t('hud.board.place')),
       h('th', { scope: 'col' }, t('hud.board.player')),
       teams ? h('th', { scope: 'col' }, t('hud.board.team')) : null,
-      h('th', { scope: 'col' }, t(items === 'controlled' ? 'round.results.controlled' : 'hud.board.items')),
+      h('th', { scope: 'col' }, t(itemsHeader)),
       h('th', { scope: 'col' }, t('round.results.earned')),
       h('th', { scope: 'col' }, t('round.results.total')),
       h('th', { scope: 'col' }, t('round.results.standing')),
@@ -217,11 +215,12 @@ export class RoundScreen {
               'data-player-id': r.id,
               'data-place': r.place,
               'data-session-place': r.sessionPlace,
+              'data-delivered': r.delivered ? 'true' : false,
             },
             h('td', { class: 'place' }, placeText(r.place)),
             h('td', { class: 'player' }, swatch, r.nickname),
             teams ? h('td', { class: 'team' }, r.team > 0 ? String(r.team) : '–') : null,
-            h('td', { class: 'items' }, String(r.items)),
+            itemsCell(r.items, r.delivered),
             h('td', { class: 'round-points' }, `+${r.roundPoints}`),
             h('td', { class: 'session' }, String(r.sessionPoints)),
             h('td', { class: 'standing' }, placeText(r.sessionPlace)),
@@ -286,6 +285,26 @@ export class RoundScreen {
       ),
     );
   }
+}
+
+/**
+ * The player Items column header: what the number counts. Race without Teams ranks players on the items
+ * their van controls; Race with Teams ranks the team (its table says Controlled), so the player rows there
+ * are each member's own deposits and say so; Timed is plain Items (deposits).
+ */
+function playerItemsHeader(model: Extract<RoundScreenModel, { kind: 'results' }>): MessageKey {
+  if (model.items === 'controlled') return 'round.results.controlled';
+  return model.race !== null ? 'round.results.deposited' : 'hud.board.items';
+}
+
+/** Items cell; the deliverer's row gets a Delivered tag, since the delivered box no longer counts. */
+function itemsCell(items: number, delivered: boolean): HTMLElement {
+  return h(
+    'td',
+    { class: 'items' },
+    String(items),
+    delivered ? h('span', { class: 'tag delivered' }, t('round.results.deliveredTag')) : null,
+  );
 }
 
 function raceBanner(race: RaceOutcome): HTMLElement {
