@@ -1,6 +1,7 @@
 {
   "cameraZoom": 2,
   "cameraLerp": 0.2,
+  "cameraCutPx": 240,
   "maxFrameSeconds": 0.1,
   "playerOriginY": 0.69,
   "menuPreviewScale": 5,

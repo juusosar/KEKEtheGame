@@ -6,6 +6,8 @@ export interface RenderConfig {
   readonly cameraZoom: number;
   /** Camera follow smoothing, 0..1 (1 = locked to the player). */
   readonly cameraLerp: number;
+  /** The camera cuts to us instead of sliding when we are further than this from its centre (respawn), px. */
+  readonly cameraCutPx: number;
   /** Longest frame the local simulation steps in one go, so a stalled tab does not tunnel. */
   readonly maxFrameSeconds: number;
   /** Sprite origin Y (0..1): the frame row that sits on the player's position (centre of the hitbox). */
@@ -126,6 +128,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   };
   const cameraZoom = num('cameraZoom', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
   const cameraLerp = num('cameraLerp', (n) => n > 0 && n <= 1, 'in (0, 1]');
+  const cameraCutPx = num('cameraCutPx', (n) => n > 0, 'positive');
   const maxFrameSeconds = num('maxFrameSeconds', (n) => n > 0, 'positive');
   const playerOriginY = num('playerOriginY', (n) => n >= 0 && n <= 1, 'in [0, 1]');
   const menuPreviewScale = num('menuPreviewScale', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
@@ -185,6 +188,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   return Object.freeze({
     cameraZoom,
     cameraLerp,
+    cameraCutPx,
     maxFrameSeconds,
     playerOriginY,
     menuPreviewScale,

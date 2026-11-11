@@ -129,7 +129,12 @@ export type RoundScreenModel =
 /** Unranked (0) sorts last. */
 const byPlace = (a: number, b: number): number => (a === 0 ? 99 : a) - (b === 0 ? 99 : b);
 
-export function readRoundScreen(state: unknown, mySessionId: string): RoundScreenModel {
+/**
+ * @param deliveredPoints Race: points in the box that was delivered this round (from the `delivery`
+ *   broadcast). The box has left the world, so the deliverer's van no longer controls it; their row adds
+ *   it back (playtest 1: the deliverer read "0 Delivered").
+ */
+export function readRoundScreen(state: unknown, mySessionId: string, deliveredPoints = 0): RoundScreenModel {
   const lobby = readLobby(state, mySessionId);
   const s: Bag = isBag(state) ? state : {};
   const seconds = Math.max(0, Math.ceil(num(s, 'secondsLeft')));
@@ -180,7 +185,9 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       team: p.team,
       place: field(p.id, 'place'),
       deposited: field(p.id, 'deposited'),
-      items: controlled ? (vanControlled.get(field(p.id, 'van')) ?? 0) : field(p.id, 'deposited'),
+      items: controlled
+        ? (vanControlled.get(field(p.id, 'van')) ?? 0) + (p.id === raceWinner ? deliveredPoints : 0)
+        : field(p.id, 'deposited'),
       roundPoints: field(p.id, 'roundPoints'),
       sessionPoints: field(p.id, 'sessionPoints'),
       sessionPlace: field(p.id, 'sessionPlace'),

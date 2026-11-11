@@ -169,6 +169,8 @@ export class GameScene extends Phaser.Scene {
   private hudContext!: HudContext;
   /** Race broadcasts received (M6-3), newest last, for the debug hook. */
   private raceEvents: KekeRaceEvent[] = [];
+  /** Race: points in the box delivered this round (round results add it to the deliverer's row). */
+  private deliveredPoints = 0;
   private icons = new Map<string, string | null>();
   /** Swings, hit flashes, stun rings and HP bars (M4-2); online only. */
   private combatFx: CombatFx | undefined;
@@ -287,6 +289,7 @@ export class GameScene extends Phaser.Scene {
     this.predictor.smooth(dt);
     const pos = this.predictor.renderPosition(this.clock.alpha);
     this.local.place(pos.x, pos.y, this.lastMove);
+    this.cutCameraOnJump(pos);
 
     if (!offline) this.updateRemotes(dt);
     const npcAnchors = this.drawNpcs(time / 1000);
@@ -297,6 +300,17 @@ export class GameScene extends Phaser.Scene {
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
     if (this.hud) this.updateHud(this.hud);
     if (this.debug) this.updateDebug();
+  }
+
+  /**
+   * A respawn (or teleport) moves us across the map in one go: cut the camera to us instead of sliding
+   * over the store (playtest 1). Walking never gets this far ahead of the follow lerp.
+   */
+  private cutCameraOnJump(pos: Vec2): void {
+    const cam = this.cameras.main;
+    if (this.spectating !== null) return;
+    const mid = cam.midPoint;
+    if (Math.hypot(mid.x - pos.x, mid.y - pos.y) > renderConfig.cameraCutPx) cam.centerOn(pos.x, pos.y);
   }
 
   /** Scene objects are reused between runs; fields that hold per-run state start fresh here. */
@@ -493,7 +507,8 @@ export class GameScene extends Phaser.Scene {
     // `<body data-phase>` lets CSS hide the in-round HUD behind the results and specs wait on phases.
     document.body.dataset['phase'] = view.phase;
     this.hud?.render(readHud(room.state, room.sessionId, this.hudContext));
-    const screen = readRoundScreen(room.state, room.sessionId);
+    if (view.phase === 'countdown') this.deliveredPoints = 0;
+    const screen = readRoundScreen(room.state, room.sessionId, this.deliveredPoints);
     this.roundScreen?.render(screen);
     const clock = { phase: view.phase, seconds: screen.kind === 'intro' ? screen.seconds : 0 };
     this.playCues(roundCues(this.roundClock, clock));
@@ -874,6 +889,7 @@ export class GameScene extends Phaser.Scene {
   /** Race broadcasts: feed lines and placeholder sounds for a packed box and the winning delivery. */
   private createRace(room: Room): void {
     this.raceEvents = [];
+    this.deliveredPoints = 0;
     const me = room.sessionId;
     const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
     const ctx = { me, nameOf, vanName: (van: number) => this.vanName(van) };
@@ -886,7 +902,11 @@ export class GameScene extends Phaser.Scene {
           if (line) this.hud?.pushFeed(line, performance.now());
           const player = (message as { player?: unknown } | null)?.player;
           if (type === RaceEventMessage.boxPacked && player === me) this.sfx?.play('boxPacked');
-          if (type === RaceEventMessage.delivery) this.sfx?.play('delivery');
+          if (type === RaceEventMessage.delivery) {
+            this.sfx?.play('delivery');
+            const points = (message as { points?: unknown } | null)?.points;
+            this.deliveredPoints = typeof points === 'number' ? points : 0;
+          }
         }),
       );
     }
