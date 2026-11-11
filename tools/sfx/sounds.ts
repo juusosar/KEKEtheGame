@@ -178,4 +178,27 @@ export const SOUNDS: Record<SfxName, readonly Layer[]> = {
     { wave: 'triangle', seconds: 1, freq: 120, gain: 0.05, attack: 0, release: 0 },
     { wave: 'noise', seconds: 1, freq: 5000, gain: 0.08, attack: 0, release: 0, seed: 11 },
   ],
+  // A shopping cart starts rolling (P2-5): wire-basket clatter over a low wheel rumble.
+  cartRattle: [
+    { wave: 'noise', seconds: 0.5, freq: 180, gain: 0.18, attack: 0.03, fade: 1.5, seed: 5 },
+    ...[0, 0.07, 0.13, 0.21, 0.26, 0.34].map((at, i) => ({
+      wave: 'noise' as const,
+      at,
+      seconds: 0.03,
+      freq: 5200 - i * 300,
+      gain: 0.22,
+      fade: 2,
+      seed: 11 + i,
+    })),
+    {
+      wave: 'square',
+      at: 0.02,
+      seconds: 0.4,
+      freq: 1700,
+      steps: [1700, 2100, 1500, 1900, 1600],
+      gain: 0.05,
+      duty: 0.1,
+      fade: 1.5,
+    },
+  ],
 };

@@ -19,6 +19,8 @@ import {
   playerHalfSize,
   vanSpawn,
   gridWithBlocked,
+  newCart,
+  type Box,
   type GameConfig,
   type KoMessage,
   type WeaponRolledMessage,
@@ -46,6 +48,7 @@ import {
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { themeAtlasKey, type AssetManifest } from '../game/manifest';
 import { Avatar } from '../game/avatar';
+import { CartRenderer } from '../game/carts';
 import { CombatFx, type FxBody } from '../game/combatFx';
 import { SprayFx } from '../game/sprayFx';
 import { isDebugEnabled } from '../game/debugFlag';
@@ -103,6 +106,7 @@ import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from 
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
 import { readLobby } from '../net/lobbyView';
 import { readTraps } from '../net/trapView';
+import { cartBodies, readCarts } from '../net/cartView';
 import { cartTileKeys, readNpcs, readStockCarts } from '../net/npcView';
 import { readWanted } from '../net/wantedView';
 import { readWorld, type WorldView } from '../net/worldView';
@@ -190,6 +194,8 @@ export class GameScene extends Phaser.Scene {
   private combat = new Map<string, CombatPlayerView>();
   /** Banana peels on the floor (M4-5); online only. */
   private peels: PeelRenderer | undefined;
+  /** Pushable shopping carts (P2-5); none on a map without cart spawns. */
+  private carts: CartRenderer | undefined;
   /** Who knocked us out (last `ko` about us), for the KO overlay; cleared on respawn. */
   private koBy: { name: string; weapon: string | null } | null = null;
   private weaponIcons = new Map<string, string | null>();
@@ -304,6 +310,7 @@ export class GameScene extends Phaser.Scene {
     const pos = this.predictor.renderPosition(this.clock.alpha);
     this.local.place(pos.x, pos.y, this.lastMove);
     this.cutCameraOnJump(pos);
+    this.drawCarts(dt);
 
     if (!offline) this.updateRemotes(dt);
     const npcAnchors = this.drawNpcs(time / 1000);
@@ -390,6 +397,11 @@ export class GameScene extends Phaser.Scene {
       collision: gridWithBlocked(this.model.collision, (tx, ty) => this.cartTiles.has(ty * width + tx)),
     };
     this.predictor = new Predictor(live, this.config, start);
+    // Pushable carts (P2-5): prediction pushes a copy of the server's carts. Offline the map's carts, pushed on.
+    this.predictor.useCarts(this.config);
+    if (this.room === null) {
+      this.predictor.setCarts(this.model.cartSpawns.map((spawn, i) => newCart(i + 1, spawn, spawn.dir)));
+    }
 
     this.local = this.newAvatar(this.room !== null);
     // Offline (and in a room until the first patch) the local player wears the saved profile (§13.1).
@@ -402,6 +414,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createWorld(offlineColor: string): void {
+    this.carts = new CartRenderer(
+      this,
+      themeAtlasKey(this.manifest, this.theme.id, 'cart'),
+      { player: DEPTH.player, mapHeight: this.model.heightPx },
+      this.config.cartSizePx,
+    );
     this.world = new WorldRenderer(
       this,
       this.model,
@@ -574,6 +592,7 @@ export class GameScene extends Phaser.Scene {
       carrying: me.carrying !== 0,
       ...(block === undefined ? {} : { blockSpeedMultiplier: block }),
     });
+    this.predictor.setCarts(cartBodies(readCarts(room.state)), this.cartObstacles(view));
     if (controlling && this.controlling) {
       this.predictor.reconcile(me);
     } else {
@@ -624,6 +643,26 @@ export class GameScene extends Phaser.Scene {
     const carts = readStockCarts(room.state);
     this.cartTiles = cartTileKeys(carts, this.model.collision.width);
     this.npcs?.sync(readNpcs(room.state), carts, now);
+  }
+
+  /** Other living players on the map: pushed carts stop at them, as on the server (P2-5). */
+  private cartObstacles(view: GameView): Box[] {
+    const half = playerHalfSize(this.config);
+    return view.players
+      .filter((p) => !p.isMe && isOnMap(p, view.phase) && (this.combat.get(p.id) ?? DEFAULT_COMBAT).alive)
+      .map((p) => ({ x: p.x, y: p.y, hw: half.hw, hh: half.hh }));
+  }
+
+  /** Draws the carts where prediction has them; one that starts rolling rattles (P2-5). */
+  private drawCarts(dt: number): void {
+    const started = this.carts?.update(this.predictor.predictedCarts, dt) ?? [];
+    if (started.length === 0 || !this.sfx) return;
+    const listener = this.local.body.visible
+      ? { x: this.local.body.x, y: this.local.body.y }
+      : this.cameras.main.midPoint;
+    for (const cart of started) {
+      this.sfx.play('cartRattle', hearingVolume(cart, listener, renderConfig.sfxHearingPx));
+    }
   }
 
   private updateRemotes(dt: number): void {
@@ -1229,6 +1268,8 @@ export class GameScene extends Phaser.Scene {
     this.projectiles = undefined;
     this.peels?.destroy();
     this.peels = undefined;
+    this.carts?.destroy();
+    this.carts = undefined;
     this.npcs?.destroy();
     this.npcs = undefined;
     this.sfx = undefined;
@@ -1476,6 +1517,8 @@ export class GameScene extends Phaser.Scene {
         })),
       npcs: () => (this.room ? readNpcs(this.room.state) : []),
       stockCarts: () => (this.room ? readStockCarts(this.room.state) : []),
+      carts: () => (this.room ? readCarts(this.room.state) : []),
+      cartsDrawn: () => this.carts?.snapshots() ?? [],
       npcSprites: () => this.npcs?.snapshots() ?? [],
       wantedIcons: () => {
         const out: string[] = [];
