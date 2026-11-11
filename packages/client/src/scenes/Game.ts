@@ -13,6 +13,7 @@ import {
   getWeaponCatalogue,
   hazardAt,
   inputStepSeconds,
+  configForMap,
   loadConfig,
   loadMap,
   playerHalfSize,
@@ -220,7 +221,8 @@ export class GameScene extends Phaser.Scene {
     const current = currentRoom();
     // P1-5: the room's map (GameState.mapId), or `?map=` in the offline walk.
     this.theme = current ? themeFor(stateMapId(current.room.state)) : themeFromQuery(window.location.search);
-    this.config = loadConfig();
+    // P4-1: the map's config (its `maps.<id>` overrides on top), so prediction and the HUD match the server.
+    this.config = configForMap(loadConfig(), this.theme.id);
     const raw = rawMapFor(this.theme);
     this.model = loadMap(raw, this.theme.assets.map);
     this.resetFields();

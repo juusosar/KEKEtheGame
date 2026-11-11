@@ -2,7 +2,19 @@
 
 export { Rng, createRng, type Weighted } from './rng';
 export { Button, buttonsOf, isPressed, type ButtonName, type InputFrame, type Vec2 } from './types';
-export { ConfigError, configSchema, formatIssues, loadConfig, type GameConfig } from './config';
+export {
+  ConfigError,
+  GLOBAL_CONFIG_KEYS,
+  configForMap,
+  configSchema,
+  formatIssues,
+  loadConfig,
+  mapConfigOverrideSchema,
+  mergeConfigOverride,
+  type GameConfig,
+  type MapConfigKey,
+  type MapConfigOverride,
+} from './config';
 export * from './profile';
 export * from './lobby';
 export * from './items';

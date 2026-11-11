@@ -48,5 +48,6 @@
   "maxRoundsPerMap": 3,
   "countdownSeconds": 3,
   "roundResultsSeconds": 10,
-  "podiumSeconds": 15
+  "podiumSeconds": 15,
+  "maps": {}
 }

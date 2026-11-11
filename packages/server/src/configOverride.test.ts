@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ConfigError, loadConfig } from '@keke/shared';
+import { ConfigError, configForMap, loadConfig } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
 import { readConfigOverride } from './configOverride';
 
@@ -19,6 +19,13 @@ describe('readConfigOverride (KEKE_CONFIG)', () => {
     const config = loadConfig(raw);
     expect(config.countdownSeconds).toBe(8);
     expect(config.timedRoundSeconds).toBe(loadConfig().timedRoundSeconds);
+  });
+
+  it('accepts per-map overrides (P4-1)', () => {
+    const { raw } = readConfigOverride(file('maps.json', '{ "maps": { "prisma": { "raceQuota": 9 } } }'));
+    const config = loadConfig(raw);
+    expect(configForMap(config, 'prisma').raceQuota).toBe(9);
+    expect(configForMap(config, 'kespro').raceQuota).toBe(config.raceQuota);
   });
 
   it('refuses a value the schema rejects, naming the file and the key', () => {
