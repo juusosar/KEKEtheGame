@@ -1,8 +1,10 @@
 // The full-screen round panels (§13.1), HTML over the canvas like the HUD (Hud.ts) and the menus:
 //
 //   #keke-intro          Round intro, phase 'countdown': map, mode, round n of N and the 3-2-1
+//     .intro-map[data-map]  the round's store; data-new-map + .intro-new-map when the map changed (P3-2)
 //     #keke-intro-count  role timer, data-seconds
 //   #keke-results        Round results, phase 'roundResults'
+//     .results-map[data-map]                the store the round was played in (P3-2)
 //     .results-race                         race only (M6-3): data-outcome delivered|stolen|timeUp,
 //                                           data-winner (session id, '' at the time cap)
 //     .results-teams tr[data-team]          (Teams on) place, items, points, total, members
@@ -12,16 +14,19 @@
 //     #keke-results-next                    data-seconds until the next round (or the podium)
 //   #keke-podium         Session podium, phase 'podium' (M7-1), then the lobby
 //     .podium-winner                        "X wins the session!" (data-shared when places tie)
+//     .podium-maps li[data-map][data-first][data-last]  which store each run of rounds was in (P3-2)
 //     .podium-stage .podium-step[data-step=1|2|3]  steps; DOM order 1, 2, 3, drawn 2-1-3
 //     li[data-side-id][data-place][data-points][data-items]   every side, best first (steps, then
 //                                           .podium-rest); .tie-break when item points decided it
 //
 // Each is a role dialog named by its heading. The Game scene owns one and renders it on every patch.
 import { defaultThemeId, getTheme, type MapTheme } from '@keke/shared';
+import { themeFor } from '../game/mapTheme';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
 import {
   podiumSteps,
+  type MapStretch,
   type PodiumRow,
   type RaceOutcome,
   type ResultRow,
@@ -103,7 +108,15 @@ export class RoundScreen {
         'aria-labelledby': 'keke-intro-title',
       },
       h('h2', { id: 'keke-intro-title' }, t('round.intro.title')),
-      h('p', { class: 'intro-map', 'data-map': theme.id }, theme.brand.storeDescription),
+      h(
+        'p',
+        { class: 'intro-map', 'data-map': theme.id, 'data-new-map': model.newMap },
+        theme.brand.storeDescription,
+      ),
+      // P3-2: the session moved to the other store this round.
+      model.newMap
+        ? h('p', { class: 'intro-new-map' }, t('round.intro.newMap', { store: theme.brand.storeName }))
+        : null,
       h('p', { class: 'intro-mode' }, modeLabel(model.mode)),
       model.totalRounds > 0
         ? h('p', { class: 'intro-round' }, t('round.of', { round: model.round, total: model.totalRounds }))
@@ -132,6 +145,11 @@ export class RoundScreen {
         'aria-labelledby': 'keke-results-title',
       },
       h('h2', { id: 'keke-results-title' }, title),
+      h(
+        'p',
+        { class: 'results-map', 'data-map': model.mapId },
+        t('round.results.map', { store: themeFor(model.mapId).brand.storeName }),
+      ),
       model.race ? raceBanner(model.race) : null,
       model.teams && model.teamRows.length > 0 ? this.teamTable(model.teamRows, model.race !== null) : null,
       this.playerTable(model.rows, model.teams, playerItemsHeader(model)),
@@ -269,6 +287,7 @@ export class RoundScreen {
               : t('round.podium.rounds', { rounds: model.totalRounds }),
           )
         : null,
+      model.maps.length > 0 ? mapList(model.maps) : null,
       winners.length > 0 ? winnerLine(winners) : null,
       stage,
       rest.length > 0
@@ -285,6 +304,27 @@ export class RoundScreen {
       ),
     );
   }
+}
+
+/** The podium's list of stores and the rounds played in each (P3-2): "Rounds 1–3: <store>". */
+function mapList(maps: readonly MapStretch[]): HTMLElement {
+  return h(
+    'ul',
+    { class: 'podium-maps', 'aria-label': t('round.podium.maps') },
+    ...maps.map((m) =>
+      h(
+        'li',
+        { 'data-map': m.mapId, 'data-first': m.first, 'data-last': m.last },
+        m.first === m.last
+          ? t('round.podium.mapRound', { round: m.first, store: themeFor(m.mapId).brand.storeName })
+          : t('round.podium.mapRounds', {
+              first: m.first,
+              last: m.last,
+              store: themeFor(m.mapId).brand.storeName,
+            }),
+      ),
+    ),
+  );
 }
 
 /**

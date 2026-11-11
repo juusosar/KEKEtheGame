@@ -127,7 +127,7 @@ export function readLobby(state: unknown, mySessionId: string): LobbyView {
 }
 
 /** A schema ArraySchema (has forEach) or a plain array of strings; anything else reads as empty. */
-function readStrings(value: unknown): string[] {
+export function readStrings(value: unknown): string[] {
   const out: string[] = [];
   if (Array.isArray(value)) {
     for (const v of value as unknown[]) if (typeof v === 'string') out.push(v);

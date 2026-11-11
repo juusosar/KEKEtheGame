@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { podiumSteps, readRoundScreen } from './roundScreens';
+import { mapStretches, podiumSteps, readRoundScreen } from './roundScreens';
 
 type P = Record<string, unknown>;
 const player = (id: string, joinOrder: number, extra: P = {}): P => ({
@@ -47,7 +47,46 @@ describe('readRoundScreen', () => {
       round: 1,
       totalRounds: 2,
       mode: 'timed',
+      mapId: '',
+      newMap: false,
     });
+  });
+
+  it('says when a round is on another map than the round before (P3-2)', () => {
+    const at = (round: number, roundMaps: string[]) =>
+      readRoundScreen(state('countdown', [player('a', 0)], { round, mapId: 'prisma', roundMaps }), 'a');
+    expect(at(1, ['kespro'])).toMatchObject({ mapId: 'kespro', newMap: false });
+    expect(at(2, ['kespro', 'kespro'])).toMatchObject({ mapId: 'kespro', newMap: false });
+    expect(at(2, ['kespro', 'prisma'])).toMatchObject({ mapId: 'prisma', newMap: true });
+    // Before the round's entry arrives: the synced mapId.
+    expect(at(1, [])).toMatchObject({ mapId: 'prisma', newMap: false });
+  });
+
+  it('names the map of the round in the results and every map on the podium (P3-2)', () => {
+    const roundMaps = ['kespro', 'kespro', 'prisma'];
+    const results = readRoundScreen(
+      state('roundResults', [player('a', 0)], { round: 3, totalRounds: 4, roundMaps }),
+      'a',
+    );
+    expect(results).toMatchObject({ kind: 'results', mapId: 'prisma' });
+    const podium = readRoundScreen(state('podium', [player('a', 0)], { roundMaps }), 'a');
+    expect(podium).toMatchObject({
+      kind: 'podium',
+      maps: [
+        { mapId: 'kespro', first: 1, last: 2 },
+        { mapId: 'prisma', first: 3, last: 3 },
+      ],
+    });
+  });
+
+  it('groups consecutive rounds on one map', () => {
+    expect(mapStretches([])).toEqual([]);
+    expect(mapStretches(['kespro'])).toEqual([{ mapId: 'kespro', first: 1, last: 1 }]);
+    expect(mapStretches(['a', 'a', 'a', 'b', 'b', 'b'])).toEqual([
+      { mapId: 'a', first: 1, last: 3 },
+      { mapId: 'b', first: 4, last: 6 },
+    ]);
+    expect(mapStretches(['a', 'b', 'a'])).toHaveLength(3);
   });
 
   it('lists results by place, spectators left out, and says when it is the last round', () => {

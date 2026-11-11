@@ -3,7 +3,7 @@
 // session standing) and the Session podium (final standings, M7-1). Pure (no DOM), unit-tested in node.
 // Fields come from the M3-5 round flow (PlayerState place/roundPoints/sessionPoints/…, GameState.teams).
 import { teamColor, type GameMode } from '@keke/shared';
-import { isBag, mapEntries, num, readLobby, type Bag } from '../net/lobbyView';
+import { isBag, mapEntries, num, readLobby, readStrings, type Bag } from '../net/lobbyView';
 
 export interface ResultRow {
   id: string;
@@ -77,14 +77,33 @@ export interface RaceOutcome {
   mine: boolean;
 }
 
+/** Consecutive rounds of a session on one map (P3-2), for the podium. Rounds are 1-based. */
+export interface MapStretch {
+  mapId: string;
+  first: number;
+  last: number;
+}
+
 export type RoundScreenModel =
   | { kind: 'none' }
-  | { kind: 'intro'; seconds: number; round: number; totalRounds: number; mode: GameMode }
+  | {
+      kind: 'intro';
+      seconds: number;
+      round: number;
+      totalRounds: number;
+      mode: GameMode;
+      /** Theme id of this round's map. */
+      mapId: string;
+      /** This round is on another map than the round before (P3-2): the intro says so. */
+      newMap: boolean;
+    }
   | {
       kind: 'results';
       seconds: number;
       round: number;
       totalRounds: number;
+      /** Theme id of the map this round was played on (P3-2). */
+      mapId: string;
       /** The last round of the session: the podium comes next instead of another round. */
       final: boolean;
       teams: boolean;
@@ -103,6 +122,8 @@ export type RoundScreenModel =
       totalRounds: number;
       /** Ranked sides, best first. */
       rows: PodiumRow[];
+      /** Which map each round was on, in order (P3-2); one entry for a one-map session. */
+      maps: MapStretch[];
     };
 
 /** Unranked (0) sorts last. */
@@ -115,9 +136,14 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
   const round = num(s, 'round');
   const totalRounds = num(s, 'totalRounds');
   const teams = lobby.settings.teams;
+  // GameState.roundMaps (P3-1): the map of each round so far; the current mapId before the first entry.
+  const roundMaps = readStrings(s['roundMaps']);
+  const mapOf = (r: number): string => roundMaps[r - 1] ?? lobby.mapId;
 
   if (lobby.phase === 'countdown') {
-    return { kind: 'intro', seconds, round, totalRounds, mode: lobby.settings.mode };
+    const mapId = mapOf(round);
+    const newMap = round > 1 && roundMaps[round - 2] !== undefined && roundMaps[round - 2] !== mapId;
+    return { kind: 'intro', seconds, round, totalRounds, mode: lobby.settings.mode, mapId, newMap };
   }
   if (lobby.phase !== 'roundResults' && lobby.phase !== 'podium') return { kind: 'none' };
 
@@ -195,6 +221,7 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       seconds,
       round,
       totalRounds,
+      mapId: mapOf(round),
       final: totalRounds > 0 && round >= totalRounds,
       teams,
       items: controlled ? 'controlled' : 'deposited',
@@ -241,7 +268,18 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
     tieBroken:
       r.place > 0 && rows.some((o) => o !== r && o.place > 0 && o.points === r.points && o.place !== r.place),
   }));
-  return { kind: 'podium', seconds, teams, totalRounds, rows: ranked };
+  return { kind: 'podium', seconds, teams, totalRounds, rows: ranked, maps: mapStretches(roundMaps) };
+}
+
+/** Groups the session's round maps into runs of consecutive rounds on one map (P3-2). */
+export function mapStretches(roundMaps: readonly string[]): MapStretch[] {
+  const stretches: MapStretch[] = [];
+  roundMaps.forEach((mapId, i) => {
+    const last = stretches[stretches.length - 1];
+    if (last !== undefined && last.mapId === mapId) last.last = i + 1;
+    else stretches.push({ mapId, first: i + 1, last: i + 1 });
+  });
+  return stretches;
 }
 
 /** Podium steps: the sides on places 1, 2 and 3 (ties share a step); everyone else is listed below. */
