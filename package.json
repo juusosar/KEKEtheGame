@@ -27,7 +27,8 @@
     "gen:map": "tsx tools/gen-kespro-map.ts",
     "gen:items": "tsx tools/items-table-to-json.ts",
     "gen:sfx": "tsx tools/gen-sfx.ts",
-    "docker:smoke": "tsx scripts/docker-smoke.ts"
+    "docker:smoke": "tsx scripts/docker-smoke.ts",
+    "soak": "node --expose-gc --import tsx packages/server/src/soak/cli.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
