@@ -29,6 +29,7 @@ import { markRoom, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
 import { themeFor } from '../game/mapTheme';
 import { createMenuLayer, h } from '../ui/dom';
+import { BotPicker } from '../ui/botPicker';
 import { ROOM_SETUP_KEY, readRoomSetup } from '../ui/rules';
 import { RulesEditor } from '../ui/rulesEditor';
 import { MODE_LABEL, mapChoiceLabel, type PlaySceneData } from './Lobby';
@@ -60,6 +61,7 @@ export class PlayScene extends Phaser.Scene {
   private setupButtons: { button: HTMLButtonElement; pressed: () => boolean }[] = [];
   private rulesEditor!: RulesEditor;
   private setupStatus!: HTMLParagraphElement;
+  private botPicker: BotPicker | undefined;
 
   constructor() {
     super('Play');
@@ -182,6 +184,16 @@ export class PlayScene extends Phaser.Scene {
       this.setupChoice(t('lobby.teamsOff'), { teams: false }, () => !this.setup.teams),
       this.setupChoice(t('lobby.teamsOn'), { teams: true }, () => this.setup.teams),
     ]);
+    // Bot players: how many and how good; they take the seats nobody else needs.
+    this.botPicker = new BotPicker({
+      max: maxBots(this.config),
+      idPrefix: 'keke-setup-bots',
+      onChange: (change) => {
+        this.setup = { ...this.setup, ...change };
+        this.renderSetup();
+      },
+    });
+    settings.append(...this.botPicker.elements);
     panel.append(settings);
 
     panel.append(h('h3', {}, t('play.rulesHeading')));
@@ -221,6 +233,7 @@ export class PlayScene extends Phaser.Scene {
   private renderSetup(): void {
     for (const { button, pressed } of this.setupButtons)
       button.setAttribute('aria-pressed', String(pressed()));
+    this.botPicker?.set(this.setup.bots, this.setup.botLevel, true);
   }
 
   private openSetup(): void {

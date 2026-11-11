@@ -7,6 +7,7 @@ import {
   configForMap,
   getTheme,
   loadConfig,
+  maxBots,
   withHostRules,
   type GameConfig,
   mapChoiceAvailable,
@@ -28,6 +29,7 @@ import { howToSeen, markHowToSeen } from '../ui/howToNav';
 import { HowToPlay } from '../ui/howToPlay';
 import { rulesSummary } from '../ui/rules';
 import { RulesEditor } from '../ui/rulesEditor';
+import { BotPicker } from '../ui/botPicker';
 
 /** Scene that takes over when the host starts (or when we join a room that is already playing). */
 export const AFTER_LOBBY_SCENE = 'Game';
@@ -78,6 +80,7 @@ export class LobbyScene extends Phaser.Scene {
   private howTo: HowToPlay | null = null;
   private howToOverlay: HTMLDivElement | null = null;
   private config!: GameConfig;
+  private botPicker!: BotPicker;
   private rulesList!: HTMLUListElement;
   private rulesButton!: HTMLButtonElement;
   /** The Rules overlay: an editor for the host, the same values read-only for everyone else. */
@@ -382,6 +385,14 @@ export class LobbyScene extends Phaser.Scene {
     teams.append(this.teamsButtons.off, this.teamsButtons.on);
     settings.append(h('label', {}, t('lobby.teamsLabel')), teams, this.shuffleButton);
 
+    // Bot players: the host sets how many and how good; the server adds and removes them.
+    this.botPicker = new BotPicker({
+      max: maxBots(this.config),
+      idPrefix: 'keke-lobby-bots',
+      onChange: (change) => this.sendSettings(change),
+    });
+    settings.append(...this.botPicker.elements);
+
     // Host rules: the changed values in short, the full editor (or a read-only view) in an overlay.
     this.rulesList = h('ul', {
       class: 'rules-summary',
@@ -441,6 +452,7 @@ export class LobbyScene extends Phaser.Scene {
     this.pressed(this.teamsButtons.off, !view.settings.teams, host);
     this.pressed(this.teamsButtons.on, view.settings.teams, host);
     this.shuffleButton.hidden = !view.settings.teams;
+    this.botPicker.set(view.settings.bots, view.settings.botLevel, host);
     this.renderRules(view);
     this.shuffleButton.disabled = !host;
     this.settingsNote.textContent = host ? '' : t('lobby.hostOnly');
@@ -469,6 +481,7 @@ export class LobbyScene extends Phaser.Scene {
     const tags: string[] = [];
     if (p.isMe) tags.push(t('lobby.tag.you'));
     if (p.isHost) tags.push(t('lobby.tag.host'));
+    if (p.bot) tags.push(t('lobby.tag.bot'));
     if (teams && p.team > 0) tags.push(t('lobby.tag.team', { team: p.team }));
     if (p.spectator) tags.push(t('lobby.tag.spectator'));
     if (!p.connected) tags.push(t('lobby.tag.reconnecting'));
@@ -487,6 +500,7 @@ export class LobbyScene extends Phaser.Scene {
         'data-ready': String(p.ready),
         'data-host': String(p.isHost),
         'data-team': p.team,
+        'data-bot': String(p.bot),
         class: [p.ready ? 'is-ready' : '', p.isMe ? 'is-me' : ''].join(' ').trim(),
       },
       swatch,
