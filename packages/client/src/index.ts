@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { debugFpsLimit } from './game/debugFlag';
 import { BootScene } from './scenes/Boot';
 import { GameScene } from './scenes/Game';
+import { HowToScene } from './scenes/HowTo';
 import { LobbyScene } from './scenes/Lobby';
 import { PlayScene } from './scenes/Play';
 import { ProfileScene } from './scenes/Profile';
@@ -26,8 +27,8 @@ new Phaser.Game({
     height: '100%',
   },
   // Boot starts Title (or Game with ?scene=game) and stays on top as the connection status overlay.
-  // Flow (§13.1): Title → Profile → Play → Lobby → Game.
-  scene: [BootScene, TitleScene, ProfileScene, PlayScene, LobbyScene, GameScene],
+  // Flow (§13.1): Title → Profile → Play → Lobby → Game; Title → HowTo → Title for the How to play pages.
+  scene: [BootScene, TitleScene, HowToScene, ProfileScene, PlayScene, LobbyScene, GameScene],
 });
 // §12: the sound settings button stays in the bottom-left corner on every screen.
 mountAudioControl();

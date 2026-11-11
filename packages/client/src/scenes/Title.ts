@@ -2,13 +2,27 @@ import { defaultThemeId, getTheme } from '@keke/shared';
 import Phaser from 'phaser';
 import { t } from '../i18n';
 import { createMenuLayer, h } from '../ui/dom';
+import { PAD_MENU } from '../ui/menuNav';
 
-/** §13.1 step 1: the title screen. Play (click, Enter, Space or gamepad A) goes to the Profile screen. */
+/** Data the Title scene accepts: which button to focus (the How to play screen returns to its button). */
+export interface TitleSceneData {
+  focus?: 'play' | 'howTo';
+}
+
+/**
+ * §13.1 step 1: the title screen. Play (click, Enter, Space or gamepad A) goes to the Profile screen;
+ * How to play opens the illustrated pages (HowTo scene). Pad D-pad up/down moves between the two.
+ */
 export class TitleScene extends Phaser.Scene {
   private leaving = false;
+  private focusOn: TitleSceneData['focus'] = 'play';
 
   constructor() {
     super('Title');
+  }
+
+  init(data: TitleSceneData | undefined): void {
+    this.focusOn = data?.focus ?? 'play';
   }
 
   create(): void {
@@ -46,22 +60,44 @@ export class TitleScene extends Phaser.Scene {
     const layer = createMenuLayer(this, 'title');
     const play = h('button', { type: 'button' }, t('title.play'));
     play.addEventListener('click', () => this.next());
-    layer.append(h('div', { class: 'title-actions' }, play, h('p', { class: 'muted' }, t('title.hint'))));
-    play.focus();
+    const howTo = h(
+      'button',
+      { type: 'button', class: 'secondary', id: 'keke-title-howto' },
+      t('title.howTo'),
+    );
+    howTo.addEventListener('click', () => this.go('HowTo'));
+    layer.append(
+      h('div', { class: 'title-actions' }, play, howTo, h('p', { class: 'muted' }, t('title.hint'))),
+    );
+    (this.focusOn === 'howTo' ? howTo : play).focus();
 
-    this.input.keyboard?.on('keydown-ENTER', () => this.next());
-    this.input.keyboard?.on('keydown-SPACE', () => this.next());
+    // Enter and Space start the game unless focus sits on another button (it then presses that one).
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.target === howTo) return;
+      this.next();
+    };
+    this.input.keyboard?.on('keydown-ENTER', onKey);
+    this.input.keyboard?.on('keydown-SPACE', onKey);
     this.input.gamepad?.on(
       'down',
       (_pad: Phaser.Input.Gamepad.Gamepad, button: Phaser.Input.Gamepad.Button) => {
-        if (button.index === 0) this.next();
+        if (button.index === PAD_MENU.a) {
+          if (document.activeElement === howTo) this.go('HowTo');
+          else this.next();
+        } else if (button.index === PAD_MENU.up || button.index === PAD_MENU.down) {
+          (document.activeElement === howTo ? play : howTo).focus();
+        }
       },
     );
   }
 
   private next(): void {
+    this.go('Profile');
+  }
+
+  private go(scene: 'Profile' | 'HowTo'): void {
     if (this.leaving) return;
     this.leaving = true;
-    this.scene.start('Profile');
+    this.scene.start(scene);
   }
 }

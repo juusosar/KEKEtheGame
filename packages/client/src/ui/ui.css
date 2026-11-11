@@ -1403,3 +1403,712 @@ body[data-phase='podium'] .keke-minimap {
     margin-top: 0;
   }
 }
+/* Title: Play and How to play stacked. */
+.keke-menu .title-actions button + button {
+  display: block;
+  margin: 12px auto 0;
+  font-size: 16px;
+  padding: 8px 24px;
+}
+
+/* --- How to play (ui/howToPlay.ts): the title menu screen and the first-time tutorial over the lobby. */
+.keke-sprite {
+  display: inline-block;
+  flex: none;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+}
+.keke-character {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  line-height: 0;
+}
+.keke-character .hat {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.keke-character.team {
+  filter: drop-shadow(2px 0 0 var(--team)) drop-shadow(-2px 0 0 var(--team)) drop-shadow(0 2px 0 var(--team))
+    drop-shadow(0 -2px 0 var(--team));
+}
+.keke-menu .howto {
+  pointer-events: auto;
+  box-sizing: border-box;
+  width: min(1000px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--keke-panel) 96%, transparent);
+  border: 3px solid #1a1a1a;
+  border-top: 6px solid var(--keke-accent);
+  box-shadow: 0 6px 0 #1a1a1a;
+}
+.howto-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 0;
+}
+.keke-menu .howto-head h2 {
+  margin: 0;
+}
+.keke-menu .howto button {
+  padding: 8px 16px;
+}
+.howto-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 20px 0;
+  border-bottom: 3px solid #1a1a1a;
+}
+.keke-menu .howto-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #3a3a3a;
+  color: #f2f2f2;
+  box-shadow: none;
+  border-bottom: none;
+  font-size: 14px;
+}
+.keke-menu .howto-tabs button[aria-selected='true'] {
+  background: var(--keke-accent);
+  color: #1a1a1a;
+}
+.howto-tab-num {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: #f2f2f2;
+  font-size: 12px;
+}
+.howto-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 20px 8px;
+}
+.howto-page[hidden] {
+  display: none;
+}
+.keke-menu .howto h3 {
+  margin: 14px 0 10px;
+  font-size: 15px;
+  color: var(--keke-accent);
+}
+.keke-menu .howto h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.keke-menu .howto p {
+  margin: 0;
+}
+.howto-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px 16px;
+  border-top: 3px solid #1a1a1a;
+}
+.howto-foot .howto-hint {
+  text-align: center;
+  font-size: 13px;
+}
+.keke-menu .howto-foot button {
+  min-width: 110px;
+}
+.keke-menu .howto kbd {
+  display: inline-block;
+  min-width: 1.3em;
+  margin: 0 2px;
+  padding: 1px 6px;
+  font:
+    700 12px/1.4 system-ui,
+    sans-serif;
+  text-align: center;
+  color: #1a1a1a;
+  background: #f2f2f2;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  box-shadow: 0 2px 0 #1a1a1a;
+}
+.keke-menu .howto kbd.pad {
+  border-radius: 10px;
+  background: #cfd8dc;
+}
+.keke-menu .howto kbd.pad-face {
+  width: 1.5em;
+  min-width: 0;
+  padding: 1px 0;
+  border-radius: 50%;
+  color: #fff;
+}
+.keke-menu .howto kbd.pad-a {
+  background: #43a047;
+}
+.keke-menu .howto kbd.pad-b {
+  background: #e53935;
+}
+.keke-menu .howto kbd.pad-x {
+  background: #1e88e5;
+}
+.keke-menu .howto kbd.pad-y {
+  background: #fdd835;
+  color: #1a1a1a;
+}
+.keke-menu .howto kbd.howto-cap {
+  font-size: 18px;
+  padding: 6px 12px;
+}
+/* Illustrated steps: numbered, left to right, wrapping on narrow screens. */
+.howto-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.howto-step,
+.howto-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 2px solid #1a1a1a;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.howto-step-num {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--keke-accent);
+  color: #1a1a1a;
+  font-weight: 800;
+  border: 2px solid #1a1a1a;
+}
+.howto-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 72px;
+}
+.howto-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.howto-row.tight {
+  gap: 0;
+}
+.howto-arrow {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--keke-accent);
+}
+.howto-cards {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.howto-cards.two {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+.howto-cards.three {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.howto-cards.four {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.howto-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px !important;
+  font-size: 14px;
+}
+/* The target glows as on the map. */
+.howto-target {
+  display: inline-grid;
+  place-items: center;
+  padding: 4px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px #ffd54f,
+    0 0 16px 4px rgba(255, 213, 79, 0.7);
+  animation: howto-pulse 1.4s ease-in-out infinite;
+}
+@keyframes howto-pulse {
+  50% {
+    box-shadow:
+      0 0 0 3px #ffd54f,
+      0 0 26px 8px rgba(255, 213, 79, 0.45);
+  }
+}
+.howto-carry {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+.howto-carry .carried {
+  margin-bottom: -10px;
+}
+.howto-plus {
+  font-size: 28px;
+  font-weight: 900;
+  color: #7cfc00;
+  text-shadow: 0 2px 0 #1a1a1a;
+}
+.keke-sprite.sparkle {
+  filter: drop-shadow(0 0 6px #fff59d);
+}
+.howto-clock,
+.howto-quota,
+.howto-office,
+.howto-trophy,
+.howto-wanted,
+.howto-timer,
+.howto-staffonly {
+  display: inline-block;
+  padding: 4px 10px;
+  font-weight: 900;
+  border: 2px solid #1a1a1a;
+  border-radius: 6px;
+}
+.howto-clock {
+  font-family: monospace;
+  font-size: 22px;
+  background: #1a1a1a;
+  color: #f2f2f2;
+}
+.howto-trophy {
+  background: #ffd54f;
+  color: #1a1a1a;
+}
+.howto-quota {
+  background: var(--keke-accent);
+  color: #1a1a1a;
+}
+.howto-office {
+  background: #546e7a;
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.howto-vs {
+  font-weight: 900;
+  font-style: italic;
+}
+.howto-podium {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+}
+.howto-podium span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #1a1a1a;
+  background: #bdbdbd;
+  border: 1px solid #1a1a1a;
+}
+.howto-podium .p1 {
+  height: 30px;
+  background: #ffd54f;
+}
+.howto-podium .p2 {
+  height: 22px;
+}
+.howto-podium .p3 {
+  height: 16px;
+  background: #d7a26a;
+}
+/* Controls: a keyboard corner and a mouse, and a labelled gamepad. */
+.howto-kbm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.howto-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 56px);
+  grid-template-rows: repeat(2, 64px);
+  gap: 6px;
+}
+.howto-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.keke-menu .howto .howto-key kbd {
+  width: 44px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+.keke-menu .howto .howto-key.move kbd {
+  background: var(--keke-accent);
+}
+.howto-key small {
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+  color: #bdbdbd;
+}
+.howto-key.k-esc {
+  grid-area: 1 / 1;
+}
+.howto-key.k-q {
+  grid-area: 1 / 2;
+}
+.howto-key.k-w {
+  grid-area: 1 / 3;
+}
+.howto-key.k-e {
+  grid-area: 1 / 4;
+}
+.howto-key.k-tab {
+  grid-area: 2 / 1;
+}
+.howto-key.k-a {
+  grid-area: 2 / 2;
+}
+.howto-key.k-s {
+  grid-area: 2 / 3;
+}
+.howto-key.k-d {
+  grid-area: 2 / 4;
+}
+/* WASD share one label: only S says "Move". */
+.howto-key.k-w small,
+.howto-key.k-a small,
+.howto-key.k-d small {
+  visibility: hidden;
+}
+.howto-mouse {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+.howto-mouse-svg {
+  grid-row: 1 / 4;
+  width: 52px;
+}
+.howto-mouse-svg .body {
+  fill: #e0e0e0;
+  stroke: #1a1a1a;
+  stroke-width: 3;
+}
+.howto-mouse-svg .btn {
+  stroke: #1a1a1a;
+  stroke-width: 2;
+}
+.howto-mouse-svg .left {
+  fill: var(--keke-accent);
+}
+.howto-mouse-svg .right {
+  fill: #4fc3f7;
+}
+.howto-mouse-svg .wheel {
+  fill: #1a1a1a;
+}
+.howto-mouse b {
+  display: inline-block;
+  min-width: 46px;
+  padding: 1px 4px;
+  margin-right: 2px;
+  font-size: 11px;
+  text-align: center;
+  border-radius: 4px;
+  color: #1a1a1a;
+}
+.howto-mouse .m-left b {
+  background: var(--keke-accent);
+}
+.howto-mouse .m-right b {
+  background: #4fc3f7;
+}
+.howto-mouse .m-aim b {
+  background: #e0e0e0;
+}
+.howto-pad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.howto-pad-svg {
+  width: min(320px, 100%);
+}
+.howto-pad-svg .body {
+  fill: #37474f;
+  stroke: #1a1a1a;
+  stroke-width: 3;
+}
+.howto-pad-svg .trigger {
+  fill: #90a4ae;
+  stroke: #1a1a1a;
+  stroke-width: 2;
+}
+.howto-pad-svg .stick {
+  fill: #263238;
+  stroke: #b0bec5;
+  stroke-width: 3;
+}
+.howto-pad-svg .dpad,
+.howto-pad-svg .small {
+  fill: #263238;
+  stroke: #b0bec5;
+  stroke-width: 1.5;
+}
+.howto-pad-svg .face {
+  stroke: #1a1a1a;
+  stroke-width: 2;
+}
+.howto-pad-svg .face.a {
+  fill: #43a047;
+}
+.howto-pad-svg .face.b {
+  fill: #e53935;
+}
+.howto-pad-svg .face.x {
+  fill: #1e88e5;
+}
+.howto-pad-svg .face.y {
+  fill: #fdd835;
+}
+.howto-pad-svg .lbl {
+  font:
+    700 11px system-ui,
+    sans-serif;
+  fill: #f2f2f2;
+}
+.howto-pad-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.howto-pad-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Fighting. */
+.howto-weapons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.howto-weapon-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 2px solid #1a1a1a;
+  border-radius: 6px;
+}
+.howto-weapon-group small {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #bdbdbd;
+}
+.howto-dice {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+  font-weight: 900;
+  color: #1a1a1a;
+  background: #f2f2f2;
+  border: 2px solid #1a1a1a;
+  border-radius: 6px;
+  transform: rotate(-8deg);
+}
+.howto-hp {
+  display: inline-block;
+  width: 64px;
+  height: 12px;
+  background: #1a1a1a;
+  border: 2px solid #1a1a1a;
+  box-shadow: inset 0 0 0 1px #e53935;
+}
+.howto-hp span {
+  display: block;
+  width: 6%;
+  height: 100%;
+  background: #e53935;
+}
+.howto-ko {
+  position: relative;
+  display: inline-block;
+}
+.howto-ko .stars {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  transform: translateX(-50%);
+}
+.keke-sprite.dropped {
+  transform: rotate(-20deg);
+}
+.howto-drop-arrow {
+  font-size: 22px;
+  font-weight: 900;
+}
+/* Staff and Wanted. */
+.howto-wanted {
+  background: #e53935;
+  color: #fff;
+  letter-spacing: 0.08em;
+  animation: howto-blink 1s steps(2) infinite;
+}
+@keyframes howto-blink {
+  50% {
+    background: #b71c1c;
+  }
+}
+.howto-timer {
+  font-family: monospace;
+  background: #1a1a1a;
+  color: #f2f2f2;
+}
+.howto-staffonly {
+  background: #fdd835;
+  color: #1a1a1a;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  background-image: repeating-linear-gradient(45deg, transparent 0 8px, rgba(0, 0, 0, 0.12) 8px 16px);
+}
+.howto-alert {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fdd835;
+  color: #1a1a1a;
+  font-weight: 900;
+  border: 2px solid #1a1a1a;
+}
+.howto-clear {
+  font-size: 28px;
+  font-weight: 900;
+  color: #7cfc00;
+}
+/* Second store. */
+.howto-oven {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 96px;
+  height: 56px;
+}
+.howto-oven .heat {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: repeating-linear-gradient(90deg, #ff7043 0 12px, #ffab40 12px 24px);
+  opacity: 0.85;
+  animation: howto-heat 0.9s ease-in-out infinite alternate;
+}
+@keyframes howto-heat {
+  to {
+    opacity: 0.5;
+    filter: blur(1px);
+  }
+}
+.howto-oven .keke-sprite {
+  position: relative;
+}
+/* Short screens: tighter steps. */
+@media (max-height: 760px) {
+  .howto-art {
+    min-height: 56px;
+  }
+  .howto-step,
+  .howto-card {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .howto-target,
+  .howto-wanted,
+  .howto-oven .heat {
+    animation: none;
+  }
+}
+/* One height for every page, so the tabs and buttons stay put while paging. */
+.keke-menu .howto {
+  height: min(720px, calc(100vh - 32px));
+}
+.keke-menu .howto kbd.big {
+  font-size: 16px;
+  padding: 4px 10px;
+}
+.keke-menu .howto kbd.pad-face.big {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  line-height: 30px;
+}
+.howto-mouse-svg.small {
+  width: 28px;
+}
+.howto-mouse-svg.only-left .right,
+.howto-mouse-svg.only-right .left {
+  fill: #e0e0e0;
+}
+.keke-character.team + .keke-character.team {
+  margin-left: -14px;
+}
+.howto-art kbd {
+  flex: none;
+}
+.howto-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 16px;
+}

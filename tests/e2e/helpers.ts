@@ -19,7 +19,7 @@ import type {
 export async function toPlay(page: Page, nickname: string, query = ''): Promise<void> {
   await page.goto(`/${query}`);
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'title', { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Play' }).click();
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
   await page.getByLabel('Nickname').fill(nickname);
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'play');
