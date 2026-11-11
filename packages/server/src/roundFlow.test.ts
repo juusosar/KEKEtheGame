@@ -59,7 +59,7 @@ describe('GameRoom round flow and scoring (integration)', () => {
       entered.set(this, list);
     });
     // boot() ignores its port argument for a Server instance, so listen here instead.
-    const server = createGameServer({ config, maps: singleMapRegistry(map) });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), npcs: false });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });
@@ -171,6 +171,8 @@ describe('GameRoom round flow and scoring (integration)', () => {
     await waitFor(() => [...room.state.players.values()].every((p) => p.ready));
     host.send(ClientMessage.start);
     await waitFor(() => room.state.phase === 'playing');
+    // This file runs with `npcs: false` (M7 review F3): the round has no store workers.
+    expect(room.state.npcs.size).toBe(0);
     expect(entered.get(room)).toEqual([
       { phase: 'countdown', secondsLeft: Math.ceil(config.countdownSeconds) },
       { phase: 'playing', secondsLeft: ROUND_SECONDS },

@@ -75,7 +75,7 @@ describe('Quota + Race on the server (integration)', () => {
 
   beforeAll(async () => {
     // KEKE_DEBUG on: the van points aid is what the race e2e specs use too.
-    const server = createGameServer({ config, maps: singleMapRegistry(map), debug: true });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), debug: true, npcs: false });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });

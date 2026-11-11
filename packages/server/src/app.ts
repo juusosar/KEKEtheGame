@@ -32,6 +32,11 @@ export interface GameServerOptions {
    * e2e server and local testing only: `KEKE_DEBUG=1` turns it on in index.ts. Default off.
    */
   debug?: boolean;
+  /**
+   * Spawn the store workers (§8). Default on. Room tests that are not about NPCs pass `false` so
+   * stockers, carts, forklifts and guards cannot spoil exact moves and pickups (M7 review F3).
+   */
+  npcs?: boolean;
 }
 
 /** Colyseus + Express on one HTTP server: rooms, matchmaking and the static client on a single port. */
@@ -41,6 +46,7 @@ export function createGameServer({
   // §8: loading refuses a map that cannot host the NPCs it spawns (M5-1 handoff, per map since P1-1).
   maps = loadMapRegistry(),
   debug = false,
+  npcs = true,
 }: GameServerOptions = {}): Server {
   const server = new Server({
     transport: new WebSocketTransport(),
@@ -67,7 +73,7 @@ export function createGameServer({
   });
   // Join by code: the room puts its code in metadata, and filterBy matches `{ code }` join options against it.
   server
-    .define(ROOM_NAMES.game, gameRoomWithConfig(config, maps, { debug }))
+    .define(ROOM_NAMES.game, gameRoomWithConfig(config, maps, { debug, npcs }))
     .filterBy(['code'])
     .enableRealtimeListing();
   // Built-in room list (§15.1): clients join it to get "rooms", "+" and "-" updates.

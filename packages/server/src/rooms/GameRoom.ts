@@ -94,6 +94,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   protected abstract readonly maps: MapRegistry;
   /** Debug-only messages (teleport, end phase) are accepted. Off unless the server runs with KEKE_DEBUG=1. */
   protected readonly debug: boolean = false;
+  /** Store workers spawn. Room tests that are not about NPCs turn it off (`createGameServer({ npcs: false })`). */
+  protected readonly npcsOn: boolean = true;
 
   override state = new GameState();
 
@@ -449,7 +451,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         dropCarried: (player, reason) => this.items.dropCarried(player, this.roundSeconds(), reason),
       },
       randomSeed(),
-      undefined,
+      this.npcsOn ? undefined : [],
       entry.npcs,
     );
     this.combat.npcTargets = this.npcs;
@@ -941,11 +943,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 export function gameRoomWithConfig(
   config: GameConfig,
   maps: MapRegistry,
-  { debug = false }: { debug?: boolean } = {},
+  { debug = false, npcs = true }: { debug?: boolean; npcs?: boolean } = {},
 ): typeof GameRoom & (new () => GameRoom) {
   return class ConfiguredGameRoom extends GameRoom {
     protected readonly config = config;
     protected readonly maps = maps;
     protected override readonly debug = debug;
+    protected override readonly npcsOn = npcs;
   };
 }

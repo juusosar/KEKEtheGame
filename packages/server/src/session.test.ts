@@ -58,7 +58,7 @@ describe('multi-round sessions (integration)', () => {
 
   beforeAll(async () => {
     // KEKE_DEBUG on for the race van points aid.
-    const server = createGameServer({ config, maps: singleMapRegistry(map), debug: true });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), debug: true, npcs: false });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });

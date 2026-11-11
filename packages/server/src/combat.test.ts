@@ -32,7 +32,8 @@ const config = loadConfig({
   roundResultsSeconds: 60,
   // Two fist hits KO, so the KO test needs no rare weapon.
   maxHp: 10,
-  respawnSeconds: 0.3,
+  // Long enough that one more server ack after the KO swing never races the respawn (M7 review F1).
+  respawnSeconds: 1.5,
   spawnProtectionSeconds: 0.2,
 });
 const map = loadThemeMap(getTheme(defaultThemeId));
@@ -51,7 +52,7 @@ describe('GameRoom combat (integration)', () => {
   const open: Conn[] = [];
 
   beforeAll(async () => {
-    const server = createGameServer({ config, maps: singleMapRegistry(map) });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), npcs: false });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });
@@ -159,20 +160,21 @@ describe('GameRoom combat (integration)', () => {
     await waitFor(() => b.me.carrying !== 0);
     const carried = b.me.carrying;
 
-    // maxHp 10 here: two fist swings (cooldown 0.4 s) KO.
-    for (let i = 0; i < 4 && b.me.alive; i++) {
+    // maxHp 10 here: two fist swings (cooldown 0.4 s) KO. The KO is read from the latched 'ko' event,
+    // not from b's live flag, which a slow round trip can see after the respawn (M7 review F1).
+    const ko = () => a.events.some((e) => e.type === 'ko');
+    for (let i = 0; i < 4 && !ko(); i++) {
       place(a, b.me.x - 24, b.me.y);
       await press(a, Button.Attack, 0);
       await press(a, 0, 0);
-      if (b.me.alive) await new Promise((r) => setTimeout(r, 420));
+      if (!ko()) await new Promise((r) => setTimeout(r, 420));
     }
-    expect(b.me.alive).toBe(false);
-    await waitFor(() => a.events.some((e) => e.type === 'ko'));
+    await waitFor(ko);
     const drop = a.events.find((e) => e.type === 'drop')?.payload as DropMessage | undefined;
     expect(drop).toMatchObject({ player: b.conn.sessionId, reason: 'ko', item: { id: carried } });
     expect(b.me.carrying).toBe(0);
 
-    await waitFor(() => b.me.alive, 2000);
+    await waitFor(() => b.me.alive, 5000);
     expect(b.me.hp).toBe(config.maxHp);
     expect({ x: b.me.x, y: b.me.y }).toEqual(vanSpawn(map, b.me.van, playerHalfSize(config)));
   }, 20000);

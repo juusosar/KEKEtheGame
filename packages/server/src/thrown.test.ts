@@ -37,7 +37,7 @@ describe('GameRoom thrown weapons (integration)', () => {
   const open: Conn[] = [];
 
   beforeAll(async () => {
-    const server = createGameServer({ config, maps: singleMapRegistry(map) });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), npcs: false });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });
