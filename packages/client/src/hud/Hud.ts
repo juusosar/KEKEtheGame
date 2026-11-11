@@ -24,7 +24,7 @@ import type { Vec2 } from '@keke/shared';
 import { renderConfig } from '../game/renderConfig';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
-import { placeArrow } from './edgeArrow';
+import { placeArrow, type ScreenRect } from './edgeArrow';
 import type { CombatHudModel } from './combatHud';
 import type { FeedLine } from './feed';
 import {
@@ -48,6 +48,26 @@ interface FeedEntry {
   expires: number;
   merge?: FeedLine['merge'];
 }
+
+/**
+ * What the target arrow keeps clear of (playtest 1): the HUD panels, the minimap, the sound button, and
+ * anything else on screen marked `data-arrow-avoid` (menus and prompts added later can opt in).
+ */
+const ARROW_AVOID_SELECTOR = [
+  '#keke-hud-target',
+  '#keke-hud-carry',
+  '#keke-hud-quota',
+  '#keke-hud-timer',
+  '#keke-hud-scores',
+  '#keke-hud-feed',
+  '#keke-hud-combat',
+  '#keke-minimap',
+  '#keke-audio',
+  '[data-arrow-avoid]',
+].join(',');
+
+/** Panels move only when their content changes; their boxes are read again this often. */
+const ARROW_AVOID_REFRESH_MS = 250;
 
 /** Zone label for the target card; unknown zones show their id. */
 function zoneLabel(zone: string): string {
@@ -96,6 +116,8 @@ export class Hud {
   private scoresKey = '';
   private boardKey = '';
   private boardOpen = false;
+  private avoidRects: ScreenRect[] = [];
+  private avoidReadAt = -Infinity;
 
   constructor(private readonly deps: HudDeps) {
     this.arrow = h('div', { id: 'keke-hud-arrow', class: 'hud-arrow', role: 'img', hidden: true });
@@ -252,6 +274,11 @@ export class Hud {
       toScreen(dest.at),
       renderConfig.hudArrowMarginPx,
       renderConfig.hudArrowHoverPx,
+      {
+        rects: this.panelRects(),
+        radius: renderConfig.hudArrowAvoidPx,
+        minFromCentre: renderConfig.hudArrowMinFromCentrePx,
+      },
     );
     this.arrow.hidden = false;
     if (this.arrow.dataset['kind'] !== dest.kind) {
@@ -269,6 +296,21 @@ export class Hud {
     }
     this.arrow.dataset['onScreen'] = String(at.onScreen);
     this.arrow.style.transform = `translate(${at.x.toFixed(1)}px, ${at.y.toFixed(1)}px) rotate(${at.angle.toFixed(3)}rad)`;
+  }
+
+  /** Screen boxes of the visible panels the arrow keeps clear of, read a few times a second. */
+  private panelRects(): ScreenRect[] {
+    const now = performance.now();
+    if (now - this.avoidReadAt < ARROW_AVOID_REFRESH_MS) return this.avoidRects;
+    this.avoidReadAt = now;
+    this.avoidRects = [];
+    for (const el of document.querySelectorAll<HTMLElement>(ARROW_AVOID_SELECTOR)) {
+      const r = el.getBoundingClientRect();
+      // Hidden panels (display: none) have an empty box.
+      if (r.width > 0 && r.height > 0)
+        this.avoidRects.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    }
+    return this.avoidRects;
   }
 
   /** Shows the full scoreboard while Tab / pad View is held (§13.3). */
