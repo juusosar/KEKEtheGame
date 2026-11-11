@@ -288,7 +288,7 @@
   font-family: system-ui, sans-serif;
   color: #f2f2f2;
   background: rgba(0, 0, 0, 0.6);
-  border-top: 3px solid #ff6a13;
+  border-top: 3px solid var(--keke-accent, #ff6a13);
 }
 .spectate-banner span {
   font-size: 12px;
@@ -1199,6 +1199,7 @@ body[data-phase='podium'] .keke-minimap {
 /* In-game menu (Esc / Start, M7 review F5): over the HUD and round screens, under the corner sound
    button. The backdrop is light: the round keeps going behind it. */
 .keke-game-menu {
+  --keke-accent: #ff6a13;
   position: fixed;
   inset: 0;
   z-index: 30;
@@ -1221,7 +1222,7 @@ body[data-phase='podium'] .keke-minimap {
   padding: 18px 20px;
   background: rgba(32, 32, 32, 0.96);
   border: 3px solid #1a1a1a;
-  border-top: 6px solid #ff6a13;
+  border-top: 6px solid var(--keke-accent);
   box-shadow: 0 6px 0 #1a1a1a;
 }
 .keke-game-menu h2 {
@@ -1250,7 +1251,7 @@ body[data-phase='podium'] .keke-minimap {
   font-weight: 700;
   padding: 10px 16px;
   border: 2px solid #1a1a1a;
-  background: #ff6a13;
+  background: var(--keke-accent);
   color: #1a1a1a;
   cursor: pointer;
   box-shadow: 0 3px 0 #1a1a1a;
@@ -1280,7 +1281,7 @@ body[data-phase='podium'] .keke-minimap {
 }
 .keke-game-menu input[type='range'] {
   flex: 0 1 200px;
-  accent-color: #ff6a13;
+  accent-color: var(--keke-accent);
 }
 .keke-game-menu table {
   width: 100%;
@@ -1302,7 +1303,7 @@ body[data-phase='podium'] .keke-minimap {
   background: rgba(255, 106, 19, 0.18);
 }
 .keke-game-menu thead th.current {
-  color: #ff6a13;
+  color: var(--keke-accent);
 }
 .keke-game-menu kbd,
 .keke-hud kbd {
