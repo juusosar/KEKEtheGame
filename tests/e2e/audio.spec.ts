@@ -132,7 +132,7 @@ test('the bottle machines hum on the second map, louder up close (P2-6)', async 
   await expect.poll(async () => (await hum())[0]?.volume ?? 0).toBeGreaterThan(0.3);
   expect((await hum())[0]?.sound).toBe('bottleHum');
   // Out in the parking lot it is silent.
-  expect(await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(1600, 1856))).toBe(true);
+  expect(await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(1600, 1648))).toBe(true);
   await expect.poll(async () => (await hum())[0]?.volume ?? 1).toBe(0);
   const served = await request.get('/assets/audio/bottleHum.wav');
   expect(served.ok()).toBe(true);

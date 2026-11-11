@@ -96,8 +96,8 @@ describe('maps/prisma.tmj', () => {
     expect(committed).toBe(serializeMap(buildPrismaMap(tsj)));
   });
 
-  it('is about 100 x 72 tiles of 32 px', () => {
-    expect([map.width, map.height, map.tileSize]).toEqual([100, 72, 32]);
+  it('is 96 x 60 tiles of 32 px (tightened from 100 x 72, 2026-11-11)', () => {
+    expect([map.width, map.height, map.tileSize]).toEqual([96, 60, 32]);
   });
 
   it('has every zone of phase 2 decision 4', () => {

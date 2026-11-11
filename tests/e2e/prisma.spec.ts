@@ -22,8 +22,8 @@ import {
 
 type WithHook = { __KEKE__?: KekeHook };
 
-/** maps/prisma.tmj: 100 x 72 tiles of 32 px. */
-const MAP_PX = { width: 3200, height: 2304 };
+/** maps/prisma.tmj: 96 x 60 tiles of 32 px. */
+const MAP_PX = { width: 3072, height: 1920 };
 /** config.json raceQuota (Playwright cannot import @keke/shared). */
 const RACE_QUOTA = 6;
 
