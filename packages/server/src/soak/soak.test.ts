@@ -23,6 +23,7 @@ describe('soak (8 bots, short)', () => {
     expect(report.sessions[0]?.rounds).toHaveLength(2);
     expect(report.sessions[0]?.flowProblems).toEqual([]);
     expect(report.bots.framesSent).toBeGreaterThan(0);
-    expect(report.events['attack']).toBeGreaterThan(0);
+    // No activity check here: whether bots meet within reach in 2 × 6 s depends on how fast a loaded
+    // machine runs them (M7 review F2). The full `npm run soak` still requires attacks, KOs and so on.
   });
 });

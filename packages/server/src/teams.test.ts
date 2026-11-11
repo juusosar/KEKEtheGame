@@ -77,7 +77,7 @@ describe('Teams option on the server (integration)', () => {
   const open: Conn[] = [];
 
   beforeAll(async () => {
-    const server = createGameServer({ config, maps: singleMapRegistry(map), debug: true });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), debug: true, npcs: false });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });

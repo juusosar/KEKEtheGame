@@ -11,7 +11,9 @@ import {
   test,
   toPlay,
   waitControlling,
+  guardPositions,
   nearButcherCounter,
+  nearGuard,
 } from './helpers';
 
 // M4-7: the combat HUD and visuals in a real round. The host punches the guest down from full HP: the
@@ -124,10 +126,14 @@ test('punching a player down: held swing, HP bar, KO overlay, feed and respawn',
   await expect.poll(async () => (await me(host)).items.length, { timeout: 10_000 }).toBeGreaterThan(0);
   const { tile, items } = await me(host);
   const targetId = (await game(host)).net?.target ?? 0;
-  // Our target, unless it lies behind the butcher's counter (the butcher would join the fight).
-  const target =
-    items.find((i) => i.id === targetId && !nearButcherCounter({ x: i.serverX, y: i.serverY })) ??
-    items.find((i) => !nearButcherCounter({ x: i.serverX, y: i.serverY }));
+  // Our target, unless it lies behind the butcher's counter or near a security guard (either would join
+  // the fight; M7 review F4).
+  const guards = await guardPositions(host);
+  const quiet = (i: { serverX: number; serverY: number }) => {
+    const at = { x: i.serverX, y: i.serverY };
+    return !nearButcherCounter(at) && !nearGuard(guards, at);
+  };
+  const target = items.find((i) => i.id === targetId && quiet(i)) ?? items.find(quiet);
   if (!target) throw new Error(`target ${targetId} is not drawn`);
   const at = await teleportNear(host, { x: target.serverX, y: target.serverY }, tile * 1.5);
   await host.waitForTimeout(500); // camera catches up
@@ -156,8 +162,12 @@ test('punching a player down: held swing, HP bar, KO overlay, feed and respawn',
       // Feed lines fade after 6 s, so check everything at once rather than one page after the other.
       const guestHp = guest.getByRole('meter', { name: 'Health' });
       await Promise.all([
-        expect(host.locator('#keke-hud-feed li[data-kind="hit"]')).toContainText('You hit Kohde'),
-        expect(guest.locator('#keke-hud-feed li[data-kind="hit"]')).toContainText('Lyoja hit you'),
+        expect(
+          host.locator('#keke-hud-feed li[data-kind="hit"]', { hasText: 'You hit Kohde' }),
+        ).toBeVisible(),
+        expect(
+          guest.locator('#keke-hud-feed li[data-kind="hit"]', { hasText: 'Lyoja hit you' }),
+        ).toBeVisible(),
         expect(guestHp).toHaveAttribute('data-hp', String(hp)),
         expect(guestHp).toHaveAttribute('aria-valuenow', String(hp)),
       ]);
@@ -184,8 +194,12 @@ test('punching a player down: held swing, HP bar, KO overlay, feed and respawn',
       await expect(ko).toHaveAttribute('data-respawn-in', /^[0-6]$/);
       await expect(ko).toContainText(`Lyoja got you with ${FINISHER.name}`);
     })(),
-    expect(guest.locator('#keke-hud-feed li[data-kind="ko"]')).toContainText('Lyoja knocked you out'),
-    expect(host.locator('#keke-hud-feed li[data-kind="ko"]')).toContainText('You knocked out Kohde'),
+    expect(
+      guest.locator('#keke-hud-feed li[data-kind="ko"]', { hasText: 'Lyoja knocked you out' }),
+    ).toBeVisible(),
+    expect(
+      host.locator('#keke-hud-feed li[data-kind="ko"]', { hasText: 'You knocked out Kohde' }),
+    ).toBeVisible(),
     expect
       .poll(async () => (await held(guest)).find((h) => h.id === guestId)?.visible, {
         message: 'a KO body holds nothing',

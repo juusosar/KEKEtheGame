@@ -46,7 +46,7 @@ describe('GameRoom movement (integration)', () => {
 
   beforeAll(async () => {
     // boot() ignores its port argument for a Server instance, so listen here instead.
-    const server = createGameServer({ config, maps: singleMapRegistry(map) });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), npcs: false });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });

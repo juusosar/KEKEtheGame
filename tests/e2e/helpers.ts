@@ -228,6 +228,31 @@ export function nearButcherCounter(at: { x: number; y: number }, margin = 64): b
   return at.x > z.x - margin && at.x < z.x + z.w + margin && at.y > z.y - margin && at.y < z.y + z.h + margin;
 }
 
+/** Where the security guards that are up stand now (`__KEKE__.npcs()`, server pixels). */
+export async function guardPositions(page: Page): Promise<{ x: number; y: number }[]> {
+  return page.evaluate(() => {
+    const keke = (globalThis as WithHook).__KEKE__;
+    if (!keke) throw new Error('window.__KEKE__ is missing');
+    return keke
+      .npcs()
+      .filter((n) => n.behaviour === 'security' && n.alive)
+      .map((n) => ({ x: n.x, y: n.y }));
+  });
+}
+
+/**
+ * True when `at` is within `tiles` tiles of one of `guards`. Punching a player within 6 tiles of a guard
+ * with line of sight makes us Wanted and the guard joins in (§8), so fight specs meet more than 8 tiles
+ * away from them (M7 review F4).
+ */
+export function nearGuard(
+  guards: readonly { x: number; y: number }[],
+  at: { x: number; y: number },
+  tiles = 8,
+): boolean {
+  return guards.some((g) => Math.hypot(g.x - at.x, g.y - at.y) <= tiles * 32);
+}
+
 /**
  * Asks the server to move us next to `at`, trying spots around it until one is free of walls (the
  * hook checks the map locally), then waits until our predicted body is there.
