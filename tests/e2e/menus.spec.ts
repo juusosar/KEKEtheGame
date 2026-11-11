@@ -58,6 +58,7 @@ test('one player creates a room; others join it by code and from the room list',
   await toPlay(byList, 'Lister');
   await toPlay(host, 'Hostess');
   await host.getByRole('button', { name: 'Create room' }).click();
+  await host.getByRole('button', { name: 'Open lobby' }).click();
   await expect(host.locator('body')).toHaveAttribute('data-room', /^[A-Z]{4}$/, { timeout: 10_000 });
   const code = (await host.locator('body').getAttribute('data-room')) ?? '';
 

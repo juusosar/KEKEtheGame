@@ -4,8 +4,11 @@ import {
   GAME_MODES,
   MAP_CHOICES,
   ServerMessage,
+  configForMap,
   getTheme,
   loadConfig,
+  withHostRules,
+  type GameConfig,
   mapChoiceAvailable,
   mapRotation,
   teamColor,
@@ -23,6 +26,8 @@ import { browserStorage, loadProfile } from '../profile/storage';
 import { createMenuLayer, h, themeMenuLayer } from '../ui/dom';
 import { howToSeen, markHowToSeen } from '../ui/howToNav';
 import { HowToPlay } from '../ui/howToPlay';
+import { rulesSummary } from '../ui/rules';
+import { RulesEditor } from '../ui/rulesEditor';
 
 /** Scene that takes over when the host starts (or when we join a room that is already playing). */
 export const AFTER_LOBBY_SCENE = 'Game';
@@ -40,7 +45,7 @@ export function mapChoiceLabel(choice: MapChoice): string {
     : t('lobby.mapsBoth', { first: names[0] ?? '', second: names[1] ?? '' });
 }
 
-const MODE_LABEL: Record<GameMode, MessageKey> = {
+export const MODE_LABEL: Record<GameMode, MessageKey> = {
   timed: 'lobby.mode.timed',
   race: 'lobby.mode.race',
 };
@@ -72,6 +77,13 @@ export class LobbyScene extends Phaser.Scene {
   private status!: HTMLParagraphElement;
   private howTo: HowToPlay | null = null;
   private howToOverlay: HTMLDivElement | null = null;
+  private config!: GameConfig;
+  private rulesList!: HTMLUListElement;
+  private rulesButton!: HTMLButtonElement;
+  /** The Rules overlay: an editor for the host, the same values read-only for everyone else. */
+  private rulesOverlay: HTMLDivElement | null = null;
+  private rulesShown = '';
+  private rulesEditor: RulesEditor | null = null;
 
   constructor() {
     super('Lobby');
@@ -91,12 +103,15 @@ export class LobbyScene extends Phaser.Scene {
     this.mapButtons = new Map();
     this.roundButtons = [];
     this.layerTheme = '';
+    this.config = loadConfig();
+    this.rulesShown = '';
 
     this.createPanel(current.code);
     this.listen();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.stopListening();
       this.closeHowTo();
+      this.closeRules();
     });
     this.render();
     // First time in a room: the How to play pages over the lobby, while the others gather. Closed once,
@@ -116,6 +131,8 @@ export class LobbyScene extends Phaser.Scene {
       closeLabel: firstTime ? t('howto.skip') : t('howto.close'),
       doneLabel: t('howto.letsPlay'),
       look: { color: profile.color, hat: profile.hat },
+      // The pages quote this room's values: the host's rules on the lobby's map.
+      config: this.roomConfig(),
       onClose: () => {
         markHowToSeen(browserStorage());
         this.howTo = null;
@@ -137,6 +154,87 @@ export class LobbyScene extends Phaser.Scene {
     this.howToOverlay?.remove();
     this.howToOverlay = null;
     delete document.body.dataset['howto'];
+  }
+
+  /** The config this room's first map plays: the shipped config with the host's rules on top. */
+  private roomConfig(): GameConfig {
+    const view = this.view as LobbyView | undefined;
+    const rules = view?.settings.rules ?? {};
+    return configForMap(withHostRules(this.config, rules), view?.mapId || stateMapId(this.room.state));
+  }
+
+  // --- rules ---------------------------------------------------------------------------------------
+
+  private openRules(): void {
+    if (this.rulesOverlay !== null) return;
+    const host = this.view.isHost;
+    const overlay = h('div', { class: 'howto-overlay rules-overlay', id: 'keke-lobby-rules-overlay' });
+    const panel = h('div', {
+      class: 'panel rules-panel',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-labelledby': 'keke-rules-heading',
+    });
+    panel.append(h('h2', { id: 'keke-rules-heading' }, t('lobby.rulesHeading')));
+    if (!host) panel.append(h('p', { class: 'muted' }, t('lobby.rulesHostOnly')));
+    const editor = new RulesEditor({
+      base: this.config,
+      rules: this.view.settings.rules,
+      readOnly: !host,
+      idPrefix: 'keke-lobby-rule',
+    });
+    panel.append(editor.root);
+    const actions = h('div', { class: 'actions' });
+    if (host) {
+      const save = this.button(t('lobby.rulesSave'), 'wide', () => {
+        this.sendSettings({ rules: editor.rules });
+        this.closeRules();
+      });
+      save.id = 'keke-rules-save';
+      actions.append(
+        save,
+        this.button(t('lobby.rulesCancel'), 'secondary', () => this.closeRules()),
+      );
+    } else {
+      actions.append(this.button(t('lobby.rulesClose'), 'secondary', () => this.closeRules()));
+    }
+    panel.append(actions);
+    overlay.append(panel);
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.closeRules();
+    });
+    this.layer.append(overlay);
+    overlay.dataset['host'] = String(host);
+    this.rulesOverlay = overlay;
+    this.rulesEditor = editor;
+    panel.querySelector('button')?.focus();
+  }
+
+  private closeRules(): void {
+    const open = this.rulesOverlay !== null;
+    this.rulesOverlay?.remove();
+    this.rulesOverlay = null;
+    this.rulesEditor = null;
+    if (open && this.rulesButton?.isConnected) this.rulesButton.focus();
+  }
+
+  private renderRules(view: LobbyView): void {
+    const lines = rulesSummary(this.config, view.settings.rules);
+    const key = JSON.stringify(lines);
+    if (key !== this.rulesShown) {
+      this.rulesShown = key;
+      this.rulesList.replaceChildren(
+        ...(lines.length === 0 ? [t('lobby.rulesStandard')] : lines).map((line) => h('li', {}, line)),
+      );
+      this.rulesList.dataset['standard'] = String(lines.length === 0);
+      // Someone else's view follows the host's changes while it is open.
+      if (!view.isHost) this.rulesEditor?.set(view.settings.rules);
+    }
+    this.rulesButton.textContent = view.isHost ? t('lobby.rulesEdit') : t('lobby.rulesView');
+    // The host left or handed over while the overlay was open: reopen it in the right mode next time.
+    if (this.rulesOverlay !== null && this.rulesOverlay.dataset['host'] !== String(view.isHost)) {
+      this.closeRules();
+    }
   }
 
   // --- room events --------------------------------------------------------------------------------
@@ -284,6 +382,16 @@ export class LobbyScene extends Phaser.Scene {
     teams.append(this.teamsButtons.off, this.teamsButtons.on);
     settings.append(h('label', {}, t('lobby.teamsLabel')), teams, this.shuffleButton);
 
+    // Host rules: the changed values in short, the full editor (or a read-only view) in an overlay.
+    this.rulesList = h('ul', {
+      class: 'rules-summary',
+      id: 'keke-lobby-rules',
+      'aria-label': t('lobby.rulesLabel'),
+    });
+    this.rulesButton = this.button(t('lobby.rulesView'), 'secondary', () => this.openRules());
+    this.rulesButton.id = 'keke-lobby-rules-open';
+    settings.append(h('label', {}, t('lobby.rulesLabel')), this.rulesList, this.rulesButton);
+
     return settings;
   }
 
@@ -333,6 +441,7 @@ export class LobbyScene extends Phaser.Scene {
     this.pressed(this.teamsButtons.off, !view.settings.teams, host);
     this.pressed(this.teamsButtons.on, view.settings.teams, host);
     this.shuffleButton.hidden = !view.settings.teams;
+    this.renderRules(view);
     this.shuffleButton.disabled = !host;
     this.settingsNote.textContent = host ? '' : t('lobby.hostOnly');
     this.settingsNote.hidden = host;
