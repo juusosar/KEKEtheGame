@@ -4,6 +4,7 @@ import {
   createRoom,
   game,
   joinRoom,
+  noNpcs,
   players,
   requireDebugServer,
   row,
@@ -79,6 +80,7 @@ test('Teams race: a teammate delivers the box the other one packed, and the team
       await waitControlling(page);
     }),
   );
+  await noNpcs(host);
   const packerId = (await game(packer)).net?.sessionId ?? '';
   const runnerId = (await game(runner)).net?.sessionId ?? '';
   const lonerId = (await game(loner)).net?.sessionId ?? '';

@@ -54,6 +54,12 @@ export const DebugMessage = {
    * packs nothing by itself; packing happens on a deposit.
    */
   vanPoints: 'debugVanPoints',
+  /**
+   * No payload. Host only, any phase: removes the store workers and their carts from this room for good
+   * (this round and every later one). For e2e specs that are not about NPCs, so a stocker, guard,
+   * butcher or forklift cannot join a scripted fight or knock a scripted walk off course (M7 review F4).
+   */
+  noNpcs: 'debugNoNpcs',
 } as const;
 
 export interface DebugVanPointsMessage {

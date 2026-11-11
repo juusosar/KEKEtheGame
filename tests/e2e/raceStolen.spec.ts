@@ -4,6 +4,7 @@ import {
   createRoom,
   game,
   joinRoom,
+  noNpcs,
   players,
   requireDebugServer,
   teleportNear,
@@ -59,6 +60,7 @@ test('a Quota + Race round won by delivering a stolen order box', async ({ newPl
     await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 10_000 });
     await waitControlling(page);
   });
+  await noNpcs(host);
 
   const hostId = (await game(host)).net?.sessionId ?? '';
   const guestId = (await game(guest)).net?.sessionId ?? '';

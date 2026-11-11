@@ -515,6 +515,12 @@ export class NpcSystem implements NpcTargets {
     return rect;
   }
 
+  /** Removes every NPC and cart now, and spawns none in later rounds (debug `noNpcs`, e2e specs). */
+  stopForTest(): void {
+    this.reset();
+    this.byBehaviour.clear();
+  }
+
   /** Parks a stock cart on `rect` for `seconds`, wherever that is (room tests; stockers use placeCart). */
   parkCartForTest(npcId: string, rect: TileRect, seconds: number): void {
     this.addCart(npcId, rect, seconds);

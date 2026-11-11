@@ -221,6 +221,12 @@ export interface KekeHook {
    */
   giveWeapon(weapon: string): boolean;
   /**
+   * Online, host only: asks the server to remove the store workers from this room for good
+   * (`DebugMessage.noNpcs`, needs `KEKE_DEBUG=1`). For e2e specs that are not about NPCs (M7 review F4).
+   * Returns true when asked; false offline.
+   */
+  noNpcs(): boolean;
+  /**
    * Online: asks the server to set our van's banked item points (`DebugMessage.vanPoints`, phase
    * 'playing', needs `KEKE_DEBUG=1`). Race e2e (M6-2): set `raceQuota - 1`, then one deposit packs the
    * order box. Returns true when asked; false offline.

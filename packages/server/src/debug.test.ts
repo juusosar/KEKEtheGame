@@ -143,6 +143,28 @@ describe('debug room messages with KEKE_DEBUG on', () => {
     expect(errors.slice(1).map((e) => e.code)).toEqual(['invalid_payload', 'invalid_payload']);
     expect(me.weapon).toBe(baguette.id);
   });
+
+  it('no NPCs: host only: removes the store workers now and keeps them out of the next round (M7 review F4)', async () => {
+    const { room, host, guest, errors } = await playing();
+    await waitFor(() => room.state.npcs.size > 0);
+    guest.send(DebugMessage.noNpcs);
+    await waitFor(() => errors.length === 1);
+    expect(errors[0]).toEqual({ code: 'not_host', request: DebugMessage.noNpcs });
+    expect(room.state.npcs.size).toBeGreaterThan(0);
+
+    host.send(DebugMessage.noNpcs);
+    await waitFor(() => room.state.npcs.size === 0 && room.state.stockCarts.size === 0);
+    // The next session's round starts without them too.
+    for (const phase of ['playing', 'roundResults', 'podium', 'lobby']) {
+      host.send(DebugMessage.endPhase);
+      await waitFor(() => room.state.phase === phase);
+    }
+    for (const c of [host, guest]) c.send(ClientMessage.ready, { ready: true });
+    await waitFor(() => [...room.state.players.values()].every((p) => p.ready));
+    host.send(ClientMessage.start);
+    await waitFor(() => room.state.phase === 'countdown');
+    expect(room.state.npcs.size).toBe(0);
+  });
 });
 
 describe('debug room messages with KEKE_DEBUG off (default)', () => {
@@ -154,13 +176,15 @@ describe('debug room messages with KEKE_DEBUG off (default)', () => {
     guest.send(DebugMessage.teleport, { x: 100, y: 100 });
     guest.send(DebugMessage.giveWeapon, { weapon: 'baguette' });
     guest.send(DebugMessage.vanPoints, { points: 5 });
-    await waitFor(() => errors.length === 4);
+    host.send(DebugMessage.noNpcs);
+    await waitFor(() => errors.length === 5);
     expect(errors).toEqual(
       expect.arrayContaining([
         { code: 'debug_off', request: DebugMessage.endPhase },
         { code: 'debug_off', request: DebugMessage.teleport },
         { code: 'debug_off', request: DebugMessage.giveWeapon },
         { code: 'debug_off', request: DebugMessage.vanPoints },
+        { code: 'debug_off', request: DebugMessage.noNpcs },
       ]),
     );
     expect(room.state.phase).toBe('countdown');
@@ -170,7 +194,7 @@ describe('debug room messages with KEKE_DEBUG off (default)', () => {
     }
     // Still served: a later request gets its normal answer.
     host.send(ClientMessage.ready, { ready: true });
-    await waitFor(() => errors.length === 5);
-    expect(errors[4]).toEqual({ code: 'wrong_phase', request: ClientMessage.ready });
+    await waitFor(() => errors.length === 6);
+    expect(errors[5]).toEqual({ code: 'wrong_phase', request: ClientMessage.ready });
   });
 });

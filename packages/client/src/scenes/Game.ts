@@ -1220,6 +1220,11 @@ export class GameScene extends Phaser.Scene {
         this.room.send(DebugMessage.endPhase);
         return true;
       },
+      noNpcs: () => {
+        if (this.room === null) return false;
+        this.room.send(DebugMessage.noNpcs);
+        return true;
+      },
       giveWeapon: (weapon) => {
         if (this.room === null) return false;
         this.room.send(DebugMessage.giveWeapon, { weapon });
