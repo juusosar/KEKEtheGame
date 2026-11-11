@@ -46,5 +46,6 @@
   "hudWeaponFlashSeconds": 1.2,
   "wantedIconOffsetY": 34,
   "forkliftLightBlinkHz": 2,
-  "forkliftBeepHearingPx": 320
+  "forkliftBeepHearingPx": 320,
+  "sfxHearingPx": 720
 }

@@ -29,6 +29,15 @@ import {
 import Phaser from 'phaser';
 import { audioEngine } from '../audio/engine';
 import { Sfx } from '../audio/sfx';
+import {
+  CueGate,
+  combatCues,
+  itemCues,
+  npcCues,
+  roundCues,
+  type RoundClock,
+  type SoundCue,
+} from '../audio/sfxPlan';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { Avatar } from '../game/avatar';
 import { CombatFx, type FxBody } from '../game/combatFx';
@@ -160,6 +169,9 @@ export class GameScene extends Phaser.Scene {
   private npcs: NpcRenderer | undefined;
   /** Sound effects (§12); online only. */
   private sfx: Sfx | undefined;
+  private cueGate = new CueGate();
+  /** Round phase and intro seconds at the last patch, for the countdown and round-end sounds. */
+  private roundClock: RoundClock | null = null;
 
   private debug = false;
   private hitbox?: Phaser.GameObjects.Rectangle;
@@ -281,6 +293,8 @@ export class GameScene extends Phaser.Scene {
     this.weaponIcons = new Map();
     this.npcs = undefined;
     this.sfx = undefined;
+    this.cueGate = new CueGate();
+    this.roundClock = null;
     this.lastAim = 0;
     this.lastButtons = 0;
   }
@@ -377,6 +391,7 @@ export class GameScene extends Phaser.Scene {
 
   private joinRoom(room: Room): void {
     this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
+    this.sfx = new Sfx();
     this.createHud(room);
     this.createCombatFx(room);
     this.projectiles = new ProjectileRenderer(
@@ -429,7 +444,11 @@ export class GameScene extends Phaser.Scene {
     // `<body data-phase>` lets CSS hide the in-round HUD behind the results and specs wait on phases.
     document.body.dataset['phase'] = view.phase;
     this.hud?.render(readHud(room.state, room.sessionId, this.hudContext));
-    this.roundScreen?.render(readRoundScreen(room.state, room.sessionId));
+    const screen = readRoundScreen(room.state, room.sessionId);
+    this.roundScreen?.render(screen);
+    const clock = { phase: view.phase, seconds: screen.kind === 'intro' ? screen.seconds : 0 };
+    this.playCues(roundCues(this.roundClock, clock));
+    this.roundClock = clock;
 
     if (sceneForPhase(view.phase) !== 'Game') {
       // The session is over (podium → lobby): everyone goes back to the lobby.
@@ -526,12 +545,17 @@ export class GameScene extends Phaser.Scene {
     const spray = new SprayFx(this, DEPTH.fx, DEPTH.label + 1, weapons, renderConfig);
     this.sprayFx = spray;
     const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
+    const cueCtx = {
+      me: room.sessionId,
+      blocking: (id: string) => this.combat.get(id)?.blocking ?? false,
+    };
     for (const type of Object.values(CombatEventMessage)) {
       this.unsubscribe.push(
         room.onMessage(type, (message: unknown) => {
           fx.onEvent(type, message, this.time.now / 1000);
           spray.onEvent(type, message, this.time.now / 1000);
           this.onCombatEvent(type, message, room.sessionId, nameOf);
+          this.playCues(combatCues(type, message, cueCtx));
         }),
       );
     }
@@ -668,8 +692,6 @@ export class GameScene extends Phaser.Scene {
       1000 / this.config.serverTickHz,
     );
     this.npcs = npcs;
-    const sfx = new Sfx();
-    this.sfx = sfx;
     const me = room.sessionId;
     for (const type of Object.values(NpcEventMessage)) {
       this.unsubscribe.push(
@@ -681,6 +703,7 @@ export class GameScene extends Phaser.Scene {
             typeof id === 'string' ? catalogue.get(npcs.typeOf(id) ?? npcTypeFromId(id)) : undefined;
           this.combatFx?.onNpcEvent(type, message, now, npcMelee(def));
           if (type === NpcEventMessage.wanted) this.onWanted(message, me);
+          this.playCues(npcCues(type, message, me));
         }),
       );
     }
@@ -693,6 +716,26 @@ export class GameScene extends Phaser.Scene {
           if (line) this.hud?.pushFeed(line, performance.now());
         }),
       );
+    }
+  }
+
+  /** Plays sound cues (§12): ours at full volume, other players' fading with distance from us. */
+  private playCues(cues: readonly SoundCue[]): void {
+    const sfx = this.sfx;
+    if (!sfx || cues.length === 0) return;
+    const now = performance.now() / 1000;
+    const listener = this.local.body.visible
+      ? { x: this.local.body.x, y: this.local.body.y }
+      : this.cameras.main.midPoint;
+    for (const cue of cues) {
+      if (!this.cueGate.allow(cue, now)) continue;
+      const src = cue.source;
+      let volume = 1;
+      if (src.kind === 'player' || src.kind === 'point') {
+        const at = src.kind === 'player' ? this.drawnPosition(src.id) : src;
+        volume = at ? hearingVolume(at, listener, renderConfig.sfxHearingPx) : 0;
+      }
+      sfx.play(cue.name, volume);
     }
   }
 
@@ -797,6 +840,7 @@ export class GameScene extends Phaser.Scene {
         room.onMessage(type, (message: unknown) => {
           const line = feedLine(type, message, { catalogue, nameOf, race });
           if (line) hud.pushFeed(line, performance.now());
+          this.playCues(itemCues(type, message, room.sessionId));
         }),
       );
     }
