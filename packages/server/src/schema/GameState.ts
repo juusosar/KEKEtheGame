@@ -336,6 +336,11 @@ export const RoomSettingsState = schema(
      * on a server without every map of the default starts on its first map.
      */
     maps: t.string().default(DEFAULT_MAP_CHOICE),
+    /**
+     * The host's rules (HostRules): config key to value, only the keys the host set. The room's config is
+     * the server's with these on top (`withHostRules`); clients predict and label with the same.
+     */
+    rules: t.map('number'),
   },
   'RoomSettingsState',
 );

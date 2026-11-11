@@ -1,8 +1,10 @@
-// Host settings (§13.1): mode, rounds per map (1–max), teams on/off, maps (Phase 2 decision 1).
+// Host settings (§13.1): mode, rounds per map (1–max), teams on/off, maps (Phase 2 decision 1) and the
+// host's rules (config values for this room, see rules.ts).
 import { z } from 'zod';
 import type { GameConfig } from '../config';
 import { DEFAULT_MAP_CHOICE, MAP_CHOICES, type MapChoice } from './maps';
 import { GAME_MODES, type GameMode } from './phases';
+import { hostRulesSchema, type HostRules } from './rules';
 
 export interface LobbySettings {
   mode: GameMode;
@@ -10,6 +12,8 @@ export interface LobbySettings {
   teams: boolean;
   /** Which store maps the session plays. The server refuses a choice it has no map for. */
   maps: MapChoice;
+  /** Config values the host set for this room; empty plays the server's values. */
+  rules: HostRules;
 }
 
 /** Free-for-all Timed, one round per map on both maps: the §4 defaults (maps: P3-1). */
@@ -18,9 +22,13 @@ export const DEFAULT_LOBBY_SETTINGS: Readonly<LobbySettings> = Object.freeze({
   roundsPerMap: 1,
   teams: false,
   maps: DEFAULT_MAP_CHOICE,
+  rules: Object.freeze({}) as HostRules,
 });
 
-/** Schema for a host's partial settings update. Unknown keys are rejected. */
+/**
+ * Schema for a host's partial settings update. Unknown keys are rejected. `rules` replaces the room's
+ * whole rule set (send `{}` to go back to the server's values).
+ */
 export function settingsUpdateSchema(config: GameConfig) {
   return z
     .object({
@@ -28,6 +36,7 @@ export function settingsUpdateSchema(config: GameConfig) {
       roundsPerMap: z.number().int().min(1).max(config.maxRoundsPerMap),
       teams: z.boolean(),
       maps: z.enum(MAP_CHOICES),
+      rules: hostRulesSchema,
     })
     .partial()
     .strict();

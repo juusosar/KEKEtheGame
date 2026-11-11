@@ -7,6 +7,7 @@ import {
   ROUND_PHASES,
   canStart,
   isMapChoice,
+  readRules,
   type GameMode,
   type LobbyErrorCode,
   type LobbySettings,
@@ -74,13 +75,14 @@ function readMaps(value: string): LobbySettings['maps'] {
 }
 
 function readSettings(value: unknown): LobbySettings {
-  if (!isBag(value)) return { ...DEFAULT_LOBBY_SETTINGS };
+  if (!isBag(value)) return { ...DEFAULT_LOBBY_SETTINGS, rules: {} };
   const mode = str(value, 'mode', DEFAULT_LOBBY_SETTINGS.mode);
   return {
     mode: (GAME_MODES as readonly string[]).includes(mode) ? (mode as GameMode) : DEFAULT_LOBBY_SETTINGS.mode,
     roundsPerMap: num(value, 'roundsPerMap', DEFAULT_LOBBY_SETTINGS.roundsPerMap),
     teams: bool(value, 'teams', DEFAULT_LOBBY_SETTINGS.teams),
     maps: readMaps(str(value, 'maps', DEFAULT_LOBBY_SETTINGS.maps)),
+    rules: readRules(value['rules']),
   };
 }
 

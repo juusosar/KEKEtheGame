@@ -1,6 +1,7 @@
 export * from './roomCode';
 export * from './phases';
 export * from './settings';
+export * from './rules';
 export * from './maps';
 export * from './players';
 export * from './messages';
