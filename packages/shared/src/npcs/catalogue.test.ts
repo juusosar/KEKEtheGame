@@ -182,10 +182,22 @@ describe('per-map counts (Phase 2)', () => {
   });
 
   it('gives the guards their release zones on a map with a mapZones entry (P4-2)', () => {
-    const guard = npcCatalogueForMap(getNpcCatalogue(), 'prisma').require('security');
-    expect(guard).toMatchObject({ releaseZones: expect.arrayContaining(['parking', 'street']) });
-    const plain = npcCatalogueForMap(getNpcCatalogue(), 'kespro').require('security');
-    expect(plain).not.toHaveProperty('releaseZones');
+    const raw = JSON.parse(JSON.stringify(npcsJson)) as { npcs: { behaviour: string; mapZones?: unknown }[] };
+    for (const n of raw.npcs)
+      if (n.behaviour === 'security') n.mapZones = { prisma: { releaseZones: ['parking', 'street'] } };
+    const catalogue = loadNpcCatalogue(raw, 'test');
+    expect(npcCatalogueForMap(catalogue, 'prisma').require('security')).toMatchObject({
+      releaseZones: ['parking', 'street'],
+    });
+    expect(npcCatalogueForMap(catalogue, 'kespro').require('security')).not.toHaveProperty('releaseZones');
+  });
+
+  it('ships with guards that chase everywhere on both maps (Juhi, P4-2 follow-up)', () => {
+    for (const map of ['kespro', 'prisma']) {
+      expect(npcCatalogueForMap(getNpcCatalogue(), map).require('security')).not.toHaveProperty(
+        'releaseZones',
+      );
+    }
   });
 
   it('swaps the butcher zones on a map with a mapZones entry', () => {
