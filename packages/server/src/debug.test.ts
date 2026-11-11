@@ -14,7 +14,7 @@ import {
 } from '@keke/shared';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createGameServer } from './app';
-import { loadThemeMap } from './maps';
+import { loadThemeMap, singleMapRegistry } from './maps';
 import type { GameRoom } from './rooms/GameRoom';
 import type { GameState } from './schema/GameState';
 
@@ -41,7 +41,7 @@ function setup(port: number, debug: boolean) {
   let colyseus: ColyseusTestServer;
   const open: Conn[] = [];
   beforeAll(async () => {
-    const server = createGameServer({ config, map, debug });
+    const server = createGameServer({ config, maps: singleMapRegistry(map), debug });
     await server.listen(port);
     colyseus = new ColyseusTestServer(server);
   });

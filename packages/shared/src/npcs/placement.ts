@@ -77,10 +77,25 @@ export function planNpcs(catalogue: NpcCatalogue, map: NpcMap, players: number):
 }
 
 /**
- * Checks that a map has what every NPC type needs (§15.4): spawns of known types, routes for
- * forklifts, at least two waypoints for walkers, the butcher's zones, and `post` only on guards.
- * Returns the problems, one per line; empty when the map is fine. The server should refuse to start
- * on problems, like it does for invalid data.
+ * The NPC types a map has (Phase 2 decision 7), in catalogue order: types with `npc_spawns` on the map,
+ * and forklifts when it has `forklift_routes`. Other types are simply absent from that map.
+ */
+export function npcRoster(catalogue: NpcCatalogue, map: NpcMap): string[] {
+  return catalogue.npcs
+    .filter((def) =>
+      def.behaviour === 'forklift'
+        ? map.forkliftRoutes.length > 0
+        : map.npcSpawns.some((s) => s.type === def.id),
+    )
+    .map((def) => def.id);
+}
+
+/**
+ * Checks that a map has what each NPC type it spawns needs (§15.4): spawns of known types, at least two
+ * waypoints for walkers, the butcher's zones, and `post` only on guards. Types the map has no spawns
+ * (or, for forklifts, routes) for are absent from it and not checked (`npcRoster`). Returns the
+ * problems, one per line; empty when the map is fine. The server refuses to start on problems, like it
+ * does for invalid data.
  */
 export function checkNpcMap(catalogue: NpcCatalogue, map: NpcMap): string[] {
   const issues: string[] = [];
@@ -99,13 +114,10 @@ export function checkNpcMap(catalogue: NpcCatalogue, map: NpcMap): string[] {
       issues.push(`${where}: "post" is only used by security guards`);
     }
   });
+  const roster = new Set(npcRoster(catalogue, map));
   for (const def of catalogue.npcs) {
-    if (def.behaviour === 'forklift') {
-      if (map.forkliftRoutes.length === 0) issues.push(`${def.id}: the map has no forklift_routes`);
-      continue;
-    }
+    if (def.behaviour === 'forklift' || !roster.has(def.id)) continue;
     const spawns = map.npcSpawns.filter((s) => s.type === def.id);
-    if (spawns.length === 0) issues.push(`${def.id}: the map has no npc_spawns of this type`);
     const walks = WANDERERS.includes(def.behaviour) && spawns.some((s) => !s.post);
     if (walks && map.npcWaypoints.length < 2) {
       issues.push(`${def.id}: walks between npc_waypoints but the map has ${map.npcWaypoints.length}`);

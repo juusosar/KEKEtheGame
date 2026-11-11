@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NpcSpawn, Zone } from '../map/mapModel';
 import { getNpcCatalogue } from './catalogue';
-import { checkNpcMap, planNpcs, type NpcMap } from './placement';
+import { checkNpcMap, npcRoster, planNpcs, type NpcMap } from './placement';
 
 const npcs = getNpcCatalogue();
 
@@ -138,14 +138,19 @@ describe('checkNpcMap', () => {
     expect(issues).toMatch(/unknown NPC type "customer"/);
     expect(issues).toMatch(/forklifts start on forklift_routes/);
     expect(issues).toMatch(/"post" is only used by security guards/);
-    expect(issues).toMatch(/security: the map has no npc_spawns/);
-    expect(issues).toMatch(/butcher: the map has no npc_spawns/);
   });
 
-  it('reports missing routes, waypoints and butcher zones', () => {
-    const bad: NpcMap = { ...map, forkliftRoutes: [], npcWaypoints: [], zones: [zone('meat_fish')] };
+  it('treats types without spawns (or routes) as absent from the map', () => {
+    const shop: NpcMap = { ...map, npcSpawns: [spawn('stocker', 3, 3)], forkliftRoutes: [] };
+    expect(checkNpcMap(npcs, shop)).toEqual([]);
+    expect(npcRoster(npcs, shop)).toEqual(['stocker']);
+    expect(npcRoster(npcs, map)).toEqual(['stocker', 'security', 'forklift', 'butcher']);
+    expect(planNpcs(npcs, shop, 8).every((p) => p.type === 'stocker')).toBe(true);
+  });
+
+  it('reports missing waypoints and butcher zones for types the map spawns', () => {
+    const bad: NpcMap = { ...map, npcWaypoints: [], zones: [zone('meat_fish')] };
     const issues = checkNpcMap(npcs, bad).join('\n');
-    expect(issues).toMatch(/forklift: the map has no forklift_routes/);
     expect(issues).toMatch(/stocker: walks between npc_waypoints but the map has 0/);
     expect(issues).toMatch(/security: walks between npc_waypoints/);
     expect(issues).toMatch(/zone "behind_counter" is not in the map's zones layer/);

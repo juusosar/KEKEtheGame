@@ -14,7 +14,6 @@ import {
   despawnLooseItems,
   drop,
   findCarryPlayer,
-  getItemCatalogue,
   inDepositRange,
   isCarryingBox,
   isOrderBox,
@@ -43,7 +42,6 @@ import {
   type RaceResult,
   type Rng,
   type StepModifiers,
-  type ThemeId,
   type Vec2,
 } from '@keke/shared';
 import { ItemState, VanState, type GameState, type PlayerState } from '../schema/GameState';
@@ -78,14 +76,15 @@ export class ItemSystem {
     private readonly config: GameConfig,
     private readonly map: MapModel,
     private readonly broadcast: ItemBroadcast,
-    theme: ThemeId,
+    /** The round map's item catalogue (`getItemCatalogue(themeId)`; the map registry holds it). */
+    catalogue: ItemCatalogue,
     seed: number,
   ) {
-    this.catalogue = getItemCatalogue(theme);
+    this.catalogue = catalogue;
     // §9.1: every zone the catalogue names needs item spawns on this map (phase 2: zones are per catalogue).
     const problems = checkItemMap(this.catalogue, map);
     if (problems.length > 0) {
-      throw new Error(`The map cannot host the ${theme} item catalogue:\n${problems.join('\n')}`);
+      throw new Error(`The map cannot host its item catalogue:\n${problems.join('\n')}`);
     }
     this.rng = createRng(seed);
   }

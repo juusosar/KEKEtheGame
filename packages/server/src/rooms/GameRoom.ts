@@ -12,13 +12,16 @@ import {
   assignVans,
   createRng,
   createWantedWorld,
-  defaultThemeId,
   expireWanted,
   generateRoomCode,
   gridWithBlocked,
   inOfficeTrigger,
   inWantedZone,
+  isMapChoice,
   isWanted,
+  mapChoiceAvailable,
+  mapForRound,
+  mapRotation,
   nextPhase,
   normalizeRoomCode,
   phaseSeconds,
@@ -45,6 +48,7 @@ import {
   type GameConfig,
   type GameJoinOptions,
   type GameMode,
+  type MapChoice,
   type MapModel,
   type GameRoomMetadata,
   type RaceDelivery,
@@ -54,10 +58,12 @@ import {
   type RosterEntry,
   type RoundPhase,
   type SessionSide,
+  type ThemeId,
   type WantedEvent,
   type WantedHit,
   type WantedWorld,
 } from '@keke/shared';
+import type { MapEntry, MapRegistry } from '../maps';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
 import { CombatSystem } from '../systems/combat/CombatSystem';
 import { ItemSystem } from '../systems/items';
@@ -84,8 +90,8 @@ function randomSeed(): number {
 export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRoomMetadata }> {
   /** Validated game config; `gameRoomWithConfig` supplies it. */
   protected abstract readonly config: GameConfig;
-  /** The map this room simulates on; `gameRoomWithConfig` supplies it. */
-  protected abstract readonly map: MapModel;
+  /** The maps this server runs (Phase 2, P1-1); `gameRoomWithConfig` supplies it. */
+  protected abstract readonly maps: MapRegistry;
   /** Debug-only messages (teleport, end phase) are accepted. Off unless the server runs with KEKE_DEBUG=1. */
   protected readonly debug: boolean = false;
 
@@ -95,8 +101,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private joinCounter = 0;
   private phaseTimer: Delayed | undefined;
   private phaseEndsAt = 0;
+  /** The map the systems below are built for (`buildMapSystems`); `state.mapId` names it from each countdown. */
+  private mapEntry: MapEntry | undefined;
   private movement!: MovementSystem;
-  /** The map with parked stock carts as walls (built in onCreate). */
+  /** The map with parked stock carts as walls (built with the map systems). */
   private liveMap!: MapModel;
   private items!: ItemSystem;
   private combat!: CombatSystem;
@@ -149,63 +157,15 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.debug ? this.handleDebugEndPhase(client) : this.refuse(client, DebugMessage.endPhase, 'debug_off'),
     );
 
-    // The live map: stock carts parked by stockers block movement like walls (M5-3). Items keep the
-    // static map (spawns and drops never depend on a cart that is gone a few seconds later).
-    const liveMap: MapModel = {
-      ...this.map,
-      collision: gridWithBlocked(this.map.collision, (tx, ty) => this.npcs.isCartTile(tx, ty)),
-    };
-    this.liveMap = liveMap;
-    this.movement = new MovementSystem(this.config, liveMap);
-    this.items = new ItemSystem(
-      this.state,
-      this.config,
-      this.map,
-      (event) => this.broadcast(event.type, event.payload),
-      defaultThemeId,
-      randomSeed(),
-    );
-    this.combat = new CombatSystem(
-      this.state,
-      this.config,
-      liveMap,
-      (event) => this.broadcast(event.type, event.payload),
-      // §3.2/§3.3: a KO drops the carried item where the player fell (M3 review H1).
-      {
-        onKo: (player, now) => this.items.dropCarried(player, now, 'ko'),
-        // §7 pallet jack: loose items in the dash's line scatter (M4-6).
-        onScatterItems: (from, to, halfWidth, px) => this.items.scatter(from, to, halfWidth, px),
-        // §7: a banana peel slip drops the carried item where the player slipped (M4-5).
-        onDropCarried: (player, now) => this.items.dropCarried(player, now, 'slip'),
-        // Landed hits feed the wanted rules at the end of the tick (§8; M5-3).
-        onEvent: (event) => {
-          if (event.type === 'hit') this.tickCombatEvents.push(event);
-        },
-      },
-      randomSeed(),
-    );
-    // Store workers (§8; M5-3): player weapons hit them through the combat system, their swings land
-    // through it too (blocks, KO item drops).
-    this.npcs = new NpcSystem(
-      this.state,
-      this.config,
-      liveMap,
-      (event) => this.broadcast(event.type, event.payload),
-      {
-        hitPlayer: (hit) => this.combat.externalHit(hit),
-        onNpcDamaged: (attacker, npc, damage) =>
-          this.tickNpcHits.push({ attacker, victim: { kind: 'npc', id: npc }, damage }),
-        wantedPlayers: () => wantedPlayers(this.wanted, this.roundSeconds()),
-        dropCarried: (player, reason) => this.items.dropCarried(player, this.roundSeconds(), reason),
-      },
-      randomSeed(),
-    );
-    this.combat.npcTargets = this.npcs;
-    // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2); an order box does not
-    // (plan M4-1, M6-2): the carrier keeps the weapon they hold.
-    this.items.onPickup = (playerId, kind) => {
-      if (kind !== 'box') this.combat.onPickup(playerId, 'item');
-    };
+    // Map choice (Phase 2): the lobby default when this server has it, else its first map. The map
+    // systems are built for the lobby's map now (leave and drop paths need them before any round) and
+    // rebuilt for the round's map at each countdown when it differs (`useRoundMap`).
+    const choice: MapChoice = mapChoiceAvailable(this.state.settings.maps as MapChoice, this.maps.ids)
+      ? (this.state.settings.maps as MapChoice)
+      : (this.maps.ids[0] as ThemeId);
+    this.state.settings.maps = choice;
+    this.state.mapId = mapForRound(choice, 0, 1);
+    this.buildMapSystems(this.maps.get(this.state.mapId as ThemeId));
     // One state patch per simulation tick.
     this.setPatchRate(1000 / this.config.serverTickHz);
 
@@ -305,9 +265,17 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (!this.checkHostInLobby(client, ClientMessage.settings)) return;
     const parsed = settingsUpdateSchema(this.config).safeParse(message);
     if (!parsed.success) return this.refuse(client, ClientMessage.settings, 'invalid_payload');
-    const { mode, roundsPerMap, teams } = parsed.data;
+    const { mode, roundsPerMap, teams, maps } = parsed.data;
+    if (maps !== undefined && !mapChoiceAvailable(maps, this.maps.ids)) {
+      return this.refuse(client, ClientMessage.settings, 'map_unavailable');
+    }
     const settings = this.state.settings;
     if (mode !== undefined) settings.mode = mode;
+    if (maps !== undefined) {
+      settings.maps = maps;
+      // The lobby shows the session's first map; each countdown sets the round's map.
+      this.state.mapId = mapForRound(maps, 0, 1);
+    }
     if (roundsPerMap !== undefined) settings.roundsPerMap = roundsPerMap;
     if (teams !== undefined && teams !== settings.teams) {
       settings.teams = teams;
@@ -332,7 +300,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (!this.checkHostInLobby(client, ClientMessage.start)) return;
     if (!canStart(this.state.players.values())) return this.refuse(client, ClientMessage.start, 'not_ready');
     this.state.round = 1;
-    this.state.totalRounds = totalRounds(this.state.settings.roundsPerMap);
+    const maps = this.state.settings.maps;
+    this.state.totalRounds = totalRounds(
+      this.state.settings.roundsPerMap,
+      isMapChoice(maps) ? mapRotation(maps).length : 1,
+    );
     this.resetSession(true);
     this.enterPhase(nextPhase('lobby', this.progress()));
   }
@@ -413,6 +385,102 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.advancePhase();
   }
 
+  // --- Map systems (Phase 2, P1-1) ----------------------------------------------------------------
+
+  /**
+   * Builds the map-dependent systems (live map, movement, items, combat, NPCs) for one map. A rebuild
+   * first clears what the old systems put into the synced state (items, vans, projectiles, traps, NPCs).
+   */
+  private buildMapSystems(entry: MapEntry): void {
+    if (this.mapEntry) {
+      this.items.reset();
+      this.combat.reset();
+      this.npcs.reset();
+    }
+    this.mapEntry = entry;
+    // The live map: stock carts parked by stockers block movement like walls (M5-3). Items keep the
+    // static map (spawns and drops never depend on a cart that is gone a few seconds later).
+    const liveMap: MapModel = {
+      ...entry.map,
+      collision: gridWithBlocked(entry.map.collision, (tx, ty) => this.npcs.isCartTile(tx, ty)),
+    };
+    this.liveMap = liveMap;
+    this.movement = new MovementSystem(this.config, liveMap);
+    this.items = new ItemSystem(
+      this.state,
+      this.config,
+      entry.map,
+      (event) => this.broadcast(event.type, event.payload),
+      entry.items,
+      randomSeed(),
+    );
+    this.combat = new CombatSystem(
+      this.state,
+      this.config,
+      liveMap,
+      (event) => this.broadcast(event.type, event.payload),
+      // §3.2/§3.3: a KO drops the carried item where the player fell (M3 review H1).
+      {
+        onKo: (player, now) => this.items.dropCarried(player, now, 'ko'),
+        // §7 pallet jack: loose items in the dash's line scatter (M4-6).
+        onScatterItems: (from, to, halfWidth, px) => this.items.scatter(from, to, halfWidth, px),
+        // §7: a banana peel slip drops the carried item where the player slipped (M4-5).
+        onDropCarried: (player, now) => this.items.dropCarried(player, now, 'slip'),
+        // Landed hits feed the wanted rules at the end of the tick (§8; M5-3).
+        onEvent: (event) => {
+          if (event.type === 'hit') this.tickCombatEvents.push(event);
+        },
+      },
+      randomSeed(),
+    );
+    // Store workers (§8; M5-3): player weapons hit them through the combat system, their swings land
+    // through it too (blocks, KO item drops).
+    this.npcs = new NpcSystem(
+      this.state,
+      this.config,
+      liveMap,
+      (event) => this.broadcast(event.type, event.payload),
+      {
+        hitPlayer: (hit) => this.combat.externalHit(hit),
+        onNpcDamaged: (attacker, npc, damage) =>
+          this.tickNpcHits.push({ attacker, victim: { kind: 'npc', id: npc }, damage }),
+        wantedPlayers: () => wantedPlayers(this.wanted, this.roundSeconds()),
+        dropCarried: (player, reason) => this.items.dropCarried(player, this.roundSeconds(), reason),
+      },
+      randomSeed(),
+      undefined,
+      entry.npcs,
+    );
+    this.combat.npcTargets = this.npcs;
+    // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2); an order box does not
+    // (plan M4-1, M6-2): the carrier keeps the weapon they hold.
+    this.items.onPickup = (playerId, kind) => {
+      if (kind !== 'box') this.combat.onPickup(playerId, 'item');
+    };
+  }
+
+  /** Countdown: the round's map from the `maps` setting; rebuilds the map systems when it changes. */
+  private useRoundMap(): void {
+    const id = mapForRound(
+      this.state.settings.maps as MapChoice,
+      this.state.round,
+      this.state.settings.roundsPerMap,
+    );
+    if (this.mapEntry?.id !== id) this.buildMapSystems(this.maps.get(id));
+    this.state.mapId = id;
+  }
+
+  /** The map the room simulates on now. */
+  private get map(): MapModel {
+    return this.currentMap.map;
+  }
+
+  /** The map entry the room's systems run on, for tests. */
+  get currentMap(): MapEntry {
+    if (!this.mapEntry) throw new Error('GameRoom: no map before onCreate');
+    return this.mapEntry;
+  }
+
   // --- Round state machine ---------------------------------------------------------------------
 
   /** Ends the current phase now. Called by the phase timer; tests and later systems may call it too. */
@@ -429,6 +497,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.state.phase = phase;
 
     if (phase === 'countdown') {
+      this.useRoundMap();
       this.admitSpectators();
       this.spawnPlayers();
       this.clearRoundResults();
@@ -788,6 +857,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       p.spectator = false;
     });
     if (this.state.settings.teams) this.applyTeams(balanceTeams(this.activeRoster()));
+    this.state.mapId = mapForRound(this.state.settings.maps as MapChoice, 0, 1);
   }
 
   private refreshSecondsLeft(): void {
@@ -857,6 +927,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       hostName: host?.nickname ?? '',
       mode: this.state.settings.mode,
       phase: this.state.phase,
+      maps: this.state.settings.maps,
+      map: this.state.mapId,
     };
     this.setMetadata(metadata).catch((error: unknown) =>
       console.error('GameRoom: setMetadata failed', error),
@@ -864,15 +936,15 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   }
 }
 
-/** A concrete GameRoom class bound to a validated config and map, ready for `server.define`. */
+/** A concrete GameRoom class bound to a validated config and the server's maps, ready for `server.define`. */
 export function gameRoomWithConfig(
   config: GameConfig,
-  map: MapModel,
+  maps: MapRegistry,
   { debug = false }: { debug?: boolean } = {},
 ): typeof GameRoom & (new () => GameRoom) {
   return class ConfiguredGameRoom extends GameRoom {
     protected readonly config = config;
-    protected readonly map = map;
+    protected readonly maps = maps;
     protected override readonly debug = debug;
   };
 }

@@ -18,7 +18,7 @@ import {
 } from '@keke/shared';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createGameServer } from './app';
-import { loadThemeMap } from './maps';
+import { loadThemeMap, singleMapRegistry } from './maps';
 import type { GameRoom } from './rooms/GameRoom';
 import type { GameState, PlayerState } from './schema/GameState';
 import type { CombatSystem } from './systems/combat/CombatSystem';
@@ -50,7 +50,7 @@ describe('GameRoom banana peels (integration)', () => {
   const open: Conn[] = [];
 
   beforeAll(async () => {
-    const server = createGameServer({ config, map });
+    const server = createGameServer({ config, maps: singleMapRegistry(map) });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });

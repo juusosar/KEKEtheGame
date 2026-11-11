@@ -1,6 +1,6 @@
 // ItemSystem.scatter (pallet jack, M4-6): lying items in a dash's band move out of the line, synced.
 import { describe, expect, it } from 'vitest';
-import { defaultThemeId } from '@keke/shared';
+import { defaultThemeId, getItemCatalogue } from '@keke/shared';
 import { GameState, PlayerState } from '../schema/GameState';
 import { ItemSystem } from './items';
 import { config, kesproMap, must } from './combat/testKit';
@@ -12,8 +12,22 @@ describe('ItemSystem.scatter', () => {
     p.sessionId = 'a';
     p.van = 0;
     state.players.set('a', p);
-    const items = new ItemSystem(state, config, kesproMap(), () => undefined, defaultThemeId, 7);
-    const before = new ItemSystem(state, config, kesproMap(), () => undefined, defaultThemeId, 7);
+    const items = new ItemSystem(
+      state,
+      config,
+      kesproMap(),
+      () => undefined,
+      getItemCatalogue(defaultThemeId),
+      7,
+    );
+    const before = new ItemSystem(
+      state,
+      config,
+      kesproMap(),
+      () => undefined,
+      getItemCatalogue(defaultThemeId),
+      7,
+    );
     before.scatter({ x: 0, y: 0 }, { x: 10, y: 0 }, 14, 48); // not running: no-op, no throw
 
     items.startRound([p]);
