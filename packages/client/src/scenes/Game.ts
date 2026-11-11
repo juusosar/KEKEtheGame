@@ -93,6 +93,7 @@ import { SnapshotBuffer } from '../net/interpolation';
 import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
+import { readLobby } from '../net/lobbyView';
 import { readTraps } from '../net/trapView';
 import { cartTileKeys, readNpcs, readStockCarts } from '../net/npcView';
 import { readWanted } from '../net/wantedView';
@@ -236,6 +237,9 @@ export class GameScene extends Phaser.Scene {
     if (this.debug) this.createDebug();
     // §12: the map's music loops while the Game scene runs (intro, round, results and podium).
     audioEngine().startMusic(`assets/${this.assets.assets.music}`);
+    // P3-2: a session can move to another map between rounds; fetch every loaded map's music now so the
+    // switch does not start in silence. Tiles and sheets of every theme come with the manifest already.
+    if (current) this.preloadRoomMusic(current.room.state);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown());
     document.body.dataset['scene'] = 'game';
     document.body.dataset['map'] = this.theme.id;
@@ -420,6 +424,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   // --- room -----------------------------------------------------------------------------------------
+
+  /** Starts loading the music of every map the room's server has (P3-2). */
+  private preloadRoomMusic(state: unknown): void {
+    for (const id of readLobby(state, '').loadedMaps) {
+      audioEngine().preload(`assets/${assetTheme(themeFor(id), hasMapFile).assets.music}`);
+    }
+  }
 
   private joinRoom(room: Room): void {
     this.sequence = inputSequenceFor(room, this.config.maxQueuedInputs);
