@@ -172,6 +172,13 @@ export interface CombatFeedContext {
   npcName?(npcId: string): string;
 }
 
+/** Floor hazards that burn (P2-2, hazard source id = zone id): their lines say "burnt", not "hit". */
+export const BURNING_HAZARDS: ReadonlySet<string> = new Set(['oven']);
+
+function burning(source: HitSource): boolean {
+  return source.kind === 'hazard' && BURNING_HAZARDS.has(source.id);
+}
+
 function sourceName(source: HitSource, ctx: CombatFeedContext): string | null {
   if (source.kind === 'player') return source.id === ctx.me ? t('hud.feed.you') : ctx.nameOf(source.id);
   if ((source.kind === 'npc' || source.kind === 'hazard') && ctx.npcName) {
@@ -194,6 +201,9 @@ export function combatFeedLine(type: string, message: unknown, ctx: CombatFeedCo
     const victim = ko.player === ctx.me ? t('hud.feed.you') : ctx.nameOf(ko.player);
     const by = sourceName(ko.source, ctx);
     const mine = ko.player === ctx.me || (ko.source.kind === 'player' && ko.source.id === ctx.me);
+    if (burning(ko.source) && ctx.npcName) {
+      return { kind: 'ko', text: t('hud.feed.koBurnt', { victim, hazard: ctx.npcName(ko.source.id) }), mine };
+    }
     if (by === null || ko.source.id === ko.player)
       return { kind: 'ko', text: t('hud.feed.koAlone', { victim }), mine };
     const weapon = typeof ko.weapon === 'string' ? weaponName(ko.weapon, ctx.weapons) : null;
@@ -222,6 +232,7 @@ export function combatFeedLine(type: string, message: unknown, ctx: CombatFeedCo
       ? (damage: number) => t('hud.feed.youHit', { victim: ctx.nameOf(hit.target), weapon, damage })
       : (damage: number) => {
           const attacker = sourceName(hit.source, ctx) ?? t('hud.feed.somebody');
+          if (burning(hit.source)) return t('hud.feed.burntYou', { hazard: attacker, damage });
           // Store workers hit with their hands (no weapon id).
           return weapon === ''
             ? t('hud.feed.hitYouPlain', { attacker, damage })

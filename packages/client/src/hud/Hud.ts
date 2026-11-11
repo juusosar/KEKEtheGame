@@ -18,6 +18,7 @@
 //   #keke-hud-weapon     region "Weapon", data-weapon (id), data-uses (number, or 'inf'), class .new after a roll
 //   #keke-hud-ko         KO overlay, role status, data-respawn-in (whole seconds)
 //   #keke-hud-wanted     Wanted indicator (M5-7), role status, data-seconds; hidden when not wanted
+//   #keke-hud-heat       hot floor warning (P2-2), role alert; hidden unless we stand on a floor hazard
 //   #keke-hud-prompts    button prompts (F6), top of #keke-hud-combat, list "Button prompts", data-device;
 //                        li[data-action] with kbd (key or button name) and the action
 //
@@ -124,6 +125,7 @@ export class Hud {
   private readonly status: HTMLElement;
   private readonly wanted: HTMLElement;
   private wantedSeconds: number | null = null;
+  private readonly heat: HTMLElement;
   private readonly ko: HTMLElement;
   private readonly koBy: HTMLElement;
   private readonly koCount: HTMLElement;
@@ -234,6 +236,11 @@ export class Hud {
       'aria-label': t('hud.wanted'),
       hidden: true,
     });
+    this.heat = h(
+      'div',
+      { id: 'keke-hud-heat', class: 'hud-heat', role: 'alert', hidden: true },
+      t('hud.heat'),
+    );
     this.prompts = h('ol', {
       id: 'keke-hud-prompts',
       class: 'hud-prompts',
@@ -244,6 +251,7 @@ export class Hud {
       'div',
       { id: 'keke-hud-combat', class: 'hud-combat', hidden: true },
       this.prompts,
+      this.heat,
       this.wanted,
       this.status,
       this.hp,
@@ -397,6 +405,12 @@ export class Hud {
     }
     this.wanted.dataset['seconds'] = String(seconds);
     this.wanted.textContent = t('hud.wanted.value', { seconds });
+  }
+
+  /** The hot floor warning (P2-2): shown while we stand on a floor hazard such as the bakery oven. */
+  renderHeat(on: boolean): void {
+    if (this.heat.hidden === !on) return;
+    this.heat.hidden = !on;
   }
 
   /** Every frame: drops expired feed lines and ends the new-weapon glow. */

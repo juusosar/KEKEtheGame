@@ -28,11 +28,14 @@ export const SFX_NAMES = [
   'wantedRefresh',
   // Customers (Phase 2, P2-4).
   'customerGasp',
+  // Floor hazards (Phase 2 P2-2).
+  'sizzle',
   // Race (M6).
   'boxPacked',
   'delivery',
   // Ambient loops placed on the map (P2-6). Played with AudioEngine.startLoop, not as one-shots.
   'bottleHum',
+  'ovenCrackle',
   // Self-checkout gate till beep (P2-1).
   'gateBeep',
 ] as const;

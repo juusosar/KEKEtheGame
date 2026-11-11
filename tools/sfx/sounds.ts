@@ -147,6 +147,13 @@ export const SOUNDS: Record<SfxName, readonly Layer[]> = {
       fade: 1.2,
     },
   ],
+  // The bakery oven burns someone (P2-2): a hot pan hiss with fat crackling in it.
+  sizzle: [
+    { wave: 'noise', seconds: 0.5, freq: 7000, freqEnd: 4000, gain: 0.22, attack: 0.02, fade: 1.4, seed: 7 },
+    { wave: 'noise', seconds: 0.06, freq: 2500, gain: 0.3, fade: 1, seed: 8 },
+    { wave: 'noise', at: 0.14, seconds: 0.05, freq: 3000, gain: 0.25, fade: 1, seed: 9 },
+    { wave: 'noise', at: 0.29, seconds: 0.04, freq: 2800, gain: 0.2, fade: 1, seed: 10 },
+  ],
   // Race: our order box is packed, a rising triad.
   boxPacked: [
     { wave: 'triangle', seconds: 0.3, freq: 523, steps: [523, 659, 784], gain: 0.4, release: 0.04 },
@@ -163,5 +170,12 @@ export const SOUNDS: Record<SfxName, readonly Layer[]> = {
     { wave: 'sine', seconds: 1, freq: 100, gain: 0.22, attack: 0, release: 0 },
     { wave: 'square', seconds: 1, freq: 50, gain: 0.05, attack: 0, release: 0 },
     { wave: 'triangle', seconds: 1, freq: 300, gain: 0.04, attack: 0, release: 0 },
+  ],
+  // The bakery oven's crackle (P2-2), looped near the hot floor: a low burner rumble in whole cycles and a
+  // soft hiss with no envelope, so the loop joins without a click.
+  ovenCrackle: [
+    { wave: 'sine', seconds: 1, freq: 60, gain: 0.18, attack: 0, release: 0 },
+    { wave: 'triangle', seconds: 1, freq: 120, gain: 0.05, attack: 0, release: 0 },
+    { wave: 'noise', seconds: 1, freq: 5000, gain: 0.08, attack: 0, release: 0, seed: 11 },
   ],
 };

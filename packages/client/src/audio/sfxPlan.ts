@@ -55,6 +55,9 @@ export interface CombatCueContext {
   blocking(id: string): boolean;
 }
 
+/** Floor hazards by hazard source id (P2-2): the oven sizzles instead of punching. */
+export const HAZARD_SOUNDS: Readonly<Record<string, SfxName>> = { oven: 'sizzle' };
+
 /** Cues for a combat broadcast (`attack`, `hit`, `ko`, `respawn`). */
 export function combatCues(type: string, message: unknown, ctx: CombatCueContext): SoundCue[] {
   const m = bag(message);
@@ -76,8 +79,14 @@ export function combatCues(type: string, message: unknown, ctx: CombatCueContext
       if (typeof target !== 'string') return [];
       const weapon = typeof m['weapon'] === 'string' ? m['weapon'] : null;
       const damage = typeof m['damage'] === 'number' ? m['damage'] : 0;
+      const source = bag(m['source']);
+      const hazard =
+        source?.['kind'] === 'hazard' && typeof source['id'] === 'string'
+          ? HAZARD_SOUNDS[source['id']]
+          : undefined;
       let name: SfxName | null;
-      if (damage <= 0 && ctx.blocking(target)) name = 'block';
+      if (hazard !== undefined) name = hazard;
+      else if (damage <= 0 && ctx.blocking(target)) name = 'block';
       else if (weapon !== null && weapon in HIT_SOUNDS) name = HIT_SOUNDS[weapon] ?? null;
       else name = 'hit';
       return name === null ? [] : [{ name, source: about(target, ctx.me) }];
