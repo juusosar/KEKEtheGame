@@ -118,6 +118,17 @@ test('a Quota + Race round: quota bar, packed box, office arrow, delivery and re
   const points = box?.points ?? 0;
   expect(points).toBeGreaterThanOrEqual(RACE_QUOTA);
 
+  // The feed lines first, on both pages at once: they fade after 6 s, and the checks below can take
+  // longer than that on a busy machine.
+  await Promise.all([
+    expect(host.locator('#keke-hud-feed li[data-kind="packed"]')).toHaveText(
+      'Your order box is packed: take it to the office!',
+    ),
+    expect(guest.locator('#keke-hud-feed li[data-kind="packed"]')).toHaveText(
+      `Hostia packed an order box (${points} items)`,
+    ),
+  ]);
+
   // Our HUD: the box in the carry slot, the arrow to the office, the quota bar calling for a delivery.
   const carry = host.getByRole('region', { name: 'Carrying' });
   await expect(carry).toHaveAttribute('data-item-id', 'order_box');
@@ -126,9 +137,6 @@ test('a Quota + Race round: quota bar, packed box, office arrow, delivery and re
   await expect(host.getByRole('img', { name: 'Arrow to the office' })).toHaveCount(1);
   await expect(quota).toHaveAttribute('data-state', 'deliver');
   await expect(quota).toHaveAttribute('data-points', '0');
-  await expect(host.locator('#keke-hud-feed li[data-kind="packed"]')).toHaveText(
-    'Your order box is packed: take it to the office!',
-  );
 
   await forBoth(async (page) => {
     // Everyone sees the box above the carrier and the carrier on the minimap.
@@ -149,9 +157,6 @@ test('a Quota + Race round: quota bar, packed box, office arrow, delivery and re
     await expect(scores.locator(`li[data-player-id="${hostId}"]`)).toHaveAttribute('data-place', '1');
     await expect(scores.locator(`li[data-player-id="${guestId}"]`)).toHaveAttribute('data-place', '2');
   });
-  await expect(guest.locator('#keke-hud-feed li[data-kind="packed"]')).toHaveText(
-    `Hostia packed an order box (${points} items)`,
-  );
   // The guest has no quota bar progress of their own and no office arrow.
   await expect(guest.getByRole('meter', { name: 'Order quota' })).toHaveAttribute('data-points', '0');
   await expect(guest.locator('#keke-hud-arrow')).not.toHaveAttribute('data-kind', 'office');
