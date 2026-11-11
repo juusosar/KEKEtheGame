@@ -60,6 +60,7 @@
       "count": { "base": 1, "min": 0 },
       "guardZone": "behind_counter",
       "homeZone": "meat_fish",
+      "mapZones": { "prisma": { "homeZone": "deli" } },
       "attack": {
         "cooldownSeconds": 1,
         "melee": { "damage": 20, "rangePx": 34, "arcDegrees": 100, "knockbackPx": 24, "stunSeconds": 0 }

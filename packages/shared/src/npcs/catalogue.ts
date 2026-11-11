@@ -124,6 +124,21 @@ export const npcSchema = z.discriminatedUnion('behaviour', [
       guardZone: z.string().regex(idPattern),
       /** Zone id the butcher never leaves (§8 "stays in the meat & fish counter area"). */
       homeZone: z.string().regex(idPattern),
+      /**
+       * Per-map zone overrides (Phase 2, P1-4), keyed by theme id: a map whose counter area has other
+       * zone ids, e.g. `{ "prisma": { "homeZone": "deli" } }`. A map without an entry uses the defaults.
+       */
+      mapZones: z
+        .record(
+          z.string().regex(idPattern),
+          z
+            .object({
+              guardZone: z.string().regex(idPattern).optional(),
+              homeZone: z.string().regex(idPattern).optional(),
+            })
+            .strict(),
+        )
+        .optional(),
       attack: npcAttackSchema,
     })
     .strict(),
@@ -201,15 +216,29 @@ function buildCatalogue(npcs: readonly NpcDef[], source: string): NpcCatalogue {
   });
 }
 
+/** The butcher's per-map zone override for `mapId` (only the zones it sets), if any. */
+function mapZonesOf(n: NpcDef, mapId: string): { guardZone?: string; homeZone?: string } | undefined {
+  const zones = n.behaviour === 'butcher' ? n.mapZones?.[mapId] : undefined;
+  if (zones === undefined) return undefined;
+  return {
+    ...(zones.guardZone !== undefined && { guardZone: zones.guardZone }),
+    ...(zones.homeZone !== undefined && { homeZone: zones.homeZone }),
+  };
+}
+
 /**
  * The catalogue as one map sees it: each type's `count` replaced by its `mapCounts[mapId]` override
- * when it has one. Everything else is shared. The server builds one per loaded map (P1-1).
+ * and the butcher's zones by its `mapZones[mapId]` override when it has one. Everything else is
+ * shared. The server builds one per loaded map (P1-1).
  */
 export function npcCatalogueForMap(catalogue: NpcCatalogue, mapId: string): NpcCatalogue {
-  if (!catalogue.npcs.some((n) => n.mapCounts?.[mapId] !== undefined)) return catalogue;
+  const overridden = (n: NpcDef): boolean =>
+    n.mapCounts?.[mapId] !== undefined || mapZonesOf(n, mapId) !== undefined;
+  if (!catalogue.npcs.some(overridden)) return catalogue;
   const npcs = catalogue.npcs.map((n) => {
-    const override = n.mapCounts?.[mapId];
-    return override === undefined ? n : deepFreeze({ ...n, count: override });
+    if (!overridden(n)) return n;
+    const count = n.mapCounts?.[mapId];
+    return deepFreeze({ ...n, ...(count !== undefined && { count }), ...mapZonesOf(n, mapId) });
   }) as readonly NpcDef[];
   return buildCatalogue(Object.freeze(npcs), `npcs.json (map ${mapId})`);
 }
