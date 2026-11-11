@@ -324,6 +324,44 @@ describe('GameRoom NPCs and Wanted (integration)', () => {
       expect(a.me.wanted).toBe(false);
     });
 
+    it('wanted refreshes go only to the Wanted player, at most once a second (F8)', async () => {
+      const { room, players } = await playingRoom(2);
+      const [a, b] = players as [Player, Player];
+      const start = vanSpawn(map, 0, playerHalfSize(config));
+      const npc = room.npcSystem.npc('stocker_1');
+      if (!npc) throw new Error('no stocker_1');
+      const began = Date.now();
+      let landed = 0;
+      for (let i = 0; i < 5; i++) {
+        a.me.x = start.x;
+        a.me.y = start.y;
+        npc.state.x = start.x + 22;
+        npc.state.y = start.y;
+        const before = npc.state.hp;
+        await press(a, Button.Attack, 0);
+        await press(a, 0, 0);
+        await waitFor(() => npc.state.hp < before, 1000).then(
+          () => landed++,
+          () => undefined,
+        );
+        await new Promise((r) => setTimeout(r, 420)); // fist cooldown 0.4 s
+      }
+      const elapsed = (Date.now() - began) / 1000;
+      expect(landed).toBeGreaterThanOrEqual(3);
+      await waitFor(() => a.me.wanted);
+      const refreshes = (p: Player): number =>
+        p.events.filter((e) => e.type === 'wanted' && (e.payload as WantedMessage).refreshed).length;
+      const starts = (p: Player): number =>
+        p.events.filter((e) => e.type === 'wanted' && !(e.payload as WantedMessage).refreshed).length;
+      // Everyone hears that a became Wanted; only a hears the refreshes, and not one per punch.
+      await waitFor(() => starts(b) === 1);
+      expect(starts(a)).toBe(1);
+      expect(refreshes(b)).toBe(0);
+      expect(refreshes(a)).toBeGreaterThanOrEqual(1);
+      expect(refreshes(a)).toBeLessThanOrEqual(Math.ceil(elapsed));
+      expect(refreshes(a)).toBeLessThan(landed);
+    }, 15000);
+
     it('a moving forklift runs over a carrier: 25 damage, knocked down, item dropped (forklift)', async () => {
       const { room, p } = await playingRoom();
       const target = room.state.items.get(String(p.me.target));

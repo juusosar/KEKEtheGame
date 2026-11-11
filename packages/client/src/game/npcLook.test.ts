@@ -84,6 +84,12 @@ describe('npcLook', () => {
   it('drives forklifts with the light on and no HP bar', () => {
     const look = npcLook(input({ ...forklift, moving: true }, { facing: 'up' }), all);
     expect(look).toMatchObject({ anim: 'forklift/drive_up', light: true, hpFill: null, hostile: false });
+    // Parked outside the playing phase: no light (M5 review F3).
+    const parked = npcLook(
+      { ...input({ ...forklift, moving: true }, { facing: 'up' }), playing: false },
+      all,
+    );
+    expect(parked.light).toBe(false);
   });
 
   it('keys on behaviour, not the type id, so new types need no client code', () => {
@@ -115,11 +121,16 @@ describe('forklift beeps', () => {
   });
 
   it('runs while driving or blocked by a cart, not at a corner stop', () => {
-    expect(forkliftBeeping({ mode: 'drive', moving: true, alive: true })).toBe(true);
-    expect(forkliftBeeping({ mode: 'blocked', moving: false, alive: true })).toBe(true);
-    expect(forkliftBeeping({ mode: 'corner', moving: false, alive: true })).toBe(false);
-    expect(forkliftBeeping({ mode: 'idle', moving: true, alive: true })).toBe(false);
-    expect(forkliftBeeping({ mode: 'something_new', moving: true, alive: true })).toBe(true);
+    expect(forkliftBeeping({ mode: 'drive', moving: true, alive: true }, true)).toBe(true);
+    expect(forkliftBeeping({ mode: 'blocked', moving: false, alive: true }, true)).toBe(true);
+    expect(forkliftBeeping({ mode: 'corner', moving: false, alive: true }, true)).toBe(false);
+    expect(forkliftBeeping({ mode: 'idle', moving: true, alive: true }, true)).toBe(false);
+    expect(forkliftBeeping({ mode: 'something_new', moving: true, alive: true }, true)).toBe(true);
+  });
+
+  it('never beeps outside the playing phase (countdown, results, podium; M5 review F3)', () => {
+    expect(forkliftBeeping({ mode: 'drive', moving: false, alive: true }, false)).toBe(false);
+    expect(forkliftBeeping({ mode: 'blocked', moving: false, alive: true }, false)).toBe(false);
   });
 
   it('fades with distance from the listener', () => {

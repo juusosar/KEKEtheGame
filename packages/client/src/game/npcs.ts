@@ -124,9 +124,15 @@ export class NpcRenderer {
 
   /**
    * Draws every NPC for this frame. Returns where each visible NPC is drawn (for hit sparks and damage
-   * numbers) and calls `beep` for each forklift beep due this frame.
+   * numbers) and calls `beep` for each forklift beep due this frame. Forklifts beep and light up only
+   * while `playing`.
    */
-  draw(now: number, nowMs: number, beep: (id: string, at: Vec2) => void): Map<string, Vec2> {
+  draw(
+    now: number,
+    nowMs: number,
+    playing: boolean,
+    beep: (id: string, at: Vec2) => void,
+  ): Map<string, Vec2> {
     const positions = new Map<string, Vec2>();
     const g = this.g;
     const fg = this.floorG;
@@ -145,6 +151,7 @@ export class NpcRenderer {
           now,
           attackUntil: e.attackUntil,
           flashUntil: e.flashUntil,
+          playing,
         },
         (key) => this.scene.anims.exists(key),
       );
@@ -156,7 +163,7 @@ export class NpcRenderer {
       if (e.view.behaviour === 'forklift') {
         const def = this.catalogue.get(e.view.type);
         const interval = def?.behaviour === 'forklift' ? def.warning.beepIntervalSeconds : 0.8;
-        const due = forkliftBeepDue(forkliftBeeping(e.view), e.lastBeep, now, interval);
+        const due = forkliftBeepDue(forkliftBeeping(e.view, playing), e.lastBeep, now, interval);
         if (due !== null) {
           e.lastBeep = due;
           beep(id, pos);
