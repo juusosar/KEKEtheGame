@@ -10,6 +10,7 @@ export {
   zonesAt,
   type MapCollisionGrid,
   type AmbientSound,
+  type CartSpawn,
   type ForkliftRoute,
   type ItemSpawn,
   type MapModel,

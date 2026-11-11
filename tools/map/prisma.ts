@@ -106,6 +106,14 @@ const BOTTLE_HUM_RADIUS_TILES = 9;
 /** Cart corral pen outside, east of the exit: rails on three sides, open to the west. */
 export const CORRAL: Rect = [28, 46, 37, 50];
 
+/**
+ * Pushable carts (P2-5): 8 in the corral, two rows with a free tile east of each cart and the middle row
+ * open, so a player can walk in and push every cart out of the open west side. Noses point west.
+ */
+export const CART_SPAWN_TILES: readonly TilePoint[] = [47, 49].flatMap((y) =>
+  [29, 31, 33, 35].map((x): TilePoint => [x, y]),
+);
+
 /** Pantry gondolas: 1-tile rows with 2-tile aisles between; cross aisles at x 17–18, 30–31, 41–42. */
 const SHELF_ROWS = [15, 18, 21, 24, 27, 30, 33];
 const SHELF_SPANS: readonly (readonly [number, number])[] = [
@@ -638,6 +646,10 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     });
   });
 
+  const cartSpawns = CART_SPAWN_TILES.map(([x, y], i) =>
+    point(centre(x), centre(y), `cart_${i + 1}`, [{ name: 'dir', type: 'string', value: 'left' }]),
+  );
+
   const triggerArea: Rect = [
     OFFICE_BUILDING[0] + 1,
     OFFICE_BUILDING[1] + 1,
@@ -685,6 +697,7 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     tileLayer(11, 'above'),
     objectLayer(12, 'ambient_sounds', ambientSounds),
     objectLayer(13, 'gates', gates),
+    objectLayer(14, 'cart_spawns', cartSpawns),
   ];
 
   const { type: _type, version: _version, ...embedded } = tileset;

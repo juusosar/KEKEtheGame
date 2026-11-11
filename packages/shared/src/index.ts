@@ -285,6 +285,27 @@ export {
   type StockCartPlacement,
   type TileRect,
 } from './rules/stockCart';
+export {
+  CART_DIRS,
+  boxesOverlap,
+  cartDirFor,
+  cartHalfSize,
+  cartsSegmentTime,
+  newCart,
+  pushCarts,
+  rollCarts,
+  segmentBoxTime,
+  shoveCart,
+  shoveSpeed,
+  withSegmentBlocker,
+  type Box,
+  type CartBody,
+  type CartConfig,
+  type CartDir,
+  type CartWorld,
+  type PushContext,
+  type PushResult,
+} from './rules/carts';
 export { placementPointsFor, rankSession, type SessionSide, type SessionStanding } from './rules/session';
 export {
   MapError,
@@ -297,6 +318,7 @@ export {
   zonesAt,
   type Bounds,
   type MapCollisionGrid,
+  type CartSpawn,
   type ForkliftRoute,
   type AmbientSound,
   type ItemSpawn,

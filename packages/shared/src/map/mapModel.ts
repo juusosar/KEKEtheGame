@@ -27,8 +27,12 @@ export const OBJECT_LAYERS = [
   'office_trigger',
 ] as const;
 
-/** Object layers a map may have. A missing one means "none" (§15.4 additions of phase 2). */
-export const OPTIONAL_OBJECT_LAYERS = ['ambient_sounds', 'gates'] as const;
+/**
+ * Object layers a map may have. A missing one means "none" (§15.4 additions of phase 2).
+ * `cart_spawns` (P2-5): points where a pushable shopping cart starts each round; optional `dir` property
+ * (down/up/left/right, default left) is the way its nose points.
+ */
+export const OPTIONAL_OBJECT_LAYERS = ['ambient_sounds', 'gates', 'cart_spawns'] as const;
 
 /** Tiled stores flip/rotation flags in the top 4 bits of a gid. */
 const GID_FLAG_MASK = 0x0fffffff;
@@ -114,6 +118,13 @@ export interface ForkliftRoute {
   readonly points: readonly Vec2[];
 }
 
+export interface CartSpawn {
+  readonly x: number;
+  readonly y: number;
+  /** The way the cart's nose points at the start. */
+  readonly dir: 'down' | 'up' | 'left' | 'right';
+}
+
 export interface OfficeTrigger {
   readonly polygon: readonly Vec2[];
   readonly bounds: Bounds;
@@ -146,6 +157,8 @@ export interface MapModel {
    * Empty when the map has no such layer.
    */
   readonly gates: readonly Gate[];
+  /** Pushable carts (P2-5); empty when the map has no `cart_spawns` layer. */
+  readonly cartSpawns: readonly CartSpawn[];
   /** The zone at a pixel position, the smallest one where zones nest. See `zoneAt`. */
   zoneAt(x: number, y: number): Zone | undefined;
 }
@@ -271,8 +284,14 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
   }
   if (issues.length > 0) return fail();
 
-  const objects = (name: (typeof OBJECT_LAYERS)[number]): readonly TiledObject[] =>
-    (objectLayers.get(name) as TiledObjectLayer).objects;
+  for (const name of OPTIONAL_OBJECT_LAYERS) {
+    if (tileLayers.has(name)) issues.push(`layer "${name}" must be an object layer`);
+  }
+  if (issues.length > 0) return fail();
+
+  const objects = (
+    name: (typeof OBJECT_LAYERS)[number] | (typeof OPTIONAL_OBJECT_LAYERS)[number],
+  ): readonly TiledObject[] => (objectLayers.get(name) as TiledObjectLayer | undefined)?.objects ?? [];
   const ctx = new ObjectReader(issues);
 
   const zones = objects('zones').flatMap((o) => {
@@ -371,6 +390,17 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     return [{ id: o.id, name: o.name, points: vertices.map((p) => ({ x: o.x + p.x, y: o.y + p.y })) }];
   });
 
+  const cartSpawns = objects('cart_spawns').flatMap((o): CartSpawn[] => {
+    const where = `cart_spawns #${o.id}`;
+    const pos = ctx.point(o, where);
+    const dir = ctx.string(o, 'dir', where) ?? 'left';
+    if (dir !== 'down' && dir !== 'up' && dir !== 'left' && dir !== 'right') {
+      issues.push(`${where}: dir must be down, up, left or right, got "${dir}"`);
+      return [];
+    }
+    return pos === undefined ? [] : [{ ...pos, dir }];
+  });
+
   const triggers = objects('office_trigger');
   if (triggers.length !== 1) {
     issues.push(`office_trigger: expected exactly 1 object, found ${triggers.length}`);
@@ -422,6 +452,7 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     forkliftRoutes,
     officeTrigger: { polygon: triggerPolygon, bounds: boundsOf(triggerPolygon) },
     gates: gates.map((g, index) => ({ index, ...g })),
+    cartSpawns,
     zoneAt: (x, y) => zoneAt(zones, x, y),
   };
 }

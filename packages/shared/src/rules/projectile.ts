@@ -61,12 +61,14 @@ export function sweepHitTime(from: Vec2, delta: Vec2, centre: Vec2, r: number): 
 
 /**
  * Fraction t in (0, 1] of the segment `from` → `from + delta` at which its centre first enters a solid tile
- * (or leaves the map), or null when the whole segment is open floor. Sampled every quarter tile at most,
+ * (or leaves the map) or a `segmentBlockedAt` body (a cart), or null when the whole segment is open floor. Sampled every quarter tile at most,
  * so even a fast projectile cannot skip a one-tile wall.
  */
 export function wallHitTime(grid: CollisionGrid, from: Vec2, delta: Vec2): number | null {
   const len = Math.hypot(delta.x, delta.y);
   if (len < 1e-9) return null;
+  // Non-tile blockers (carts, P2-5) stop the projectile where it enters them.
+  const blockedAt = grid.segmentBlockedAt?.(from, delta) ?? null;
   const step = grid.tileSize / 4;
   const n = Math.max(1, Math.ceil(len / step));
   const ts = grid.tileSize;
@@ -74,9 +76,13 @@ export function wallHitTime(grid: CollisionGrid, from: Vec2, delta: Vec2): numbe
     const t = i / n;
     const x = from.x + delta.x * t;
     const y = from.y + delta.y * t;
-    if (isSolidTile(grid, Math.floor(x / ts), Math.floor(y / ts))) return (i - 1) / n;
+    if (isSolidTile(grid, Math.floor(x / ts), Math.floor(y / ts))) return earlier((i - 1) / n, blockedAt);
   }
-  return null;
+  return blockedAt;
+}
+
+function earlier(a: number, b: number | null): number {
+  return b === null ? a : Math.min(a, b);
 }
 
 /**

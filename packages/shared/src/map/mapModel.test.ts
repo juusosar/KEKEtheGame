@@ -235,6 +235,45 @@ describe('loadMap: object layers', () => {
     expect(issuesOf(raw).join('\n')).toMatch(/npc_spawns #12: property "post" must be a boolean/);
   });
 
+  it('reads the optional cart_spawns layer (P2-5) and has no carts without it', () => {
+    expect(map.cartSpawns).toEqual([]);
+    const raw = cloneFixture() as unknown as { layers: unknown[] };
+    const point = (id: number, x: number, y: number, properties?: unknown[]): Record<string, unknown> => ({
+      id,
+      name: '',
+      type: '',
+      x,
+      y,
+      width: 0,
+      height: 0,
+      point: true,
+      rotation: 0,
+      visible: true,
+      ...(properties && { properties }),
+    });
+    raw.layers.push({
+      id: 99,
+      name: 'cart_spawns',
+      type: 'objectgroup',
+      x: 0,
+      y: 0,
+      opacity: 1,
+      visible: true,
+      objects: [
+        point(901, c(2), c(2)),
+        point(902, c(3), c(2), [{ name: 'dir', type: 'string', value: 'up' }]),
+      ],
+    });
+    expect(loadMap(raw, 'test-map').cartSpawns).toEqual([
+      { x: c(2), y: c(2), dir: 'left' },
+      { x: c(3), y: c(2), dir: 'up' },
+    ]);
+    ((layerOf(raw, 'cart_spawns').objects ?? [])[1] as { properties: unknown[] }).properties = [
+      { name: 'dir', type: 'string', value: 'sideways' },
+    ];
+    expect(issuesOf(raw).join('\n')).toMatch(/cart_spawns #902: dir must be down, up, left or right/);
+  });
+
   it('reads NPC waypoints', () => {
     expect(map.npcWaypoints.map(({ name, x, y }) => ({ name, x, y }))).toEqual([
       { name: 'aisle_a', x: 240, y: 48 },
