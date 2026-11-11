@@ -39,6 +39,10 @@ test('a player pushes a cart out of the corral and both players see it move', as
   for (const page of [host, guest]) await expect(players(page)).toHaveCount(2);
   for (const page of [host, guest]) await page.getByRole('button', { name: 'Ready', exact: true }).click();
   await host.getByRole('button', { name: 'Start' }).click();
+  for (const page of [host, guest]) {
+    await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 10_000 });
+    await expect(page.locator('body')).toHaveAttribute('data-map', 'prisma');
+  }
   await Promise.all([host, guest].map((page) => waitControlling(page)));
   await noNpcs(host);
 

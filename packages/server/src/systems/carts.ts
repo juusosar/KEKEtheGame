@@ -16,6 +16,7 @@ import {
   type Box,
   type CartBody,
   type CartWorld,
+  type Circle,
   type CollisionGrid,
   type GameConfig,
   type MapModel,
@@ -24,6 +25,14 @@ import {
 } from '@keke/shared';
 import { CartState, type GameState, type PlayerState } from '../schema/GameState';
 import type { MapSystem } from './mapSystem';
+
+/** Store workers that carts meet (customers, P2-3): solid bodies stop carts; a rolling cart that hits one scares the crowd. */
+export interface CartNpcHooks {
+  /** Solid NPC bodies (customers) right now. */
+  solids(): readonly Circle[];
+  /** A rolling cart crashed into a solid NPC at `at`: nearby customers panic (no damage, no Wanted). */
+  bump(at: Vec2): void;
+}
 
 export class CartSystem implements MapSystem {
   private carts: CartBody[] = [];
@@ -35,6 +44,7 @@ export class CartSystem implements MapSystem {
     private readonly config: GameConfig,
     /** The live map: walls and parked stock carts stop carts too. */
     private readonly map: MapModel,
+    private readonly npcs: CartNpcHooks = { solids: () => [], bump: () => undefined },
   ) {
     this.grid = cartGrid(map.collision, map.gates);
   }
@@ -76,7 +86,18 @@ export class CartSystem implements MapSystem {
   /** One tick: released and shoved carts roll on, then the synced state follows. */
   tick(now: number): void {
     if (this.carts.length === 0) return;
-    rollCarts(this.world(null), 1 / this.config.serverTickHz, now, this.config);
+    const rolling = this.carts.filter((c) => c.vx !== 0 || c.vy !== 0);
+    const world = this.world(null);
+    rollCarts(world, 1 / this.config.serverTickHz, now, this.config);
+    // A rolling cart stopped dead against a customer: it bumped them (P2-3 x P2-5).
+    const reach = this.config.cartSizePx / 2 + 1;
+    for (const cart of rolling) {
+      if (cart.vx !== 0 || cart.vy !== 0) continue;
+      const hit = this.npcs
+        .solids()
+        .find((b) => Math.abs(b.x - cart.x) <= reach + b.r && Math.abs(b.y - cart.y) <= reach + b.r);
+      if (hit) this.npcs.bump({ x: hit.x, y: hit.y });
+    }
     this.sync();
   }
 
@@ -117,6 +138,8 @@ export class CartSystem implements MapSystem {
       if (p.spectator || !p.alive || p.sessionId === pusher) return;
       obstacles.push({ x: p.x, y: p.y, hw: half.hw, hh: half.hh });
     });
+    // Customers are solid (decision 8): carts stop at them too.
+    for (const b of this.npcs.solids()) obstacles.push({ x: b.x, y: b.y, hw: b.r, hh: b.r });
     return { grid: this.grid, carts: this.carts, obstacles };
   }
 
