@@ -61,14 +61,19 @@
       "atlas": "items.json"
     },
     {
-      "key": "order_box",
-      "texture": "order_box.png",
-      "atlas": "order_box.json"
-    },
-    {
       "key": "forklift",
       "texture": "forklift.png",
       "atlas": "forklift.json"
+    },
+    {
+      "key": "fx",
+      "texture": "fx.png",
+      "atlas": "fx.json"
+    },
+    {
+      "key": "order_box",
+      "texture": "order_box.png",
+      "atlas": "order_box.json"
     },
     {
       "key": "van",
@@ -76,9 +81,34 @@
       "atlas": "van.json"
     },
     {
-      "key": "fx",
-      "texture": "fx.png",
-      "atlas": "fx.json"
+      "key": "cart",
+      "texture": "cart.png",
+      "atlas": "cart.json"
+    },
+    {
+      "key": "gate",
+      "texture": "gate.png",
+      "atlas": "gate.json"
+    },
+    {
+      "key": "order_box_prisma",
+      "texture": "order_box_prisma.png",
+      "atlas": "order_box_prisma.json"
+    },
+    {
+      "key": "van_prisma",
+      "texture": "van_prisma.png",
+      "atlas": "van_prisma.json"
+    },
+    {
+      "key": "cart_prisma",
+      "texture": "cart_prisma.png",
+      "atlas": "cart_prisma.json"
+    },
+    {
+      "key": "gate_prisma",
+      "texture": "gate_prisma.png",
+      "atlas": "gate_prisma.json"
     }
   ],
   "animations": [
@@ -2129,6 +2159,32 @@
       "image": "kespro_tiles.png",
       "tileWidth": 32,
       "tileHeight": 32
+    },
+    {
+      "key": "prisma_tiles",
+      "image": "prisma_tiles.png",
+      "tileWidth": 32,
+      "tileHeight": 32
     }
-  ]
+  ],
+  "themes": {
+    "kespro": {
+      "tileset": "kespro_tiles",
+      "atlases": {
+        "order_box": "order_box",
+        "van": "van",
+        "cart": "cart",
+        "gate": "gate"
+      }
+    },
+    "prisma": {
+      "tileset": "prisma_tiles",
+      "atlases": {
+        "order_box": "order_box_prisma",
+        "van": "van_prisma",
+        "cart": "cart_prisma",
+        "gate": "gate_prisma"
+      }
+    }
+  }
 }

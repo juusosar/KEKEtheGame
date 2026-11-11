@@ -11,6 +11,18 @@ export function hex(color: string, alpha = 255): Rgba {
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff, alpha];
 }
 
+/** Lighter / darker variant of a colour, for the one shadow tone per material (§11). */
+export function shade(c: Rgba, f: number): Rgba {
+  const t = f >= 0 ? 255 : 0;
+  const k = Math.abs(f);
+  return [
+    Math.round(c[0] + (t - c[0]) * k),
+    Math.round(c[1] + (t - c[1]) * k),
+    Math.round(c[2] + (t - c[2]) * k),
+    c[3],
+  ];
+}
+
 /** §11: bold dark outline colour. */
 export const OUTLINE = hex('#1a1a1a');
 export const TRANSPARENT: Rgba = [0, 0, 0, 0];
@@ -202,6 +214,25 @@ export class Canvas {
       }
     }
     return this;
+  }
+
+  /** A copy of this canvas turned 90° clockwise `quarterTurns` times (square canvases only). */
+  rotated(quarterTurns: number): Canvas {
+    if (this.width !== this.height) throw new Error('rotated: canvas must be square');
+    const n = this.width;
+    let src = new Canvas(n, n);
+    src.data.set(this.data);
+    for (let t = 0; t < ((quarterTurns % 4) + 4) % 4; t++) {
+      const out = new Canvas(n, n);
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          const i = (y * n + x) * 4;
+          out.data.set(src.data.subarray(i, i + 4), (x * n + (n - 1 - y)) * 4);
+        }
+      }
+      src = out;
+    }
+    return src;
   }
 
   /** Copies raw pixels (no blending) into this canvas at (dx, dy). */

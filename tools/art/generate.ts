@@ -2,9 +2,19 @@
 // produces byte-identical output, so the committed assets can be checked against it.
 import { packAtlas, type Frame } from './atlas';
 import { CHARACTER_ANIMS, DIRECTIONS, bodyFrames, hatSheets, npcSheets } from './characters';
-import { forkliftFrames, fxFrames, itemFrames, orderBoxFrames, vanFrames, weaponFrames } from './objects';
+import {
+  cartFrames,
+  forkliftFrames,
+  fxFrames,
+  gateFrames,
+  itemFrames,
+  orderBoxFrames,
+  vanFrames,
+  weaponFrames,
+} from './objects';
 import { ART_THEMES, type ArtTheme } from './theme';
 import { TILE, buildTileset } from './tiles';
+import { tilesetFor } from './tilesets';
 
 /** Where the client serves assets from, relative to the repo root (§15.2). */
 export const ASSETS_DIR = 'packages/client/public/assets';
@@ -21,10 +31,19 @@ export interface AnimationDef {
   repeat: number;
 }
 
+/** Per map theme: its tileset key and which atlas holds each theme-coloured sheet. */
+export interface ThemeAssets {
+  tileset: string;
+  /** Sheet name (`van`, `order_box`, `cart`, `gate`) → atlas key. */
+  atlases: Record<string, string>;
+}
+
 export interface AssetManifest {
   atlases: { key: string; texture: string; atlas: string }[];
   animations: AnimationDef[];
   tilesets: { key: string; image: string; tileWidth: number; tileHeight: number }[];
+  /** Theme id → its assets. The default theme's sheets keep the bare names (`van`, ...). */
+  themes: Record<string, ThemeAssets>;
 }
 
 /** Placeholder playback speeds, frames per second. Data, not code: real art can retune them. */
@@ -59,14 +78,14 @@ interface Sheet {
   maxWidth?: number;
 }
 
-function sheets(theme: ArtTheme): Sheet[] {
+/** Sheets every theme shares. */
+function commonSheets(): Sheet[] {
   return [
     { key: 'body', frames: bodyFrames(), animations: characterAnimations('body') },
     ...hatSheets().map((s) => ({ ...s, animations: characterAnimations(s.key) })),
     ...npcSheets().map((s) => ({ ...s, animations: characterAnimations(s.key) })),
     { key: 'weapons', frames: weaponFrames(), animations: [] },
     { key: 'items', frames: itemFrames(), animations: [] },
-    { key: 'order_box', frames: orderBoxFrames(theme), animations: [] },
     {
       key: 'forklift',
       frames: forkliftFrames(),
@@ -78,8 +97,17 @@ function sheets(theme: ArtTheme): Sheet[] {
         repeat: -1,
       })),
     },
-    { key: 'van', frames: vanFrames(theme), animations: [], maxWidth: 560 },
     { key: 'fx', frames: fxFrames(), animations: [] },
+  ];
+}
+
+/** Sheets painted in a theme's colours / logo letter; `key` is the sheet name before suffixing. */
+function themedSheets(theme: ArtTheme): Sheet[] {
+  return [
+    { key: 'order_box', frames: orderBoxFrames(theme), animations: [] },
+    { key: 'van', frames: vanFrames(theme), animations: [], maxWidth: 560 },
+    { key: 'cart', frames: cartFrames(theme), animations: [] },
+    { key: 'gate', frames: gateFrames(theme), animations: [] },
   ];
 }
 
@@ -90,25 +118,32 @@ function json(value: unknown): Buffer {
 /** Every generated file, keyed by path relative to the repo root, in a stable order. */
 export function generateAll(): Map<string, Buffer> {
   const files = new Map<string, Buffer>();
-  const manifest: AssetManifest = { atlases: [], animations: [], tilesets: [] };
-  // v1 art is shared by every map theme except the tileset and theme-coloured props,
-  // which come from the first (default) theme. Phase 2 adds per-theme variants.
-  const [defaultTheme] = ART_THEMES;
-  if (!defaultTheme) throw new Error('No art theme configured');
-  for (const sheet of sheets(defaultTheme)) {
-    const atlas = packAtlas(sheet.key, sheet.frames, sheet.maxWidth);
-    files.set(`${ASSETS_DIR}/${sheet.key}.png`, atlas.png);
-    files.set(`${ASSETS_DIR}/${sheet.key}.json`, json(atlas.json));
-    manifest.atlases.push({ key: sheet.key, texture: `${sheet.key}.png`, atlas: `${sheet.key}.json` });
+  const manifest: AssetManifest = { atlases: [], animations: [], tilesets: [], themes: {} };
+  const addSheet = (sheet: Sheet, key: string): void => {
+    const atlas = packAtlas(key, sheet.frames, sheet.maxWidth);
+    files.set(`${ASSETS_DIR}/${key}.png`, atlas.png);
+    files.set(`${ASSETS_DIR}/${key}.json`, json(atlas.json));
+    manifest.atlases.push({ key, texture: `${key}.png`, atlas: `${key}.json` });
     manifest.animations.push(...sheet.animations);
-  }
-  for (const theme of ART_THEMES) {
-    const key = theme.tileset.replace(/\.png$/, '');
-    const tileset = buildTileset(theme, key, `../${ASSETS_DIR}/${theme.tileset}`);
+  };
+  for (const sheet of commonSheets()) addSheet(sheet, sheet.key);
+  // The default (first) theme keeps the bare sheet names the client has always loaded
+  // (`van`, `order_box`); every other theme's copies are suffixed with its id (`van_<id>`).
+  ART_THEMES.forEach((theme, i) => {
+    const atlases: Record<string, string> = {};
+    for (const sheet of themedSheets(theme)) {
+      const key = i === 0 ? sheet.key : `${sheet.key}_${theme.id}`;
+      addSheet(sheet, key);
+      atlases[sheet.key] = key;
+    }
+    const tilesetKey = theme.tileset.replace(/\.png$/, '');
+    const { tiles, paint } = tilesetFor(theme.id);
+    const tileset = buildTileset(theme, tilesetKey, `../${ASSETS_DIR}/${theme.tileset}`, tiles, paint);
     files.set(`${ASSETS_DIR}/${theme.tileset}`, tileset.png);
-    files.set(`${MAPS_DIR}/${key}.tsj`, json(tileset.tsj));
-    manifest.tilesets.push({ key, image: theme.tileset, tileWidth: TILE, tileHeight: TILE });
-  }
+    files.set(`${MAPS_DIR}/${tilesetKey}.tsj`, json(tileset.tsj));
+    manifest.tilesets.push({ key: tilesetKey, image: theme.tileset, tileWidth: TILE, tileHeight: TILE });
+    manifest.themes[theme.id] = { tileset: tilesetKey, atlases };
+  });
   files.set(`${ASSETS_DIR}/manifest.json`, json(manifest));
   return files;
 }

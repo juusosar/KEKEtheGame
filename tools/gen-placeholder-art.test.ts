@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import type { AtlasJson } from './art/atlas';
 import { ASSETS_DIR, generateAll, type AssetManifest } from './art/generate';
 import { decodePng } from './art/png';
+import { defaultThemeId, themes } from '../packages/shared/src/theme';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const generated = generateAll();
@@ -111,6 +112,55 @@ const FX = [
   'ko_stars',
 ];
 
+/** Phase 2 second-store tiles (prisma_tiles, §9.2 + plan P1-2) → solid. Written out independently of the generator. */
+const PRISMA_TILES: Record<string, boolean> = {
+  floor: false,
+  floor_alt: false,
+  floor_cold: false,
+  floor_bakery: false,
+  floor_staff: false,
+  floor_office: false,
+  oven_heat: false,
+  entrance_mat: false,
+  asphalt: false,
+  parking_line: false,
+  sidewalk: false,
+  road: false,
+  road_line: false,
+  crosswalk: false,
+  grass: false,
+  corral_floor: false,
+  door: false,
+  staff_door: false,
+  sliding_door: false,
+  gate_lane: false,
+  hazard: false,
+  sign: false,
+  wall: true,
+  wall_window: true,
+  shelf_low: true,
+  shelf_end: true,
+  fridge: true,
+  freezer_chest: true,
+  produce_stand: true,
+  candy_bins: true,
+  bakery_counter: true,
+  oven: true,
+  deli_counter: true,
+  bottle_machine: true,
+  checkout_kiosk: true,
+  corral_rail: true,
+  rack: true,
+  pallet_stack: true,
+  office_desk: true,
+  car: true,
+  tree: true,
+};
+
+/** Atlas keys of a theme-coloured sheet, one per theme. */
+const themedKeys = (sheet: string): string[] =>
+  Object.values(manifest.themes).map((t) => t.atlases[sheet] ?? '?');
+
 function expectFrames(key: string, expected: Record<string, [number, number]>): void {
   const json = atlas(key);
   expect(Object.keys(json.frames).sort()).toEqual(Object.keys(expected).sort());
@@ -191,6 +241,82 @@ describe('placeholder art matches the §11.1 sprite spec', () => {
       imagewidth: png.width,
       imageheight: png.height,
     });
+  });
+
+  it('carts: 32×32, 4 directions, one sheet per theme', () => {
+    for (const key of themedKeys('cart'))
+      expectFrames(
+        key,
+        sized(
+          DIRS.map((d) => `cart_${d}`),
+          32,
+          32,
+        ),
+      );
+  });
+
+  it('gates: 32×32, open and closed for each one-way direction (n/e/s/w), one sheet per theme', () => {
+    const names = ['closed', 'open'].flatMap((s) => ['n', 'e', 's', 'w'].map((d) => `${s}_${d}`));
+    for (const key of themedKeys('gate')) expectFrames(key, sized(names, 32, 32));
+  });
+
+  it('every theme has its own van and order box sheets painted in its primary colour', () => {
+    for (const theme of Object.values(themes)) {
+      const assets = manifest.themes[theme.id];
+      expect(assets, theme.id).toBeDefined();
+      const suffix = theme.id === defaultThemeId ? '' : `_${theme.id}`;
+      expect(assets?.atlases).toEqual({
+        van: `van${suffix}`,
+        order_box: `order_box${suffix}`,
+        cart: `cart${suffix}`,
+        gate: `gate${suffix}`,
+      });
+      expect(assets?.tileset).toBe(theme.assets.tileset.replace(/\.png$/, ''));
+      const vanKey = `van${suffix}`;
+      expectFrames(
+        vanKey,
+        sized(
+          Array.from({ length: 16 }, (_, i) => `slot_${i + 1}`),
+          64,
+          96,
+        ),
+      );
+      expectFrames(`order_box${suffix}`, { order_box: [32, 32] });
+      // Van body colour (left side, below the mirrors) is the theme's primary colour.
+      const png = decodePng(file(`${ASSETS_DIR}/${vanKey}.png`));
+      const f = atlas(vanKey).frames.slot_1?.frame;
+      if (!f) throw new Error('no slot_1');
+      const i = ((f.y + 50) * png.width + f.x + 8) * 4;
+      const rgb = `#${[0, 1, 2].map((k) => (png.data[i + k] ?? 0).toString(16).padStart(2, '0')).join('')}`;
+      expect(rgb.toLowerCase(), theme.id).toBe(theme.colors.primary.toLowerCase());
+    }
+  });
+
+  it('every theme gets a tileset, also themes that are not available yet', () => {
+    for (const theme of Object.values(themes)) {
+      const key = theme.assets.tileset.replace(/\.png$/, '');
+      expect(manifest.tilesets.map((t) => t.key)).toContain(key);
+      const png = decodePng(file(`${ASSETS_DIR}/${theme.assets.tileset}`));
+      expect([png.width % 32, png.height % 32]).toEqual([0, 0]);
+      const tsj = JSON.parse(file(`maps/${key}.tsj`).toString()) as { tilecount: number; columns: number };
+      expect(tsj.tilecount).toBeLessThanOrEqual(tsj.columns * (png.height / 32));
+    }
+  });
+
+  it('prisma_tiles has the supermarket tiles, with the right solid / above flags', () => {
+    const tsj = JSON.parse(file('maps/prisma_tiles.tsj').toString()) as {
+      tiles: { id: number; properties: { name: string; value: unknown }[] }[];
+    };
+    const flags = new Map(
+      tsj.tiles.map((t) => {
+        const prop = (n: string): unknown => t.properties.find((p) => p.name === n)?.value;
+        return [prop('name') as string, { solid: prop('solid'), above: prop('above') }];
+      }),
+    );
+    expect(tsj.tiles.map((t) => t.id)).toEqual(tsj.tiles.map((_, i) => i));
+    for (const [name, solid] of Object.entries(PRISMA_TILES)) {
+      expect(flags.get(name), name).toEqual({ solid, above: name === 'sign' });
+    }
   });
 
   it('every atlas is JSON-hash with frames inside the texture and not overlapping', () => {

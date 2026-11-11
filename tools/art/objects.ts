@@ -1,5 +1,5 @@
 // Non-character sprites (§11.1): held weapons, items, order box, forklift, vans, FX.
-import { Canvas, OUTLINE, hex, textWidth, type Rgba } from './canvas';
+import { Canvas, OUTLINE, hex, shade, textWidth, type Rgba } from './canvas';
 import type { Frame } from './atlas';
 import { DIRECTIONS } from './characters';
 import { PRISMA_JOKE_ITEMS, PRISMA_NORMAL_ITEMS } from './prismaItems';
@@ -7,18 +7,6 @@ import type { ArtTheme } from './theme';
 
 const WHITE = hex('#ffffff');
 const INK = hex('#1a1a1a');
-
-/** Lighter / darker variant of a colour, for the one shadow tone per material (§11). */
-function shade(c: Rgba, f: number): Rgba {
-  const t = f >= 0 ? 255 : 0;
-  const k = Math.abs(f);
-  return [
-    Math.round(c[0] + (t - c[0]) * k),
-    Math.round(c[1] + (t - c[1]) * k),
-    Math.round(c[2] + (t - c[2]) * k),
-    c[3],
-  ];
-}
 
 function star(c: Canvas, cx: number, cy: number, r: number, col: Rgba): void {
   c.line(cx - r, cy, cx + r, cy, col).line(cx, cy - r, cx, cy + r, col);
@@ -360,6 +348,66 @@ export function vanFrames(theme: ArtTheme): Frame[] {
     c.textCentered(theme.logoLetter, 32, 66, WHITE, 2);
     c.outline(OUTLINE);
     frames.push({ name: `slot_${slot}`, canvas: c });
+  }
+  return frames;
+}
+
+// ── Shopping carts (32 × 32, 4 directions; phase 2 cart corral) ────────────────
+
+/** Turns that rotate a down-facing drawing to each direction (clockwise, y down). */
+const TURNS_FROM_DOWN: Record<(typeof DIRECTIONS)[number], number> = { down: 0, left: 1, up: 2, right: 3 };
+
+export function cartFrames(theme: ArtTheme): Frame[] {
+  // Drawn facing down (pushed from the top): handle at the top, basket nose at the bottom.
+  const base = new Canvas(32, 32);
+  const steel = hex('#b2bec3');
+  const wire = hex('#7f8c8d');
+  base.rect(7, 4, 18, 3, hex(theme.primary)); // handle
+  base.rect(6, 7, 1, 2, wire).rect(25, 7, 1, 2, wire);
+  base.rect(6, 9, 20, 18, hex('#dfe6e9', 140)); // basket floor
+  for (let x = 6; x < 26; x += 4) base.rect(x, 9, 1, 18, steel);
+  for (let y = 9; y < 27; y += 4) base.rect(6, y, 20, 1, steel);
+  base.rect(6, 9, 20, 1, wire).rect(6, 9, 1, 18, wire).rect(25, 9, 1, 18, wire);
+  base.rect(8, 26, 16, 2, wire); // nose
+  base.rect(9, 10, 14, 3, hex(theme.primary, 200)); // child seat flap
+  base.rect(4, 10, 2, 3, INK).rect(26, 10, 2, 3, INK).rect(6, 26, 2, 3, INK).rect(24, 26, 2, 3, INK); // wheels
+  return DIRECTIONS.map((dir) => {
+    const c = base.rotated(TURNS_FROM_DOWN[dir]);
+    c.outline(OUTLINE);
+    return { name: `cart_${dir}`, canvas: c };
+  });
+}
+
+// ── Self-checkout gates (32 × 32, open/closed × allowed direction n/e/s/w) ────
+
+/** Compass direction a gate lets players through (decision 9 of the phase 2 plan). */
+export const GATE_DIRS = ['n', 'e', 's', 'w'] as const;
+const TURNS_FROM_NORTH: Record<(typeof GATE_DIRS)[number], number> = { n: 0, e: 1, s: 2, w: 3 };
+
+export function gateFrames(theme: ArtTheme): Frame[] {
+  const frames: Frame[] = [];
+  const post = hex('#636e72');
+  const arm = hex('#dfe6e9');
+  for (const state of ['closed', 'open'] as const) {
+    // Drawn for a gate you walk through northwards (towards the top of the frame).
+    const base = new Canvas(32, 32);
+    base.rect(1, 12, 4, 10, post).rect(27, 12, 4, 10, post);
+    if (state === 'closed') {
+      base.rect(5, 15, 10, 3, arm).rect(17, 15, 10, 3, arm); // arms across the lane
+      base.rect(2, 13, 2, 2, hex('#e74c3c')).rect(28, 13, 2, 2, hex('#e74c3c'));
+    } else {
+      base.rect(5, 5, 3, 10, arm).rect(24, 5, 3, 10, arm); // arms swung open towards the exit
+      base.rect(2, 13, 2, 2, hex('#2ecc71')).rect(28, 13, 2, 2, hex('#2ecc71'));
+    }
+    // Floor arrow (theme colour) showing the only way through.
+    const primary = hex(theme.primary);
+    base.rect(15, 21, 2, 8, primary);
+    base.line(12, 24, 16, 20, primary, 2).line(19, 24, 15, 20, primary, 2);
+    for (const dir of GATE_DIRS) {
+      const c = base.rotated(TURNS_FROM_NORTH[dir]);
+      c.outline(OUTLINE);
+      frames.push({ name: `${state}_${dir}`, canvas: c });
+    }
   }
   return frames;
 }

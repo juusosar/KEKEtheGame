@@ -7,8 +7,18 @@ import { encodePng } from './png';
 export const TILE = 32;
 export const TILESET_COLUMNS = 8;
 
+/** One tile in a tileset: `solid` tiles go on the `walls` layer, `above` tiles on the `above` layer. */
+export interface TileDef {
+  readonly name: string;
+  readonly solid: boolean;
+  readonly above?: boolean;
+}
+
+/** Paints one named tile of a tileset into a 32 × 32 canvas. */
+export type TilePainter = (c: Canvas, name: string, theme: ArtTheme) => void;
+
 /**
- * Tile names in tileset order (index = local tile id; Tiled gid = firstgid + index).
+ * The first store's tiles (kespro), in tileset order (index = local tile id; Tiled gid = firstgid + index).
  * `solid` tiles are the ones meant for the `walls` layer; `above` tiles for the `above` layer.
  */
 export const TILES = [
@@ -44,7 +54,7 @@ export const TILES = [
   { name: 'hazard', solid: false },
   { name: 'office_desk', solid: true },
   { name: 'tree', solid: true },
-] as const;
+] as const satisfies readonly TileDef[];
 
 export type TileName = (typeof TILES)[number]['name'];
 
@@ -61,7 +71,8 @@ function speckle(c: Canvas, col: Rgba, step: number): void {
   for (let y = 1; y < TILE; y += step) for (let x = (y * 3) % step; x < TILE; x += step) c.set(x, y, col);
 }
 
-function drawTile(c: Canvas, name: TileName, theme: ArtTheme): void {
+/** Paints a tile of the first store's tileset ({@link TILES}). */
+export function drawTile(c: Canvas, name: TileName, theme: ArtTheme): void {
   const concrete = hex(theme.concrete);
   const primary = hex(theme.primary);
   const dark = hex(theme.dark);
@@ -245,15 +256,24 @@ export interface TilesetOutput {
   tsj: Record<string, unknown>;
 }
 
-/** Builds the theme's tileset image; `imagePath` is how the .tsj refers to the PNG. */
-export function buildTileset(theme: ArtTheme, name: string, imagePath: string): TilesetOutput {
-  const rows = Math.ceil(TILES.length / TILESET_COLUMNS);
+/**
+ * Builds a tileset image from `tiles` (default: the first store's), painted by `paint`;
+ * `imagePath` is how the .tsj refers to the PNG.
+ */
+export function buildTileset(
+  theme: ArtTheme,
+  name: string,
+  imagePath: string,
+  tiles: readonly TileDef[] = TILES,
+  paint: TilePainter = drawTile as TilePainter,
+): TilesetOutput {
+  const rows = Math.ceil(tiles.length / TILESET_COLUMNS);
   const width = TILESET_COLUMNS * TILE;
   const height = rows * TILE;
   const sheet = new Canvas(width, height);
-  TILES.forEach((t, i) => {
+  tiles.forEach((t, i) => {
     const c = new Canvas(TILE, TILE);
-    drawTile(c, t.name, theme);
+    paint(c, t.name, theme);
     sheet.copyFrom(c, (i % TILESET_COLUMNS) * TILE, Math.floor(i / TILESET_COLUMNS) * TILE);
   });
   const tsj = {
@@ -265,16 +285,16 @@ export function buildTileset(theme: ArtTheme, name: string, imagePath: string): 
     imageheight: height,
     tilewidth: TILE,
     tileheight: TILE,
-    tilecount: TILES.length,
+    tilecount: tiles.length,
     columns: TILESET_COLUMNS,
     margin: 0,
     spacing: 0,
-    tiles: TILES.map((t, id) => ({
+    tiles: tiles.map((t, id) => ({
       id,
       properties: [
         { name: 'name', type: 'string', value: t.name },
         { name: 'solid', type: 'bool', value: t.solid },
-        { name: 'above', type: 'bool', value: 'above' in t && t.above },
+        { name: 'above', type: 'bool', value: t.above === true },
       ],
     })),
   };
