@@ -2,8 +2,9 @@
 // zoom, and e2e specs find each part by id or role instead of reading pixels.
 //
 //   #keke-hud            root, pointer-events none
-//   #keke-hud-arrow      target arrow at the screen edge (data-kind target|van|office)
-//   #keke-hud-target     target card: icon, name, description, zone
+//   #keke-hud-arrow      target arrow at the screen edge (data-kind target|van|office|box)
+//   #keke-hud-target     target card: icon, name, description, zone; data-lost loose|taken while it shows
+//                        our side's lost order box (race)
 //   #keke-hud-carry      carry slot
 //   #keke-hud-quota      race only (M6-3): role meter "Order quota", data-points, data-quota, data-state
 //                        collecting|deliver|stolen
@@ -31,6 +32,7 @@ import {
   formatClock,
   miniRows,
   type HudItem,
+  type HudLostBox,
   type HudModel,
   type HudPlayerRow,
   type HudRace,
@@ -251,7 +253,7 @@ export class Hud {
   /** Every state patch. */
   render(model: HudModel): void {
     this.model = model;
-    this.renderTarget(model.target);
+    this.renderTarget(model.target, model.lostBox);
     this.renderCarry(model);
     this.renderQuota(model.race);
     this.renderTimer(model.secondsLeft);
@@ -290,7 +292,9 @@ export class Hud {
             ? 'hud.arrow.van'
             : dest.kind === 'office'
               ? 'hud.arrow.office'
-              : 'hud.arrow.target',
+              : dest.kind === 'box'
+                ? 'hud.arrow.box'
+                : 'hud.arrow.target',
         ),
       );
     }
@@ -458,7 +462,8 @@ export class Hud {
     img.classList.toggle('joke', item?.rarity === 'joke');
   }
 
-  private renderTarget(item: HudItem | null): void {
+  private renderTarget(target: HudItem | null, lost: HudLostBox | null): void {
+    const item = lost?.item ?? target;
     const show =
       item !== null && this.model !== null && !this.model.spectator && this.model.phase !== 'lobby';
     this.target.hidden = !show;
@@ -466,15 +471,31 @@ export class Hud {
       delete this.target.dataset['itemId'];
       return;
     }
-    if (this.target.dataset['itemId'] === item.itemId && this.target.dataset['worldId'] === String(item.id))
+    // Race (playtest 1 problem 6): our lost order box takes the card over until our side has it back.
+    const lostState = lost?.how ?? '';
+    const desc =
+      lost === null
+        ? item.desc
+        : lost.how === 'loose'
+          ? t('hud.box.loose')
+          : t('hud.box.taken', { name: lost.by });
+    if (
+      this.target.dataset['itemId'] === item.itemId &&
+      this.target.dataset['worldId'] === String(item.id) &&
+      (this.target.dataset['lost'] ?? '') === lostState &&
+      this.targetDesc.textContent === desc
+    )
       return;
     this.target.dataset['itemId'] = item.itemId;
     this.target.dataset['worldId'] = String(item.id);
+    if (lostState === '') delete this.target.dataset['lost'];
+    else this.target.dataset['lost'] = lostState;
     this.target.classList.toggle('joke', item.rarity === 'joke');
+    this.target.classList.toggle('lost-box', lost !== null);
     this.setIcon(this.targetIcon, item);
-    this.targetName.textContent = item.name;
-    this.targetDesc.textContent = item.desc;
-    this.targetZone.textContent = zoneLabel(item.zone);
+    this.targetName.textContent = lost === null ? item.name : t('hud.box.title');
+    this.targetDesc.textContent = desc;
+    this.targetZone.textContent = lost === null ? zoneLabel(item.zone) : '';
   }
 
   private renderCarry(model: HudModel): void {

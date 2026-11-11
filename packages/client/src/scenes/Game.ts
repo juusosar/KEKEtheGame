@@ -878,7 +878,7 @@ export class GameScene extends Phaser.Scene {
     for (const type of FEED_MESSAGES) {
       this.unsubscribe.push(
         room.onMessage(type, (message: unknown) => {
-          const line = feedLine(type, message, { catalogue, nameOf, race });
+          const line = feedLine(type, message, { catalogue, nameOf, race, me: room.sessionId });
           if (line) hud.pushFeed(line, performance.now());
           this.playCues(itemCues(type, message, room.sessionId));
         }),

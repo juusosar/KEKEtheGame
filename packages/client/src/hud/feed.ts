@@ -21,7 +21,7 @@ import {
   type WeaponCatalogue,
 } from '@keke/shared';
 import { t } from '../i18n';
-import { isBag } from '../net/lobbyView';
+import { isBag, type Bag } from '../net/lobbyView';
 import { weaponName } from './combatHud';
 
 export type FeedKind =
@@ -58,6 +58,8 @@ export interface FeedContext {
    * shown (nickname, or the team name with Teams on).
    */
   race?: RaceNames;
+  /** Our session id: our side's order box hitting the floor gets a line for us (playtest 1 problem 6). */
+  me?: string;
 }
 
 export interface RaceNames {
@@ -106,6 +108,8 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
     // Only slips (M4-5) and forklift run-overs (M5-5) are news; a Q drop, a KO drop (the KO line says it)
     // and a disconnect are not.
     const drop = message as unknown as DropMessage;
+    const lost = ownBoxDropped(message, drop, ctx);
+    if (lost !== null) return lost;
     if (drop.reason === 'slip') return { kind: 'slip', text: t('hud.feed.slip', { name, item: item.name }) };
     if (drop.reason === 'forklift') {
       return { kind: 'runover', text: t('hud.feed.runover', { name, item: item.name }) };
@@ -118,6 +122,22 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
     return { kind: 'deposit', text: t('hud.feed.deposit', { name, item: item.name, points }) };
   }
   return null;
+}
+
+/**
+ * Race (playtest 1 problem 6): our side's packed box was dropped by someone, other than us putting it
+ * down on purpose by our side. Null when it is not ours or not a race.
+ */
+function ownBoxDropped(message: Bag, drop: DropMessage, ctx: FeedContext): FeedLine | null {
+  const race = ctx.race;
+  const item = message['item'];
+  if (!race || ctx.me === undefined || !isBag(item) || item['itemId'] !== ORDER_BOX_ITEM_ID) return null;
+  const id = item['id'];
+  const packedVan = typeof id === 'number' ? race.boxVan(id) : undefined;
+  if (packedVan === undefined || packedVan < 0 || packedVan !== race.vanOf(ctx.me)) return null;
+  // Put down on purpose by our side (Q): not news.
+  if (drop.reason === 'drop' && race.vanOf(drop.player) === packedVan) return null;
+  return { kind: 'box', text: t('hud.feed.boxDroppedOurs') };
 }
 
 /** Message types the feed listens to. */

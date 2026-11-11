@@ -70,7 +70,17 @@ export interface HudTeamRow {
   place: number;
 }
 
-export type ArrowKind = 'target' | 'van' | 'office';
+export type ArrowKind = 'target' | 'van' | 'office' | 'box';
+
+/**
+ * Race (playtest 1 problem 6): our side's packed order box is out of our hands. `loose` = lying on the
+ * floor; `taken` = carried by a rival (`by` is their nickname). A teammate carrying it is not lost.
+ */
+export interface HudLostBox {
+  item: HudItem;
+  how: 'loose' | 'taken';
+  by: string;
+}
 
 /** Race HUD (§4.2, M6-3): our van's progress to the next order box. */
 export interface HudRace {
@@ -97,6 +107,11 @@ export interface HudModel {
   target: HudItem | null;
   /** What we hold, or null. */
   carried: HudItem | null;
+  /**
+   * Race: our side's order box lying loose or held by a rival while our hands are empty; the card and
+   * arrow point to it instead of the target. Null otherwise.
+   */
+  lostBox: HudLostBox | null;
   /**
    * Where the arrow points, in world pixels (§13.2): the target, our van while carrying an item, or the
    * office while carrying an order box (race).
@@ -242,9 +257,13 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
   const inPlay = lobby.me !== null && !spectator && lobby.phase !== 'lobby';
   const carried = inPlay ? itemById(num(meBag, 'carrying')) : null;
   const target = inPlay && carried === null ? itemById(num(meBag, 'target')) : null;
+  const lostBox =
+    race && inPlay && carried === null ? findLostBox(items, extra, num(meBag, 'van', -1), lobby, ctx) : null;
 
   let arrow: HudModel['arrow'] = null;
-  if (carried?.box && ctx.office) {
+  if (lostBox !== null) {
+    arrow = { kind: 'box', at: { x: lostBox.item.x, y: lostBox.item.y } };
+  } else if (carried?.box && ctx.office) {
     arrow = { kind: 'office', at: { x: ctx.office.x, y: ctx.office.y } };
   } else if (carried !== null) {
     const van = vanCentre(ctx.vanSlots, num(meBag, 'van', -1));
@@ -274,6 +293,7 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
     spectator,
     target,
     carried,
+    lostBox,
     arrow,
     race: raceHud,
     secondsLeft: lobby.phase === 'playing' ? Math.max(0, Math.ceil(num(s, 'secondsLeft'))) : null,
@@ -281,6 +301,35 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
     teamRows,
     hasSession,
   };
+}
+
+/**
+ * Our side's packed order box when it is out of our side's hands (playtest 1 problem 6): lying loose, or
+ * carried by a player of another van. A carried box is drawn at its carrier, so it takes their position.
+ */
+function findLostBox(
+  items: ReadonlyMap<string, unknown>,
+  players: ReadonlyMap<string, Bag>,
+  myVan: number,
+  lobby: ReturnType<typeof readLobby>,
+  ctx: HudContext,
+): HudLostBox | null {
+  if (myVan < 0) return null;
+  for (const value of items.values()) {
+    if (!isBag(value) || str(value, 'itemId') !== ORDER_BOX_ITEM_ID) continue;
+    if (num(value, 'packedVan', -1) !== myVan) continue;
+    const state = str(value, 'state');
+    const box = readItem(value, ctx);
+    if (box === null) continue;
+    if (state === 'loose') return { item: box, how: 'loose', by: '' };
+    if (state !== 'carried') continue;
+    const carrier = str(value, 'carrier');
+    const bag = players.get(carrier);
+    if (bag === undefined || num(bag, 'van', -1) === myVan) continue;
+    const nickname = lobby.players.find((p) => p.id === carrier)?.nickname ?? carrier;
+    return { item: { ...box, x: num(bag, 'x'), y: num(bag, 'y') }, how: 'taken', by: nickname };
+  }
+  return null;
 }
 
 /** The mini scoreboard (§13.2): the top `count` rows, plus our own row when we are below them. */

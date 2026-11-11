@@ -163,6 +163,22 @@ test('a Quota + Race round: quota bar, packed box, office arrow, delivery and re
   await expect(guest.getByRole('meter', { name: 'Order quota' })).toHaveAttribute('data-points', '0');
   await expect(guest.locator('#keke-hud-arrow')).not.toHaveAttribute('data-kind', 'office');
 
+  // Put the box down (playtest 1 problem 6): the card and a red arrow point back to it until we pick it up.
+  await host.keyboard.down('KeyQ');
+  await host.waitForTimeout(150);
+  await host.keyboard.up('KeyQ');
+  const card = host.getByRole('region', { name: 'Your target' });
+  await expect(card).toHaveAttribute('data-lost', 'loose');
+  await expect(card.locator('.hud-name')).toHaveText('Your order box!');
+  await expect(host.locator('#keke-hud-arrow')).toHaveAttribute('data-kind', 'box');
+  await expect(async () => {
+    await host.keyboard.down('KeyE');
+    await host.waitForTimeout(150);
+    await host.keyboard.up('KeyE');
+    await expect.poll(async () => (await game(host)).net?.carrying, { timeout: 2_000 }).toBe(box?.id);
+  }).toPass({ timeout: 15_000 });
+  await expect(host.locator('#keke-hud-arrow')).toHaveAttribute('data-kind', 'office');
+
   // Run it into the office: the delivery ends the round at once.
   const asked = await host.evaluate(
     ({ x, y }) => (globalThis as WithHook).__KEKE__?.teleport(x, y) ?? false,

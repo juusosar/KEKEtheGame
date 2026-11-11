@@ -1285,3 +1285,22 @@ body[data-phase='podium'] .keke-minimap {
   gap: 8px;
   margin-top: 16px;
 }
+/* Race (playtest 1 problem 6): our side's order box is out of our hands; card and arrow point to it. */
+.keke-hud .hud-arrow[data-kind='box']::before {
+  border-left-color: #ff4d4d;
+}
+.keke-hud .hud-card.lost-box {
+  border-left-color: #ff4d4d;
+  animation: hud-lost-box 0.6s ease-in-out 3 alternate;
+}
+.keke-hud .hud-card.lost-box .hud-name {
+  color: #ff8a80;
+}
+@keyframes hud-lost-box {
+  from {
+    background: rgba(0, 0, 0, 0.62);
+  }
+  to {
+    background: rgba(160, 20, 20, 0.75);
+  }
+}

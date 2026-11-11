@@ -208,6 +208,18 @@ describe('race feed lines (M6-3)', () => {
     });
   });
 
+  it('tells us when our side’s box hits the floor, unless we put it down (playtest 1 problem 6)', () => {
+    const ours: FeedContext = { ...race, me: 'b' };
+    expect(feedLine('drop', { player: 'a', item: box, reason: 'ko' }, ours)).toEqual({
+      kind: 'box',
+      text: 'Your order box hit the floor! Follow the red arrow.',
+    });
+    expect(feedLine('drop', { player: 'b', item: box, reason: 'ko' }, ours)?.kind).toBe('box');
+    expect(feedLine('drop', { player: 'b', item: box, reason: 'drop' }, ours)).toBeNull();
+    // Someone else's box: not our news.
+    expect(feedLine('drop', { player: 'b', item: box, reason: 'ko' }, { ...race, me: 'a' })).toBeNull();
+  });
+
   it('stays quiet when a player picks their own box back up, or without race names', () => {
     expect(feedLine('pickup', { player: 'b', item: box, kind: 'box', targetOwner: null }, race)).toBeNull();
     expect(feedLine('pickup', { player: 'a', item: box, kind: 'box', targetOwner: null }, ctx)).toBeNull();
