@@ -3,6 +3,7 @@ import {
   Button,
   ClientMessage,
   ORDER_BOX_ITEM_ID,
+  crossesGateWrongWay,
   findPath,
   playerHalfSize,
   vanSpawn,
@@ -223,7 +224,15 @@ export class SoakBot {
     }
     if (!this.goal) return { x: 0, y: 0 };
     if (this.pathAge >= REPATH_SECONDS) {
-      this.path = findPath(this.map.collision, pos, this.goal.at, { radius: this.half.hw }) ?? [];
+      const gates = this.map.gates;
+      this.path =
+        findPath(this.map.collision, pos, this.goal.at, {
+          radius: this.half.hw,
+          // In through the entrance doors, out through the checkout (phase 2 decision 9).
+          ...(gates.length > 0 && {
+            refuses: (a: Vec2, b: Vec2) => crossesGateWrongWay(gates, a, b, this.half),
+          }),
+        }) ?? [];
       this.pathAge = 0;
     }
     while (this.path.length > 0 && dist(pos, this.path[0] as Vec2) < 6) this.path.shift();

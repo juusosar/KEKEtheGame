@@ -2,6 +2,7 @@
 // Pure: takes already-parsed JSON, never touches the file system.
 import type { z } from 'zod';
 import { formatIssues } from '../config';
+import { GATE_DIRS, GATE_KINDS, type Gate, type GateDir, type GateKind } from '../rules/gates';
 import type { Vec2 } from '../types';
 import { boundsOf, pointInPolygon, polygonArea, type Bounds } from './geometry';
 import {
@@ -27,7 +28,7 @@ export const OBJECT_LAYERS = [
 ] as const;
 
 /** Object layers a map may have. A missing one means "none" (§15.4 additions of phase 2). */
-export const OPTIONAL_OBJECT_LAYERS = ['ambient_sounds'] as const;
+export const OPTIONAL_OBJECT_LAYERS = ['ambient_sounds', 'gates'] as const;
 
 /** Tiled stores flip/rotation flags in the top 4 bits of a gid. */
 const GID_FLAG_MASK = 0x0fffffff;
@@ -139,6 +140,12 @@ export interface MapModel {
   readonly npcWaypoints: readonly NpcWaypoint[];
   readonly forkliftRoutes: readonly ForkliftRoute[];
   readonly officeTrigger: OfficeTrigger;
+  /**
+   * One-way gates from the optional `gates` layer (phase 2 decision 9): rectangles with a `dir` property
+   * (n/e/s/w, the way players may cross) and an optional `kind` (`checkout`, the default, or `door`).
+   * Empty when the map has no such layer.
+   */
+  readonly gates: readonly Gate[];
   /** The zone at a pixel position, the smallest one where zones nest. See `zoneAt`. */
   zoneAt(x: number, y: number): Zone | undefined;
 }
@@ -371,6 +378,31 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
   const first = triggers[0];
   const triggerPolygon = first === undefined ? undefined : ctx.area(first, `office_trigger #${first.id}`);
 
+  const gateLayer = objectLayers.get('gates');
+  const gates: Omit<Gate, 'index'>[] = (gateLayer?.objects ?? []).flatMap((o) => {
+    const where = `gates #${o.id}`;
+    ctx.unrotated(o, where);
+    const isRect = o.point !== true && o.ellipse !== true && !o.polygon && !o.polyline;
+    if (!isRect || !(o.width > 0 && o.height > 0)) {
+      issues.push(`${where}: must be a rectangle`);
+      return [];
+    }
+    const dir = ctx.string(o, 'dir', where);
+    if (dir === undefined || !(GATE_DIRS as readonly string[]).includes(dir)) {
+      issues.push(`${where}: property "dir" must be one of ${GATE_DIRS.join(', ')}`);
+      return [];
+    }
+    const kind = ctx.string(o, 'kind', where) ?? 'checkout';
+    if (!(GATE_KINDS as readonly string[]).includes(kind)) {
+      issues.push(`${where}: property "kind" must be one of ${GATE_KINDS.join(', ')}`);
+      return [];
+    }
+    return [
+      { x: o.x, y: o.y, width: o.width, height: o.height, dir: dir as GateDir, kind: kind as GateKind },
+    ];
+  });
+  if (tileLayers.has('gates')) issues.push('layer "gates" must be an object layer');
+
   if (issues.length > 0 || triggerPolygon === undefined) return fail();
 
   const collision = buildCollisionGrid(tileLayers.get('walls') as TiledTileLayer, map.tilewidth);
@@ -389,6 +421,7 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     npcWaypoints,
     forkliftRoutes,
     officeTrigger: { polygon: triggerPolygon, bounds: boundsOf(triggerPolygon) },
+    gates: gates.map((g, index) => ({ index, ...g })),
     zoneAt: (x, y) => zoneAt(zones, x, y),
   };
 }

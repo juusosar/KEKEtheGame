@@ -5,6 +5,7 @@ import type { GameConfig } from '../config';
 import type { Vec2 } from '../types';
 import type { MeleeStats } from '../weapons/catalogue';
 import { clearLine, moveAabb, type CollisionGrid, type HalfSize } from './collision';
+import { holdAtGates, type Gate } from './gates';
 
 /** Smallest signed difference between two angles in radians, in (-π, π]. */
 export function angleDelta(a: number, b: number): number {
@@ -102,7 +103,7 @@ export function startKnockback(
 
 /**
  * Moves a body along its shove for `dt` seconds through the collision grid. Returns the new position
- * and the shove left, or null when it has finished or ran into a wall (a wall stops the shove).
+ * and the shove left, or null when it has finished or ran into a wall or a gate (either stops the shove).
  */
 export function knockbackStep(
   grid: CollisionGrid,
@@ -110,9 +111,12 @@ export function knockbackStep(
   half: HalfSize,
   knockback: Knockback,
   dt: number,
+  /** One-way gates the shove must not push the body through the wrong way (phase 2 decision 9). */
+  gates?: readonly Gate[],
 ): { pos: Vec2; knockback: Knockback | null } {
   const px = Math.min(knockback.remainingPx, knockback.speedPxPerSecond * Math.max(0, dt));
-  const moved = moveAabb(grid, pos, half, { x: knockback.dir.x * px, y: knockback.dir.y * px });
+  const slid = moveAabb(grid, pos, half, { x: knockback.dir.x * px, y: knockback.dir.y * px });
+  const moved = holdAtGates(gates, pos, slid, half);
   const remainingPx = knockback.remainingPx - px;
   // Pinned against a wall (nothing moved although it should have): the shove ends.
   const stuck = px > 0 && Math.hypot(moved.x - pos.x, moved.y - pos.y) < 1e-6;

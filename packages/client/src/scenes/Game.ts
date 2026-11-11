@@ -23,6 +23,8 @@ import {
   type MapModel,
   type MapTheme,
   type Vec2,
+  GateEventMessage,
+  gateStopped,
 } from '@keke/shared';
 import Phaser from 'phaser';
 import { AmbientSounds } from '../audio/ambient';
@@ -269,9 +271,6 @@ export class GameScene extends Phaser.Scene {
       // The round keeps running behind the menu: send idle frames (aim kept) instead of nothing.
       const frame = menuOpen ? { ...sampled, move: { x: 0, y: 0 }, buttons: 0 } : sampled;
       this.lastMove = frame.move;
-      if (!offline) this.onLocalButtons(frame.buttons, frame.aim);
-      this.lastAim = frame.aim;
-      this.lastButtons = frame.buttons;
       if (offline) {
         this.predictor.apply(frame, false);
       } else if (this.room && this.sequence) {
@@ -279,6 +278,10 @@ export class GameScene extends Phaser.Scene {
         this.predictor.apply(sent);
         this.room.send(ClientMessage.input, sent);
       }
+      // After the step, like the server: a frame that ends stopped at a checkout gate cannot attack.
+      if (!offline && !gateStopped(this.predictor.state.gate)) this.onLocalButtons(frame.buttons, frame.aim);
+      this.lastAim = frame.aim;
+      this.lastButtons = frame.buttons;
     }
     if (!offline && !this.controlling) {
       this.lastMove = { x: 0, y: 0 };
@@ -470,6 +473,7 @@ export class GameScene extends Phaser.Scene {
     this.roundScreen = new RoundScreen(this.theme);
     this.createNpcs(room);
     this.createRace(room);
+    this.createGates(room);
     // Hidden until the first patch says where we are (and whether we are in the round at all).
     this.local.setVisible(false);
 
@@ -545,6 +549,7 @@ export class GameScene extends Phaser.Scene {
     const block = blockSpeed(myCombat, getWeaponCatalogue());
     this.predictor.setModifiers({
       speedMultiplier: predictionSpeed(myCombat, me.carrying !== 0, this.config),
+      carrying: me.carrying !== 0,
       ...(block === undefined ? {} : { blockSpeedMultiplier: block }),
     });
     if (controlling && this.controlling) {
@@ -912,6 +917,11 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Gate broadcasts (P2-1): registered so the SDK does not warn; the effects come with the gate sprites. */
+  private createGates(room: Room): void {
+    this.unsubscribe.push(room.onMessage(GateEventMessage.gateStop, () => undefined));
+  }
+
   // --- HUD (§13.2) -----------------------------------------------------------------------------------
 
   /** Online only: the HUD shows round state, so `?scene=game` walk mode has none. */
@@ -1171,6 +1181,8 @@ export class GameScene extends Phaser.Scene {
       deposited: mine?.deposited ?? 0,
       team: me?.team ?? 0,
       outline: this.local.outline,
+      gateStop: me?.gate?.stop ?? 0,
+      predictedGateStop: this.predictor.state.gate?.stop ?? 0,
       ...this.combatSnapshot(room.sessionId),
     };
   }
@@ -1361,6 +1373,7 @@ export class GameScene extends Phaser.Scene {
         return true;
       },
       zoneAt: (x, y) => model.zoneAt(x, y)?.id ?? null,
+      gates: () => model.gates.map((g) => ({ ...g })),
       net: () => this.netSnapshot(),
       remotePlayers: () => this.remoteSnapshots(),
       minimap: () => (this.minimap?.markers ?? []).map((m) => ({ ...m })),

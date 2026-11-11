@@ -100,6 +100,23 @@ export interface KekeNetSnapshot extends KekeCombatSnapshot {
   team: number;
   /** Our body outline `#RRGGBB`: the team colour with Teams on, null otherwise (§4.3). */
   outline: string | null;
+  /** Input frames we still stand stopped at a self-checkout gate, from the server (P2-1); 0 = free. */
+  gateStop: number;
+  /** The same, as our prediction has it now. */
+  predictedGateStop: number;
+}
+
+/** A one-way gate of the map (P2-1, phase 2 decision 9), in world pixels. */
+export interface KekeGateSnapshot {
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** The one way players may cross: 'n' | 'e' | 's' | 'w'. */
+  dir: string;
+  /** 'checkout' (stops the crosser) or 'door'. */
+  kind: string;
 }
 
 /** A world item as the Game scene draws it (M3-6). */
@@ -240,6 +257,8 @@ export interface KekeHook {
   vanPoints(points: number): boolean;
   /** Zone id at a pixel position, or null. */
   zoneAt(x: number, y: number): string | null;
+  /** The map's one-way gates (P2-1); empty on a map without any. */
+  gates(): KekeGateSnapshot[];
   /** Room and prediction state; null offline. */
   net(): KekeNetSnapshot | null;
   /** Other players on the map, in join order; empty offline. */

@@ -7,6 +7,7 @@
 import {
   Button,
   chargeKnockbackDirection,
+  holdAtGates,
   moveAabb,
   playerHalfSize,
   sweepTargets,
@@ -45,10 +46,10 @@ export function createChargeBehaviour(): BehaviourModule {
     if (!c || !p || !c.alive || ctx.now < c.stunnedUntil) return end(id);
     const want = Math.min(dash.left, dash.stats.speedPxPerSecond * dt);
     const from = { x: p.x, y: p.y };
-    const moved = moveAabb(ctx.map.collision, from, playerHalfSize(ctx.config), {
-      x: dash.dir.x * want,
-      y: dash.dir.y * want,
-    });
+    const half = playerHalfSize(ctx.config);
+    const slid = moveAabb(ctx.map.collision, from, half, { x: dash.dir.x * want, y: dash.dir.y * want });
+    // A dash never takes a player through a one-way gate the wrong way (phase 2 decision 9).
+    const moved = holdAtGates(ctx.map.gates, from, slid, half);
     p.x = moved.x;
     p.y = moved.y;
     p.vx = 0;
@@ -79,7 +80,8 @@ export function createChargeBehaviour(): BehaviourModule {
     }
     if (dash.stats.scattersItems) ctx.scatterItems(from, to, halfWidth, dash.stats.scatterPx);
 
-    if (dash.left <= 1e-6 || moved.hitX || moved.hitY) end(id);
+    const gateHeld = moved.x !== slid.x || moved.y !== slid.y;
+    if (dash.left <= 1e-6 || slid.hitX || slid.hitY || gateHeld) end(id);
   }
 
   return {

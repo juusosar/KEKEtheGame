@@ -3,6 +3,7 @@
 import type { GameConfig } from '../config';
 import type { InputFrame, Vec2 } from '../types';
 import { circleSeparation, moveAabb, type Circle, type CollisionGrid, type HalfSize } from './collision';
+import type { Gate, GateTimers } from './gates';
 
 /** Floor properties of a map zone. `Zone` from shared/src/map satisfies this shape. */
 export interface FloorZone {
@@ -17,6 +18,8 @@ export interface MovementMap {
   readonly collision: CollisionGrid;
   /** Zone at a pixel position, or undefined outside every zone. */
   zoneAt(x: number, y: number): FloorZone | undefined;
+  /** One-way gates (phase 2 decision 9), applied per input frame by `applyInput`. None when unset. */
+  readonly gates?: readonly Gate[];
 }
 
 /** Position (pixels, centre of the body) and velocity (pixels per second) of a moving body. */
@@ -25,6 +28,8 @@ export interface MovementState {
   readonly y: number;
   readonly vx: number;
   readonly vy: number;
+  /** Gate stop and cooldown (`applyInput`); unset = no timers running. */
+  readonly gate?: GateTimers;
 }
 
 /** The config keys movement reads. A full `GameConfig` works. */
@@ -47,6 +52,8 @@ export interface StepModifiers {
    * interpolated ones it draws.
    */
   readonly solids?: readonly Circle[];
+  /** Carrying an item or order box: a checkout gate stops the player longer (decision 9). */
+  readonly carrying?: boolean;
 }
 
 /** Velocities below this (px/s) snap to zero so a slide ends instead of decaying forever. Not a tunable. */

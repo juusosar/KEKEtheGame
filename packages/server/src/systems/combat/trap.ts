@@ -90,7 +90,7 @@ export function createTrapBehaviour(state: GameState): BehaviourModule {
         stopSlide(id);
         continue;
       }
-      const next = knockbackStep(ctx.map.collision, { x: p.x, y: p.y }, half, slide, dt);
+      const next = knockbackStep(ctx.map.collision, { x: p.x, y: p.y }, half, slide, dt, ctx.map.gates);
       p.x = next.pos.x;
       p.y = next.pos.y;
       p.vx = 0;

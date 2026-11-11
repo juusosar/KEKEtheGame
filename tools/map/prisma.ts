@@ -75,6 +75,20 @@ const CHECKOUT_Y = 39;
 const CHECKOUT_X: readonly [number, number] = [12, 34];
 export const GATE_LANES: readonly number[] = [14, 18, 22, 26, 30, 33];
 
+/**
+ * One-way gates (P2-1, phase 2 decision 9), the `gates` object layer: a self-checkout gate on every lane
+ * (out of the store, south, with the stop) and the entrance doors (into the store, north, no stop). So a
+ * player comes in through the entrance and leaves through the checkout; the exit doors stay plain.
+ */
+export const GATES: readonly { rect: Rect; dir: 'n' | 'e' | 's' | 'w'; kind: 'checkout' | 'door' }[] = [
+  ...GATE_LANES.map((x) => ({
+    rect: [x, CHECKOUT_Y, x, CHECKOUT_Y] as Rect,
+    dir: 's' as const,
+    kind: 'checkout' as const,
+  })),
+  { rect: [ENTRANCE_DOORS[0], FRONT_Y, ENTRANCE_DOORS[1], FRONT_Y], dir: 'n', kind: 'door' },
+];
+
 /** Oven: oven tiles on the west wall, hot floor in front of them (the `oven` hazard sub-zone). */
 const OVEN_ROWS: readonly [number, number] = [16, 21];
 const OVEN_HEAT: Rect = [4, OVEN_ROWS[0], 5, OVEN_ROWS[1]];
@@ -646,6 +660,17 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     ]),
   ];
 
+  // After the ambient sounds, so adding it left every earlier object id unchanged.
+  const gates = GATES.map(({ rect: [x0, y0, x1, y1], dir, kind }, i) =>
+    object(
+      { name: `${kind}_${i + 1}`, x: px(x0), y: px(y0), width: px(x1 - x0 + 1), height: px(y1 - y0 + 1) },
+      [
+        { name: 'dir', type: 'string', value: dir },
+        { name: 'kind', type: 'string', value: kind },
+      ],
+    ),
+  );
+
   const layers = [
     tileLayer(1, 'ground'),
     tileLayer(2, 'walls'),
@@ -659,6 +684,7 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     objectLayer(10, 'office_trigger', [officeTrigger]),
     tileLayer(11, 'above'),
     objectLayer(12, 'ambient_sounds', ambientSounds),
+    objectLayer(13, 'gates', gates),
   ];
 
   const { type: _type, version: _version, ...embedded } = tileset;

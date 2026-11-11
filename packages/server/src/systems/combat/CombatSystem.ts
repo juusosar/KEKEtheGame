@@ -47,6 +47,7 @@ import {
   type WeaponDef,
 } from '@keke/shared';
 import type { GameState, PlayerState } from '../../schema/GameState';
+import { resetGateTimers } from '../movement';
 import { defaultCombatModules } from './modules';
 import type { BehaviourModule, CombatContext, CombatHit, FrameIntent, HitTarget, NpcTargets } from './types';
 
@@ -476,7 +477,7 @@ export class CombatSystem {
         this.shoves.delete(id);
         continue;
       }
-      const next = knockbackStep(this.map.collision, { x: p.x, y: p.y }, half, shove, dt);
+      const next = knockbackStep(this.map.collision, { x: p.x, y: p.y }, half, shove, dt, this.map.gates);
       p.x = next.pos.x;
       p.y = next.pos.y;
       p.vx = 0;
@@ -520,6 +521,7 @@ export class CombatSystem {
         player.y = pos.y;
         player.vx = 0;
         player.vy = 0;
+        resetGateTimers(player);
       }
     }
   }

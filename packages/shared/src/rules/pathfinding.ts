@@ -23,6 +23,12 @@ export interface TilePathOptions {
    * search always finishes. Lower it to cap the cost of a search for an unreachable goal.
    */
   readonly maxExpanded?: number;
+  /**
+   * True when walking straight from pixel point `a` to `b` is not allowed although no wall is in the way,
+   * e.g. through a one-way gate the wrong way (`crossesGateWrongWay`). Checked between tile centres and
+   * on every straightened leg.
+   */
+  readonly refuses?: (a: Vec2, b: Vec2) => boolean;
 }
 
 export interface PathOptions extends TilePathOptions {
@@ -148,7 +154,7 @@ export function findTilePath(
   options: TilePathOptions = {},
 ): TilePoint[] | null {
   const { width, height } = grid;
-  const { blocked, diagonal = true } = options;
+  const { blocked, diagonal = true, refuses } = options;
   const maxExpanded = options.maxExpanded ?? width * height;
   const inside = (tx: number, ty: number): boolean => tx >= 0 && ty >= 0 && tx < width && ty < height;
   if (!inside(start.tx, start.ty) || !isWalkableTile(grid, goal.tx, goal.ty, blocked)) return null;
@@ -189,6 +195,7 @@ export function findTilePath(
       const ny = cy + dy;
       if (!walkable(nx, ny)) continue;
       if (dx !== 0 && dy !== 0 && (!walkable(cx + dx, cy) || !walkable(cx, cy + dy))) continue;
+      if (refuses?.(tileCentre(grid, { tx: cx, ty: cy }), tileCentre(grid, { tx: nx, ty: ny }))) continue;
       const next = ny * width + nx;
       if (closed[next] === 1) continue;
       const cost = gc + (dx !== 0 && dy !== 0 ? SQRT2 : 1);
@@ -279,7 +286,7 @@ export function findPath(
   to: Vec2,
   options: PathOptions = {},
 ): Vec2[] | null {
-  const { radius = 0, smooth = true, blocked } = options;
+  const { radius = 0, smooth = true, blocked, refuses } = options;
   const tiles = findTilePath(grid, tileOf(grid, from), tileOf(grid, to), options);
   if (tiles === null) return null;
   if (from.x === to.x && from.y === to.y) return [];
@@ -293,7 +300,13 @@ export function findPath(
   while (i < points.length) {
     // Furthest point reachable straight from `at`; at worst the next one (A* made it adjacent).
     let j = points.length - 1;
-    while (j > i && !walkableLine(grid, at, points[j] as Vec2, radius, blocked)) j--;
+    while (
+      j > i &&
+      (!walkableLine(grid, at, points[j] as Vec2, radius, blocked) ||
+        (refuses?.(at, points[j] as Vec2) ?? false))
+    ) {
+      j--;
+    }
     const p = points[j] as Vec2;
     out.push(p);
     at = p;

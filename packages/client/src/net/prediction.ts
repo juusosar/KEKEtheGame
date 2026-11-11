@@ -5,7 +5,7 @@
 // throwing away input the server will still run.
 import {
   applyInput,
-  type GameConfig,
+  type GateConfig,
   type InputFrame,
   type MovementConfig,
   type MovementMap,
@@ -19,7 +19,7 @@ export interface ServerBody extends MovementState {
   readonly ack: number;
 }
 
-export type PredictionConfig = MovementConfig & Pick<GameConfig, 'inputHz'>;
+export type PredictionConfig = MovementConfig & GateConfig;
 
 /** Below this many pixels a correction counts as agreement (float maths can differ between engines). */
 export const CORRECTION_EPSILON_PX = 0.01;
@@ -97,7 +97,13 @@ export class Predictor {
    */
   reconcile(server: ServerBody): MovementState {
     this.pending = this.pending.filter((f) => f.seq > server.ack);
-    let replayed: MovementState = { x: server.x, y: server.y, vx: server.vx, vy: server.vy };
+    let replayed: MovementState = {
+      x: server.x,
+      y: server.y,
+      vx: server.vx,
+      vy: server.vy,
+      ...(server.gate && { gate: server.gate }),
+    };
     for (const frame of this.pending) {
       replayed = applyInput(replayed, frame, this.map, this.config, this.modifiers);
     }
