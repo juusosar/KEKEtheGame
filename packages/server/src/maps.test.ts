@@ -10,7 +10,7 @@ import {
   loadThemeMap,
   singleMapRegistry,
 } from './maps';
-import { FIXTURE_VAN_SLOTS, fixtureEntry, fixtureMap, twoMapRegistry } from './testMaps';
+import { FIXTURE_VAN_SLOTS, fixtureEntry, fixtureMap, twoMapRegistry, withFixtureMap } from './testMaps';
 
 describe('loadThemeMap', () => {
   it('loads the default theme map from the repo maps/ folder', () => {
@@ -70,5 +70,19 @@ describe('map registry (P1-1)', () => {
     const entry = fixtureEntry();
     expect(() => new MapRegistry([entry, entry])).toThrow(/twice/);
     expect(() => new MapRegistry([])).toThrow(/no maps/);
+  });
+});
+
+describe('withFixtureMap (P1-5, e2e server)', () => {
+  it('adds the fixture map as the second map when it is not loaded', () => {
+    const single = loadMapRegistry([getTheme(defaultThemeId)]);
+    const both = withFixtureMap(single);
+    expect(both.ids).toEqual([defaultThemeId, 'prisma']);
+    expect(both.get(defaultThemeId)).toBe(single.get(defaultThemeId));
+  });
+
+  it('leaves a registry that already has the map unchanged', () => {
+    const two = twoMapRegistry();
+    expect(withFixtureMap(two)).toBe(two);
   });
 });

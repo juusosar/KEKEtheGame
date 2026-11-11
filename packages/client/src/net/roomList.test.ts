@@ -5,7 +5,7 @@ const listing = (roomId: string, code: string, phase = 'lobby', clients = 1) => 
   roomId,
   clients,
   maxClients: 16,
-  metadata: { code, hostName: `host of ${code}`, mode: 'timed', phase },
+  metadata: { code, hostName: `host of ${code}`, mode: 'timed', phase, map: 'prisma' },
 });
 
 describe('room list', () => {
@@ -18,6 +18,7 @@ describe('room list', () => {
       maxClients: 16,
       phase: 'lobby',
       mode: 'timed',
+      map: 'prisma',
     });
   });
 

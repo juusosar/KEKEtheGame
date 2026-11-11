@@ -350,6 +350,11 @@ export const GameState = schema(
      * the lobby the first map of the `maps` setting. Clients build their tilemap from this theme.
      */
     mapId: t.string().default('kespro'),
+    /**
+     * Theme ids of the maps this server loaded (P1-5), set once at room creation: the lobby's map picker
+     * offers only choices made of these.
+     */
+    loadedMaps: t.array('string'),
   },
   'GameState',
 );

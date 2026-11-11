@@ -11,6 +11,8 @@ export interface RoomSummary {
   maxClients: number;
   phase: RoundPhase | null;
   mode: string | null;
+  /** Theme id of the map the room plays now (metadata `map`, P1-5); null from an older server. */
+  map: string | null;
 }
 
 const PHASES: readonly string[] = ROUND_PHASES;
@@ -37,6 +39,7 @@ export function toRoomSummary(raw: unknown): RoomSummary | null {
     maxClients: num(room['maxClients']),
     phase: phase !== null && PHASES.includes(phase) ? (phase as RoundPhase) : null,
     mode: str(meta['mode']),
+    map: str(meta['map']),
   };
 }
 

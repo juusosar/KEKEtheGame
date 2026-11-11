@@ -14,3 +14,8 @@ export function rawMapFor(theme: MapTheme): unknown {
   if (!entry) throw new Error(`map ${theme.assets.map} is not in maps/`);
   return JSON.parse(entry[1]) as unknown;
 }
+
+/** True when the client has the theme's map file (false for a map not built yet). */
+export function hasMapFile(theme: MapTheme): boolean {
+  return Object.keys(MAP_FILES).some((path) => path.endsWith(`/${theme.assets.map}`));
+}

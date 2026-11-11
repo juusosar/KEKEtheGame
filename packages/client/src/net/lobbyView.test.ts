@@ -6,6 +6,11 @@ function schemaMap<V>(entries: Record<string, V>): { forEach(cb: (v: V, k: strin
   return { forEach: (cb) => Object.entries(entries).forEach(([k, v]) => cb(v, k)) };
 }
 
+/** An ArraySchema-like list: only forEach is used. */
+function schemaArray<V>(values: V[]): { forEach(cb: (v: V) => void): void } {
+  return { forEach: (cb) => values.forEach((v) => cb(v)) };
+}
+
 const player = (sessionId: string, joinOrder: number, extra: Record<string, unknown> = {}) => ({
   sessionId,
   nickname: sessionId.toUpperCase(),
@@ -39,6 +44,8 @@ describe('readLobby', () => {
         phase: 'lobby',
         hostId: 'a',
         settings: { mode: 'race', roundsPerMap: 3, teams: true, maps: 'both' },
+        mapId: 'kespro',
+        loadedMaps: schemaArray(['kespro', 'prisma']),
         players: schemaMap({ b: player('b', 2, { team: 2 }), a: player('a', 1, { ready: true, team: 1 }) }),
       },
       'b',
@@ -50,6 +57,14 @@ describe('readLobby', () => {
     expect(view.isHost).toBe(false);
     expect(view.synced).toBe(true);
     expect(view.settings).toEqual({ mode: 'race', roundsPerMap: 3, teams: true, maps: 'both' });
+    expect(view.mapId).toBe('kespro');
+    expect(view.loadedMaps).toEqual(['kespro', 'prisma']);
+  });
+
+  it('reads loadedMaps from a plain array and tolerates junk (P1-5)', () => {
+    expect(readLobby({ loadedMaps: ['kespro', 3] }, 'me').loadedMaps).toEqual(['kespro']);
+    expect(readLobby({ loadedMaps: 'kespro' }, 'me').loadedMaps).toEqual([]);
+    expect(readLobby({}, 'me').mapId).toBe('');
   });
 
   it('applies the server Start rule: every non-spectator ready', () => {
