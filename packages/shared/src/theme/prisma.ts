@@ -11,7 +11,8 @@ export const prismaTheme = {
   },
   colors: {
     primary: '#00A651',
-    secondary: '#EAF5EC',
+    // Dark: menu panels carry white text on it, and the minimap draws walls in it over the floor.
+    secondary: '#14361F',
     floor: '#EAF5EC',
     outline: '#1A1A1A',
   },

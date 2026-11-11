@@ -21,7 +21,10 @@ export interface ThemeBrand {
 export interface ThemeColors {
   /** Signature brand colour: vans, signage, order box print, UI accents. */
   primary: HexColor;
-  /** Secondary tone used with the primary (text on signs, UI panels). */
+  /**
+   * Secondary tone used with the primary: menu panel background (white text on it) and minimap walls
+   * (over `floor`), so it must be dark. theme.test.ts checks both contrasts.
+   */
   secondary: HexColor;
   /** Floor / neutral tone of the map. */
   floor: HexColor;
