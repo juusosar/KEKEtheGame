@@ -471,7 +471,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         onDropCarried: (player, now) => this.items.dropCarried(player, now, 'slip'),
         // Landed hits feed the wanted rules at the end of the tick (§8; M5-3).
         onEvent: (event) => {
-          if (event.type === 'hit') this.tickCombatEvents.push(event);
+          if (event.type !== 'hit') return;
+          this.tickCombatEvents.push(event);
+          // Violence where the victim stands: customers nearby panic (Phase 2 decision 8). Hits on
+          // NPCs reach the NpcSystem directly and it raises them itself.
+          const victim = this.state.players.get(event.target);
+          if (victim) this.npcs.violence({ x: victim.x, y: victim.y });
         },
       },
       randomSeed(),
@@ -768,6 +773,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   tick(): void {
     const now = this.roundSeconds();
     this.combat.beginTick(now);
+    // Customers are solid (Phase 2 decision 8): players move around them as they stood at the tick start.
+    const solids = this.npcs.solidBodies();
     this.movement.tick(this.state.players.values(), {
       // Carry slowdown times stun/slow/KO/block, from synced fields only (review H1).
       modifiers: (player) => {
@@ -776,6 +783,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         return {
           speedMultiplier: carry * this.combat.speedMultiplier(player),
           ...(block === undefined ? {} : { blockSpeedMultiplier: block }),
+          ...(solids.length === 0 ? {} : { solids }),
         };
       },
       afterFrame: (player, frame, pressed) => {
@@ -817,6 +825,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         },
         // The live map: a parked cart blocks a guard's view of a fight like it blocks its chase (M5 F5).
         grid: this.liveMap.collision,
+        // Customers in the line of sight block the view too (Phase 2 decision 8).
+        blockers: this.npcs.solidBodies(),
       },
       now,
       this.config,

@@ -157,6 +157,26 @@ export function circleSeparation(a: Circle, b: Circle): Vec2 | null {
 }
 
 /**
+ * True when the segment from `a` to `b` passes through one of `bodies` (Phase 2 decision 8: customers
+ * block guard sight). A body that holds either end point does not count, so a guard standing in a crowd
+ * still sees, and a body is never in its own way. Touching the edge does not count either.
+ */
+export function bodiesBlockLine(a: Vec2, b: Vec2, bodies: readonly Circle[]): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  for (const c of bodies) {
+    const r2 = c.r * c.r;
+    if ((a.x - c.x) ** 2 + (a.y - c.y) ** 2 < r2 || (b.x - c.x) ** 2 + (b.y - c.y) ** 2 < r2) continue;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((c.x - a.x) * dx + (c.y - a.y) * dy) / len2));
+    const px = a.x + dx * t - c.x;
+    const py = a.y + dy * t - c.y;
+    if (px * px + py * py < r2) return true;
+  }
+  return false;
+}
+
+/**
  * True when nothing solid lies on the straight line from `a` to `b`: sampled every quarter tile, so a
  * spray, a swing or a splash cannot reach through a shelf or a wall. Both end tiles count too (a body is never inside a wall).
  */

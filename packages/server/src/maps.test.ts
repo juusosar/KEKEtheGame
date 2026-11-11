@@ -65,7 +65,7 @@ describe('map registry (P1-1)', () => {
     const registry = loadMapRegistry();
     expect(registry.ids).toEqual([defaultThemeId, 'prisma']);
     const entry = registry.get('prisma');
-    expect(entry.npcRoster).toEqual(['stocker', 'security', 'forklift', 'butcher']);
+    expect(entry.npcRoster).toEqual(['stocker', 'security', 'forklift', 'butcher', 'customer']);
     expect(entry.npcs.require('butcher')).toMatchObject({ homeZone: 'deli' });
     expect(entry.map.vanSlots).toHaveLength(16);
     expect(entry.items).toBe(getItemCatalogue('prisma'));

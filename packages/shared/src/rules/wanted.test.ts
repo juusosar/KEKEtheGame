@@ -157,6 +157,14 @@ describe('witnessingGuard', () => {
     expect(witnessingGuard({ x: 5 * TILE + 16, y: 16 }, [g], config, grid)).toBe(g);
   });
 
+  it('does not see through a solid body (a customer) in the line, but past one beside it', () => {
+    const g = { id: 'g', x: 0, y: 0 };
+    const at = { x: 4 * TILE, y: 0 };
+    const customer = { x: 2 * TILE, y: 0, r: 10 };
+    expect(witnessingGuard(at, [g], config, undefined, [customer])).toBeUndefined();
+    expect(witnessingGuard(at, [g], config, undefined, [{ ...customer, y: 11 }])).toBe(g);
+  });
+
   it('returns the first guard in input order that sees', () => {
     const far = { id: 'far', x: 1000, y: 0 };
     const g2 = { id: 'g2', x: 0, y: 50 };

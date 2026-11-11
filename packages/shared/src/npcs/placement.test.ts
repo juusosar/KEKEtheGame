@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NpcSpawn, Zone } from '../map/mapModel';
 import { getNpcCatalogue } from './catalogue';
-import { checkNpcMap, npcRoster, planNpcs, type NpcMap } from './placement';
+import { checkNpcMap, groupSizes, npcRoster, planNpcs, type NpcMap } from './placement';
 
 const npcs = getNpcCatalogue();
 
@@ -101,6 +101,7 @@ describe('planNpcs', () => {
         spawn: { x: 1, y: 2 },
         post: false,
         routeIndex: 0,
+        group: null,
       },
       {
         key: 'forklift_2',
@@ -109,6 +110,7 @@ describe('planNpcs', () => {
         spawn: { x: 5, y: 6 },
         post: false,
         routeIndex: 1,
+        group: null,
       },
     ]);
   });
@@ -124,6 +126,62 @@ describe('planNpcs', () => {
   });
 });
 
+describe('customer groups (Phase 2 decision 8)', () => {
+  it('splits a count into the fewest even groups of at most max', () => {
+    expect(groupSizes(0, 4)).toEqual([]);
+    expect(groupSizes(1, 4)).toEqual([1]);
+    expect(groupSizes(4, 4)).toEqual([4]);
+    expect(groupSizes(6, 4)).toEqual([3, 3]);
+    expect(groupSizes(7, 4)).toEqual([4, 3]);
+    expect(groupSizes(9, 4)).toEqual([3, 3, 3]);
+    expect(groupSizes(14, 4)).toEqual([4, 4, 3, 3]);
+  });
+
+  it('keeps every group within 2 to 4 for any count from 2 to 30', () => {
+    for (let n = 2; n <= 30; n++) {
+      const sizes = groupSizes(n, 4);
+      expect(sizes.reduce((a, b) => a + b, 0)).toBe(n);
+      expect(
+        sizes.every((s) => s >= 2 && s <= 4),
+        `count ${n}: ${sizes.join(',')}`,
+      ).toBe(true);
+    }
+  });
+
+  const shop: NpcMap = {
+    ...map,
+    npcSpawns: [...map.npcSpawns, spawn('customer', 300, 300), spawn('customer', 400, 400)],
+  };
+
+  it('puts each group on one spawn, cycling through the customer spawns', () => {
+    const customers = planNpcs(npcs, shop, 8).filter((p) => p.type === 'customer');
+    // 6 + 8 players = 14 customers: groups of 4, 4, 3, 3 on spawns 1, 2, 1, 2.
+    expect(customers.map((c) => c.group)).toEqual([1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4]);
+    expect(customers.map((c) => c.key)).toEqual(Array.from({ length: 14 }, (_, i) => `customer_${i + 1}`));
+    for (const c of customers) {
+      const at = (c.group ?? 0) % 2 === 1 ? { x: 300, y: 300 } : { x: 400, y: 400 };
+      expect(c.spawn).toEqual(at);
+      expect(c).toMatchObject({ behaviour: 'customer', post: false, routeIndex: null });
+    }
+  });
+
+  it('gives no customers to a map without customer spawns and leaves other keys alone', () => {
+    expect(planNpcs(npcs, map, 8).some((p) => p.type === 'customer')).toBe(false);
+    const without = planNpcs(npcs, map, 8).map((p) => p.key);
+    const withCustomers = planNpcs(npcs, shop, 8)
+      .filter((p) => p.type !== 'customer')
+      .map((p) => p.key);
+    expect(withCustomers).toEqual(without);
+    expect(planNpcs(npcs, map, 8).every((p) => p.group === null)).toBe(true);
+  });
+
+  it('needs waypoints for customers to walk between', () => {
+    expect(checkNpcMap(npcs, shop)).toEqual([]);
+    const noWaypoints = checkNpcMap(npcs, { ...shop, npcWaypoints: [] }).join('\n');
+    expect(noWaypoints).toMatch(/customer: walks between npc_waypoints/);
+  });
+});
+
 describe('checkNpcMap', () => {
   it('accepts a map with everything', () => {
     expect(checkNpcMap(npcs, map)).toEqual([]);
@@ -132,10 +190,10 @@ describe('checkNpcMap', () => {
   it('reports unknown types, forklift spawns, posts on non-guards and missing spawns', () => {
     const bad: NpcMap = {
       ...map,
-      npcSpawns: [spawn('customer', 1, 1), spawn('forklift', 2, 2), spawn('stocker', 3, 3, true)],
+      npcSpawns: [spawn('shopper', 1, 1), spawn('forklift', 2, 2), spawn('stocker', 3, 3, true)],
     };
     const issues = checkNpcMap(npcs, bad).join('\n');
-    expect(issues).toMatch(/unknown NPC type "customer"/);
+    expect(issues).toMatch(/unknown NPC type "shopper"/);
     expect(issues).toMatch(/forklifts start on forklift_routes/);
     expect(issues).toMatch(/"post" is only used by security guards/);
   });

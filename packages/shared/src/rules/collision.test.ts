@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { aabbOverlapsSolid, circleSeparation, circlesOverlap, isSolidTile, moveAabb } from './collision';
+import {
+  aabbOverlapsSolid,
+  bodiesBlockLine,
+  circleSeparation,
+  circlesOverlap,
+  isSolidTile,
+  moveAabb,
+} from './collision';
 import { gridFrom } from './testGrid';
 
 // 32 px tiles. Interior floor spans x,y in [32, 160) for the 6×6 room.
@@ -113,5 +120,24 @@ describe('circles', () => {
 
   it('separates coincident circles deterministically', () => {
     expect(circleSeparation({ x: 5, y: 5, r: 8 }, { x: 5, y: 5, r: 4 })).toEqual({ x: -12, y: 0 });
+  });
+});
+
+describe('bodiesBlockLine', () => {
+  const a = { x: 0, y: 0 };
+  const b = { x: 100, y: 0 };
+
+  it('is blocked by a body on the segment and not by one beside it or past the ends', () => {
+    expect(bodiesBlockLine(a, b, [{ x: 50, y: 5, r: 10 }])).toBe(true);
+    expect(bodiesBlockLine(a, b, [{ x: 50, y: 10, r: 10 }])).toBe(false); // touching only
+    expect(bodiesBlockLine(a, b, [{ x: 120, y: 0, r: 10 }])).toBe(false);
+    expect(bodiesBlockLine(a, b, [{ x: -15, y: 0, r: 10 }])).toBe(false);
+    expect(bodiesBlockLine(a, b, [])).toBe(false);
+  });
+
+  it('ignores bodies that hold an end point (the watcher or the watched)', () => {
+    expect(bodiesBlockLine(a, b, [{ x: 3, y: 0, r: 10 }])).toBe(false);
+    expect(bodiesBlockLine(a, b, [{ x: 97, y: 0, r: 10 }])).toBe(false);
+    expect(bodiesBlockLine(a, a, [{ x: 5, y: 0, r: 10 }])).toBe(false);
   });
 });

@@ -1,7 +1,14 @@
 // Helpers for NPC tests without a network (M5-3): the combat testKit's players on van 0's floor plus an
 // NpcSystem on a live map (stock carts block), wired the way GameRoom wires them. `tick` runs the room's
 // order: combat.beginTick, frames, npcs.tick, combat.tick.
-import { gridWithBlocked, type MapModel, type NpcEventWire, type Vec2, type WantedHit } from '@keke/shared';
+import {
+  gridWithBlocked,
+  type MapModel,
+  type NpcEventWire,
+  type NpcSpawn,
+  type Vec2,
+  type WantedHit,
+} from '@keke/shared';
 import type { PlayerState } from '../../schema/GameState';
 import { config, frame, kesproMap, setup as combatSetup, TICK, type Setup } from '../combat/testKit';
 import { NpcSystem, type NpcHooks } from './NpcSystem';
@@ -24,6 +31,8 @@ export function npcSetup(
     roundPlayers?: number;
     seed?: number;
     hooks?: Partial<NpcHooks>;
+    /** Extra `npc_spawns` on the map (e.g. customer groups, which the first map has none of). */
+    spawns?: NpcSpawn[];
   } = {},
 ): NpcSetup {
   const base = combatSetup(players, at);
@@ -34,6 +43,7 @@ export function npcSetup(
   const map = kesproMap();
   const live: MapModel = {
     ...map,
+    npcSpawns: [...map.npcSpawns, ...(options.spawns ?? [])],
     collision: gridWithBlocked(map.collision, (tx, ty) => holder.npcs?.isCartTile(tx, ty) ?? false),
   };
   const npcs = new NpcSystem(

@@ -25,6 +25,7 @@ import {
   rectCovers,
   startKnockback,
   tileOf,
+  type Circle,
   type DropReason,
   type GameConfig,
   type HitSource,
@@ -169,6 +170,32 @@ export class NpcSystem implements NpcTargets {
     return out;
   }
 
+  /**
+   * Solid NPC bodies that are up (npcs.json `solid`: customers, Phase 2 decision 8), as circles of
+   * radius `hitboxPx / 2`, in NPC order. Players cannot walk into them and they block guard sight.
+   */
+  solidBodies(): Circle[] {
+    const out: Circle[] = [];
+    for (const npc of this.npcs.values()) {
+      if (npc.def.solid === true && npc.vitals.alive) {
+        out.push({ x: npc.state.x, y: npc.state.y, r: npc.def.hitboxPx / 2 });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Violence at `at` (a landed hit on a player; hits on NPCs call this themselves): every NPC that is up
+   * hears about it through its behaviour's `onViolence` (customers within reach panic).
+   */
+  violence(at: Vec2): void {
+    if (!this.running) return;
+    const ctx = this.context();
+    for (const npc of this.npcs.values()) {
+      if (npc.vitals.alive) npc.module.onViolence?.(ctx, npc, at);
+    }
+  }
+
   /** The NPC runtime, for tests. */
   npc(id: string): Npc | undefined {
     return this.npcs.get(id);
@@ -245,6 +272,8 @@ export class NpcSystem implements NpcTargets {
       payload: { npc: npc.id, source: hit.source, damage, weapon, hp: Math.round(npc.vitals.hp ?? 0) },
     });
     if (damage > 0 && hit.source.kind === 'player') this.hooks.onNpcDamaged?.(hit.source.id, npc.id, damage);
+    // Violence where the NPC stands (customers nearby panic); its own onHit below can refine that.
+    this.violence({ x: npc.state.x, y: npc.state.y });
     const ctx = this.context();
     const info: NpcHitInfo = { source: hit.source, damage, weapon, ko: result.ko };
     if (result.ko) {
@@ -396,6 +425,7 @@ export class NpcSystem implements NpcTargets {
       player: (id) => this.alivePlayer(id),
       wantedPlayers: () => this.hooks.wantedPlayers?.() ?? [],
       guards: () => this.guards(),
+      sightBlockers: () => this.solidBodies(),
       walk: (npc, goal, speed) => this.walk(npc, goal, speed),
       stop: (npc) => {
         npc.state.moving = false;

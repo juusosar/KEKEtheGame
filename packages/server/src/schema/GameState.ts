@@ -238,7 +238,7 @@ export const NpcState = schema(
   {
     /** Stable for the round: `<type>_<n>` from planNpcs, e.g. 'stocker_2'. */
     id: t.string().default(''),
-    /** npcs.json id ('stocker', 'security', 'forklift', 'butcher'); sprite key via the catalogue. */
+    /** npcs.json id ('stocker', 'security', 'forklift', 'butcher', 'customer'); sprite key via the catalogue. */
     type: t.string().default(''),
     /** NpcBehaviour, the same as the catalogue entry's. */
     behaviour: t.string().default(''),
@@ -265,7 +265,9 @@ export const NpcState = schema(
      * Security (M5-4): 'patrol' (to a waypoint), 'watch' (pausing at one), 'post' (standing at its post),
      * 'return' (back to the post), 'chase' (sees `target`), 'search' (walking to where it last saw
      * `target`). Butcher: 'idle' (at its post), 'attack' (after `target`, a player behind the counter),
-     * 'return' (walking back to its post). Later behaviours add their own (see the M5-3 handoff).
+     * 'return' (walking back to its post). Customer (P2-3): 'walk' (the group heads to a waypoint),
+     * 'browse' (standing at one), 'panic' (running away from violence). Later behaviours add their own
+     * (see the M5-3 handoff).
      */
     mode: t.string().default('idle'),
     /** sessionId of the player this NPC is after (retaliation, chase); '' when none. */

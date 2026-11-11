@@ -11,7 +11,7 @@
   "tilewidth": 32,
   "tileheight": 32,
   "nextlayerid": 13,
-  "nextobjectid": 117,
+  "nextobjectid": 121,
   "layers": [
     {
       "id": 1,
@@ -2490,6 +2490,82 @@
               "value": "butcher"
             }
           ]
+        },
+        {
+          "id": 98,
+          "name": "customer",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1008,
+          "y": 720,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "type",
+              "type": "string",
+              "value": "customer"
+            }
+          ]
+        },
+        {
+          "id": 99,
+          "name": "customer",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 2000,
+          "y": 848,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "type",
+              "type": "string",
+              "value": "customer"
+            }
+          ]
+        },
+        {
+          "id": 100,
+          "name": "customer",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 336,
+          "y": 816,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "type",
+              "type": "string",
+              "value": "customer"
+            }
+          ]
+        },
+        {
+          "id": 101,
+          "name": "customer",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1296,
+          "y": 1168,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "type",
+              "type": "string",
+              "value": "customer"
+            }
+          ]
         }
       ]
     },
@@ -2504,7 +2580,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 98,
+          "id": 102,
           "name": "wp_1",
           "type": "",
           "rotation": 0,
@@ -2516,7 +2592,7 @@
           "point": true
         },
         {
-          "id": 99,
+          "id": 103,
           "name": "wp_2",
           "type": "",
           "rotation": 0,
@@ -2528,7 +2604,7 @@
           "point": true
         },
         {
-          "id": 100,
+          "id": 104,
           "name": "wp_3",
           "type": "",
           "rotation": 0,
@@ -2540,7 +2616,7 @@
           "point": true
         },
         {
-          "id": 101,
+          "id": 105,
           "name": "wp_4",
           "type": "",
           "rotation": 0,
@@ -2552,7 +2628,7 @@
           "point": true
         },
         {
-          "id": 102,
+          "id": 106,
           "name": "wp_5",
           "type": "",
           "rotation": 0,
@@ -2564,7 +2640,7 @@
           "point": true
         },
         {
-          "id": 103,
+          "id": 107,
           "name": "wp_6",
           "type": "",
           "rotation": 0,
@@ -2576,7 +2652,7 @@
           "point": true
         },
         {
-          "id": 104,
+          "id": 108,
           "name": "wp_7",
           "type": "",
           "rotation": 0,
@@ -2588,7 +2664,7 @@
           "point": true
         },
         {
-          "id": 105,
+          "id": 109,
           "name": "wp_8",
           "type": "",
           "rotation": 0,
@@ -2600,7 +2676,7 @@
           "point": true
         },
         {
-          "id": 106,
+          "id": 110,
           "name": "wp_9",
           "type": "",
           "rotation": 0,
@@ -2612,7 +2688,7 @@
           "point": true
         },
         {
-          "id": 107,
+          "id": 111,
           "name": "wp_10",
           "type": "",
           "rotation": 0,
@@ -2624,7 +2700,7 @@
           "point": true
         },
         {
-          "id": 108,
+          "id": 112,
           "name": "wp_11",
           "type": "",
           "rotation": 0,
@@ -2636,7 +2712,7 @@
           "point": true
         },
         {
-          "id": 109,
+          "id": 113,
           "name": "wp_12",
           "type": "",
           "rotation": 0,
@@ -2648,7 +2724,7 @@
           "point": true
         },
         {
-          "id": 110,
+          "id": 114,
           "name": "wp_13",
           "type": "",
           "rotation": 0,
@@ -2660,7 +2736,7 @@
           "point": true
         },
         {
-          "id": 111,
+          "id": 115,
           "name": "wp_14",
           "type": "",
           "rotation": 0,
@@ -2672,7 +2748,7 @@
           "point": true
         },
         {
-          "id": 112,
+          "id": 116,
           "name": "wp_15",
           "type": "",
           "rotation": 0,
@@ -2684,7 +2760,7 @@
           "point": true
         },
         {
-          "id": 113,
+          "id": 117,
           "name": "wp_16",
           "type": "",
           "rotation": 0,
@@ -2708,7 +2784,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 114,
+          "id": 118,
           "name": "stockroom_loop",
           "type": "",
           "rotation": 0,
@@ -2749,7 +2825,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 115,
+          "id": 119,
           "name": "office_trigger",
           "type": "",
           "rotation": 0,
@@ -2857,7 +2933,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 116,
+          "id": 120,
           "name": "bottle_hum",
           "type": "",
           "rotation": 0,

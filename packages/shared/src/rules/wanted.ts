@@ -16,7 +16,7 @@ import type { GameConfig } from '../config';
 import { pointInPolygon } from '../map/geometry';
 import type { Zone } from '../map/mapModel';
 import type { Vec2 } from '../types';
-import type { CollisionGrid } from './collision';
+import { bodiesBlockLine, type Circle, type CollisionGrid } from './collision';
 import type { CombatEvent } from './combat';
 import { clearLine } from './spray';
 
@@ -80,6 +80,8 @@ export interface WitnessContext {
   readonly positionOf: (playerId: string) => Vec2 | undefined;
   /** Walls block sight; without a grid every guard in range sees. */
   readonly grid?: CollisionGrid;
+  /** Solid bodies that block sight too (Phase 2 decision 8: customers). */
+  readonly blockers?: readonly Circle[];
 }
 
 export function createWantedWorld(): WantedWorld {
@@ -156,9 +158,15 @@ export function witnessingGuard(
   guards: readonly WantedWatcher[],
   config: Pick<WantedConfig, 'tileSize' | 'wantedGuardRangeTiles'>,
   grid?: CollisionGrid,
+  blockers: readonly Circle[] = [],
 ): WantedWatcher | undefined {
   const range = config.wantedGuardRangeTiles * config.tileSize;
-  return guards.find((g) => Math.hypot(g.x - at.x, g.y - at.y) <= range && (!grid || clearLine(grid, g, at)));
+  return guards.find(
+    (g) =>
+      Math.hypot(g.x - at.x, g.y - at.y) <= range &&
+      (!grid || clearLine(grid, g, at)) &&
+      !bodiesBlockLine(g, at, blockers),
+  );
 }
 
 /**
@@ -198,7 +206,7 @@ export function applyWantedHits(
     } else if (h.victim.id !== h.attacker) {
       const guard = [ctx.positionOf(h.attacker), ctx.positionOf(h.victim.id)]
         .filter((p): p is Vec2 => p !== undefined)
-        .map((p) => witnessingGuard(p, ctx.guards, config, ctx.grid))
+        .map((p) => witnessingGuard(p, ctx.guards, config, ctx.grid, ctx.blockers))
         .find((g) => g !== undefined);
       if (guard) result = markWanted(w, h.attacker, 'witnessed', now, config, { guard: guard.id });
     }

@@ -15,4 +15,4 @@ export {
   type NpcOf,
   type NpcRange,
 } from './catalogue';
-export { checkNpcMap, npcRoster, planNpcs, type NpcMap, type NpcPlacement } from './placement';
+export { checkNpcMap, groupSizes, npcRoster, planNpcs, type NpcMap, type NpcPlacement } from './placement';

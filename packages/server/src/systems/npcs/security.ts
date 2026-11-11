@@ -1,6 +1,6 @@
 // Security guard (§8; M5-4). Guards keep order: they chase Wanted players and stun them with a baton
 // swing (npcs.json `attack.melee`: 15 damage, 0.5 s stun) on a cooldown. A guard sees a Wanted player
-// within `chase.sightRangeTiles` with a clear line (walls and parked carts block). While it sees its target
+// within `chase.sightRangeTiles` with a clear line (walls, parked carts and customers block). While it sees its target
 // it runs after it at `chase.speedPxPerSecond`; out of sight it walks to where it last saw them and gives
 // up after `chase.loseSightSeconds`. It sticks to its target while that player stays Wanted and in reach of
 // its memory, but switches to a nearer visible Wanted player once the old one is out of sight.
@@ -17,7 +17,7 @@
 // and the guard sees them on its next tick. Synced `mode`: 'patrol' (walking to a waypoint), 'watch'
 // (pausing at a waypoint), 'post' (standing at its post), 'return' (walking back to the post), 'chase'
 // (sees its `target`), 'search' (walking to where it last saw `target`).
-import { clearLine, type NpcOf, type Vec2 } from '@keke/shared';
+import { bodiesBlockLine, clearLine, type NpcOf, type Vec2 } from '@keke/shared';
 import type { PlayerState } from '../../schema/GameState';
 import type { Npc, NpcBehaviourModule, NpcContext } from './types';
 
@@ -81,7 +81,9 @@ export function createSecurityBehaviour(): NpcBehaviourModule {
     return (
       dist(from, at) <= sightPx(ctx, def) &&
       inLeash(ctx, npc, def, at) &&
-      clearLine(ctx.map.collision, from, at)
+      clearLine(ctx.map.collision, from, at) &&
+      // Customers in the way block the view too (Phase 2 decision 8).
+      !bodiesBlockLine(from, at, ctx.sightBlockers())
     );
   }
 

@@ -4,6 +4,7 @@
 // spawning from the round plan, HP, hits from player weapons, KO and the 30 s respawn, stun, slow, shoves,
 // path following and the synced `NpcState`. A behaviour only decides where its NPCs walk and whom they hit.
 import type {
+  Circle,
   DropReason,
   GameConfig,
   HalfSize,
@@ -72,6 +73,8 @@ export interface NpcContext {
   wantedPlayers(): readonly string[];
   /** Security guards that are up, for the wanted rules' witness check. */
   guards(): readonly WantedWatcher[];
+  /** Solid NPC bodies that are up (customers), which block sight (`bodiesBlockLine`). */
+  sightBlockers(): readonly Circle[];
   /**
    * Walks `npc` toward `goal` at `speedPxPerSecond` (times its slow) for one tick, along an A* path that is
    * recomputed only on events: a new goal more than half a tile from the last one, a stock cart that came
@@ -116,6 +119,12 @@ export interface NpcBehaviourModule {
   tick(ctx: NpcContext, npc: Npc, dt: number): void;
   /** A hit landed on one of this behaviour's NPCs (stocker: retaliate). */
   onHit?(ctx: NpcContext, npc: Npc, hit: NpcHitInfo): void;
+  /**
+   * Violence happened at `at` this tick (a landed hit on a player or an NPC, which covers splashes,
+   * KOs and forklift run-overs; Phase 2 decision 8). Called for each NPC of this behaviour that is up,
+   * wherever it is: the behaviour checks the distance. Customers panic.
+   */
+  onViolence?(ctx: NpcContext, npc: Npc, at: Vec2): void;
   /** The NPC was KO'd: forget what it was doing (`spawn` runs again on respawn). */
   onKo?(ctx: NpcContext, npc: Npc): void;
   /** A player left the round for good: stop chasing them. */

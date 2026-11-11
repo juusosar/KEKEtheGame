@@ -28,10 +28,30 @@ export interface NpcPlacement {
   readonly post: boolean;
   /** Forklifts: index into `map.forkliftRoutes`. Null for everyone else. */
   readonly routeIndex: number | null;
+  /**
+   * Customers: the group it belongs to, from 1 in placement order (Phase 2 decision 8). A group shares
+   * one spawn and walks and browses together. Null for everyone else.
+   */
+  readonly group: number | null;
+}
+
+/**
+ * Splits `count` NPCs into groups of at most `max`, as even as possible (sizes differ by at most one,
+ * bigger groups first): the fewest groups that fit, so groups are as big as allowed. With `max` 4,
+ * 6 gives 3 + 3, 7 gives 4 + 3 and 14 gives 4 + 4 + 3 + 3. A count below the minimum group size is one
+ * smaller group; `min` is reached whenever count >= min and max >= 2 × min - 1.
+ */
+export function groupSizes(count: number, max: number): number[] {
+  const n = Math.max(0, Math.floor(count));
+  if (n === 0) return [];
+  const groups = Math.ceil(n / Math.max(1, Math.floor(max)));
+  const small = Math.floor(n / groups);
+  const big = n % groups;
+  return Array.from({ length: groups }, (_, i) => (i < big ? small + 1 : small));
 }
 
 /** Behaviours that walk between `npc_waypoints` when they are not on a post. */
-const WANDERERS: readonly NpcBehaviour[] = ['stocker', 'security'];
+const WANDERERS: readonly NpcBehaviour[] = ['stocker', 'security', 'customer'];
 
 /**
  * The NPCs for a round with `players` players (spectators do not count), in catalogue order and then
@@ -55,12 +75,33 @@ export function planNpcs(catalogue: NpcCatalogue, map: NpcMap, players: number):
           spawn: { x: first.x, y: first.y },
           post: false,
           routeIndex: i,
+          group: null,
         });
       }
       continue;
     }
     const spawns = map.npcSpawns.filter((s) => s.type === def.id);
     if (spawns.length === 0) continue;
+    if (def.behaviour === 'customer') {
+      // Groups (Phase 2 decision 8): group g stands at spawn g (cycling); its members are nudged apart.
+      let n = 0;
+      groupSizes(wanted, def.group.max).forEach((size, g) => {
+        const spawn = spawns[g % spawns.length] as NpcSpawn;
+        for (let k = 0; k < size; k++) {
+          n++;
+          out.push({
+            key: `${def.id}_${n}`,
+            type: def.id,
+            behaviour: def.behaviour,
+            spawn: { x: spawn.x, y: spawn.y },
+            post: false,
+            routeIndex: null,
+            group: g + 1,
+          });
+        }
+      });
+      continue;
+    }
     for (let i = 0; i < wanted; i++) {
       const spawn = spawns[i % spawns.length] as NpcSpawn;
       out.push({
@@ -70,6 +111,7 @@ export function planNpcs(catalogue: NpcCatalogue, map: NpcMap, players: number):
         spawn: { x: spawn.x, y: spawn.y },
         post: spawn.post && i < spawns.length,
         routeIndex: null,
+        group: null,
       });
     }
   }

@@ -269,6 +269,12 @@ const NPC_SPAWN_TILES: readonly (readonly [string, number, number, boolean?])[] 
   ['stocker', 64, 33],
   ['stocker', 12, 30],
   ['butcher', 64, 16],
+  // Customer groups (P2-3): one group per spawn, in this order (6 customers fill the first two), each on
+  // an aisle waypoint.
+  ['customer', 31, 22],
+  ['customer', 62, 26],
+  ['customer', 10, 25],
+  ['customer', 40, 36],
 ];
 
 const NPC_WAYPOINT_TILES: readonly TilePoint[] = [

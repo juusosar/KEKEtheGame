@@ -7,8 +7,8 @@ import { ConfigError, formatIssues } from '../config';
 import npcsJson from '../data/npcs.json';
 import { meleeStatsSchema } from '../weapons/catalogue';
 
-/** Behaviour types from §8. Each one is a server system (M5-3 to M5-6). */
-export const NPC_BEHAVIOURS = ['stocker', 'security', 'forklift', 'butcher'] as const;
+/** Behaviour types from §8 (and §9.2 customers, Phase 2 P2-3). Each one is a server system (M5-3 to M5-6, P2-3). */
+export const NPC_BEHAVIOURS = ['stocker', 'security', 'forklift', 'butcher', 'customer'] as const;
 export type NpcBehaviour = (typeof NPC_BEHAVIOURS)[number];
 
 const idPattern = /^[a-z][a-z0-9_]*$/;
@@ -58,6 +58,12 @@ const base = {
    * without an entry uses `count`. Which types a map has at all comes from its `npc_spawns`.
    */
   mapCounts: z.record(z.string().regex(idPattern), countSchema).optional(),
+  /**
+   * Solid body (Phase 2 decision 8): a circle of radius `hitboxPx / 2` that players cannot walk into
+   * (server movement and client prediction) and that blocks guard sight. Projectiles stop on every NPC
+   * body anyway. Default false.
+   */
+  solid: z.boolean().optional(),
 };
 
 export const npcSchema = z.discriminatedUnion('behaviour', [
@@ -140,6 +146,26 @@ export const npcSchema = z.discriminatedUnion('behaviour', [
         )
         .optional(),
       attack: npcAttackSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...base,
+      behaviour: z.literal('customer'),
+      /** A round's customers spawn in groups of `min` to `max` (as even as the count allows), one group per spawn. */
+      group: z
+        .object({ min: z.number().int().positive(), max: z.number().int().positive() })
+        .strict()
+        .refine((g) => g.min <= g.max, { message: 'min must not be greater than max' })
+        // Even splits of up to `max` per group never fall below `min` (see `groupSizes`).
+        .refine((g) => g.max >= 2 * g.min - 1, { message: 'max must be at least 2 × min - 1' }),
+      /** The group walks between random `npc_waypoints` at `speedPxPerSecond` and browses at each stop. */
+      browse: z.object({ pauseSeconds: rangeSchema }).strict(),
+      /**
+       * Violence (a landed hit, splash, KO or forklift run-over) within `radiusTiles` makes a customer run
+       * straight away from the spot at `speedPxPerSecond` for `seconds`, then browse again. Never attacks.
+       */
+      panic: z.object({ radiusTiles: positive, seconds: positive, speedPxPerSecond: positive }).strict(),
     })
     .strict(),
 ]);
