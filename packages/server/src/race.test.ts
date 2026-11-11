@@ -38,6 +38,9 @@ const config = loadConfig({
   raceRoundSeconds: 60,
   roundResultsSeconds: 60,
   podiumSeconds: 60,
+  // Two fist hits KO (the doorstep test), and no spawn protection in the way.
+  maxHp: 10,
+  spawnProtectionSeconds: 0,
 });
 const map = loadThemeMap(getTheme(defaultThemeId));
 /** Middle of the office trigger: inside it, and walkable (checked below). */
@@ -99,7 +102,7 @@ describe('Quota + Race on the server (integration)', () => {
   }
 
   /** A race room in 'playing' with two players, picked by the host in the lobby settings. */
-  async function racing(): Promise<{ room: GameRoom; a: Player; b: Player }> {
+  async function racing(roundsPerMap = 1): Promise<{ room: GameRoom; a: Player; b: Player }> {
     const host = (await colyseus.sdk.create('game', { nickname: 'Host' })) as Conn;
     open.push(host);
     await host.waitForInitialState();
@@ -108,8 +111,10 @@ describe('Quota + Race on the server (integration)', () => {
     open.push(guest);
     await guest.waitForInitialState();
     const [a, b] = [wrap(room, host), wrap(room, guest)];
-    host.send(ClientMessage.settings, { mode: 'race' });
-    await waitFor(() => room.state.settings.mode === 'race');
+    host.send(ClientMessage.settings, { mode: 'race', roundsPerMap });
+    await waitFor(
+      () => room.state.settings.mode === 'race' && room.state.settings.roundsPerMap === roundsPerMap,
+    );
     for (const c of [host, guest]) c.send(ClientMessage.ready, { ready: true });
     await waitFor(() => [...room.state.players.values()].every((p) => p.ready));
     host.send(ClientMessage.start);
@@ -264,5 +269,67 @@ describe('Quota + Race on the server (integration)', () => {
     a.conn.send(DebugMessage.vanPoints, { points: 3 });
     await waitFor(() => a.errors.length === 4);
     expect(a.errors[3]).toEqual({ code: 'wrong_phase', request: DebugMessage.vanPoints });
+  });
+
+  it("the next round's countdown clears the winner and the stolen flag (M6 review F4)", async () => {
+    const { room, a, b } = await racing(2);
+    const boxId = await packBox(room, a);
+    await press(a, Button.Drop);
+    const box = room.state.items.get(String(boxId));
+    moveTo(b, { x: box?.x ?? 0, y: box?.y ?? 0 });
+    await press(b, Button.Interact);
+    await press(b);
+    expect(b.me.carrying).toBe(boxId);
+    moveTo(b, office);
+    await waitFor(() => room.state.phase === 'roundResults');
+    expect([room.state.raceWinner, room.state.raceStolen]).toEqual([b.conn.sessionId, true]);
+
+    room.advancePhase(); // round 1 of 2: on to round 2, not the podium
+    expect(room.state.phase).toBe('countdown');
+    expect(room.state.round).toBe(2);
+    expect([room.state.raceWinner, room.state.raceStolen]).toEqual(['', false]);
+    await waitFor(() => room.state.phase === 'playing');
+    expect([room.state.raceWinner, room.state.raceStolen]).toEqual(['', false]);
+    await waitFor(
+      () => b.conn.state.round === 2 && b.conn.state.raceWinner === '' && !b.conn.state.raceStolen,
+    );
+  });
+
+  it('a carrier knocked out on the office doorstep in the same tick drops the box and does not win (M6 review F4)', async () => {
+    const { room, a, b } = await racing();
+    const boxId = await packBox(room, a);
+    // Step the simulation by hand so both hits and the step into the office land in known ticks.
+    (room as unknown as { simulation?: { pause(): void } }).simulation?.pause();
+    const send = (aim: number, buttons: number) =>
+      b.conn.send(ClientMessage.input, { seq: ++b.seq, move: { x: 0, y: 0 }, aim, buttons });
+    const settle = () => new Promise((r) => setTimeout(r, 100));
+
+    // First fist hit outside the office: a is down to half (maxHp 10, fists 5).
+    const outside = { x: map.officeTrigger.bounds.minX - 80, y: office.y };
+    moveTo(a, outside);
+    moveTo(b, { x: outside.x - 24, y: outside.y });
+    send(0, Button.Attack);
+    await settle();
+    room.tick();
+    expect(a.me.hp).toBe(config.maxHp - 5);
+    expect(a.me.carrying).toBe(boxId);
+    send(0, 0); // release: one click is one swing
+    await settle();
+    room.tick();
+    await new Promise((r) => setTimeout(r, 450)); // fist cooldown 0.4 s
+
+    // a is in the office trigger with the box when this tick resolves, and b's second hit KOs them in it.
+    moveTo(a, office);
+    // b stands just above a, inside the tall trigger too (no wall between them), and swings down.
+    moveTo(b, { x: office.x, y: office.y - 24 });
+    send(Math.PI / 2, Button.Attack);
+    await settle();
+    room.tick();
+    expect(a.me.alive).toBe(false);
+    expect(a.me.carrying).toBe(0);
+    expect(room.state.phase).toBe('playing');
+    expect(room.state.raceWinner).toBe('');
+    expect(room.state.items.get(String(boxId))?.state).toBe('loose');
+    expect(a.delivered).toEqual([]);
   });
 });
