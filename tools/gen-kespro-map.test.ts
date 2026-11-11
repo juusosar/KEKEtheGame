@@ -112,6 +112,11 @@ describe('maps/kespro.tmj', () => {
     expect(new Set(map.itemSpawns.map((s) => s.zone))).toEqual(new Set(ITEM_ZONES));
   });
 
+  it('keeps the team vans at the first two slots, 8 tiles apart (P1 review F3)', () => {
+    expect(map.teamVanSlots).toEqual([0, 1]);
+    expect(map.vanSlots.some((s) => s.team !== undefined)).toBe(false);
+  });
+
   it('places every item spawn inside its zone, on open floor reachable from the dock', () => {
     for (const s of map.itemSpawns) {
       const where = `${s.zone} spawn at ${tileOf(s.x)},${tileOf(s.y)}`;

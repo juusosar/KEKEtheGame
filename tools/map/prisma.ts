@@ -192,6 +192,13 @@ const CARS: readonly TilePoint[] = [
 export const VAN_SLOT_TILES: readonly TilePoint[] = [53.5, 63.5].flatMap((y) =>
   Array.from({ length: 8 }, (_, i): TilePoint => [4 + 3 * i, y]),
 );
+/**
+ * Van slot `index` of team 1's and team 2's van with Teams on (P1 review F3). Slots 1 and 2 stand 3 tiles
+ * apart here, so Teams rounds opened with a fight at the vans. Slots 1 (front row, west end) and 12 (back
+ * row) are 13.5 tiles apart, and their mean walk to the item spawns (54 and 59 tiles) and to the office (92
+ * and 87) differ by under 10 %, the closest pair at least 8 tiles apart (tools/prisma-play.test.ts).
+ */
+export const TEAM_VAN_SLOTS: readonly [number, number] = [1, 12];
 const VAN_ROWS: readonly [number, number][] = [
   [52, 54],
   [62, 64],
@@ -617,9 +624,13 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     );
   });
 
-  const vanSlots = VAN_SLOT_TILES.map(([x, y], i) =>
-    point(px(x), px(y), `van_${i + 1}`, [{ name: 'index', type: 'int', value: i + 1 }]),
-  );
+  const vanSlots = VAN_SLOT_TILES.map(([x, y], i) => {
+    const team = TEAM_VAN_SLOTS.indexOf(i + 1) + 1;
+    return point(px(x), px(y), `van_${i + 1}`, [
+      { name: 'index', type: 'int', value: i + 1 },
+      ...(team > 0 ? [{ name: 'team', type: 'int', value: team } satisfies Property] : []),
+    ]);
+  });
 
   const isOddSpot = (x: number, y: number): boolean =>
     ODD_SPOT_TILES.some(([ox, oy]) => ox === x && oy === y);

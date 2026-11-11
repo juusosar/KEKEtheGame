@@ -205,6 +205,8 @@ suite('map switch between rounds (integration, P3-1)', PORT, loadMapRegistry(), 
     const { room, host, conns } = await h.lobby(4);
     await h.start(room, host, conns, { maps: 'both', roundsPerMap: 1, teams: true });
     const teamOf = new Map(players(room).map((p) => [p.sessionId, p.team]));
+    // On the first map the team vans are its first two slots.
+    for (const p of players(room)) expect(p.van).toBe(p.team - 1);
     finishRound(room, [3, 0, 1, 0]);
     const totals = [...room.state.teams.values()].map((t) => [t.team, t.sessionPoints, t.sessionItemPoints]);
     expect(totals.some(([, points]) => (points ?? 0) > 0)).toBe(true);
@@ -213,8 +215,9 @@ suite('map switch between rounds (integration, P3-1)', PORT, loadMapRegistry(), 
     expect(room.state.mapId).toBe('prisma');
     for (const p of players(room)) {
       expect(p.team).toBe(teamOf.get(p.sessionId));
-      // Teams share one van each: team 1 slot 0, team 2 slot 1 (§4.3), on the new map too.
-      expect(p.van).toBe(p.team - 1);
+      // Teams share one van each (§4.3), at the new map's team slots: index 1 and 12 there (P1 review F3).
+      expect(p.van).toBe([0, 11][p.team - 1]);
+      expect({ x: p.x, y: p.y }).toEqual(vanSpawn(room.currentMap.map, p.van, playerHalfSize(config)));
     }
     expect([...room.state.teams.values()].map((t) => [t.team, t.sessionPoints, t.sessionItemPoints])).toEqual(
       totals,

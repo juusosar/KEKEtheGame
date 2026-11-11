@@ -13,16 +13,22 @@ export interface VanRosterEntry {
 }
 
 export interface VanAssignmentOptions {
-  /** Teams option on: a team shares one van and teams use the first slots (§4.3, §9.1). */
+  /** Teams option on: a team shares one van, at the map's team slots (§4.3, §9.1). */
   readonly teams: boolean;
   /** Van slots on the map. */
   readonly slotCount: number;
+  /**
+   * Slots (0-based) of team 1's and team 2's van: the map's `teamVanSlots` (P1 review F3). Default: the
+   * first two slots.
+   */
+  readonly teamSlots?: readonly [number, number];
 }
 
 /**
  * Van slot (0-based, slot index i = map van `index` i + 1) for every player. Deterministic for the same
  * roster and options:
- * - Teams on: team 1 gets slot 0, team 2 slot 1. A teamless player gets a slot of their own after those.
+ * - Teams on: team 1 gets `teamSlots[0]`, team 2 `teamSlots[1]` (default slots 0 and 1). A teamless
+ *   player gets a slot of their own among the others.
  * - Otherwise each player keeps the slot they held before when it is still free, so a player who
  *   reconnects or plays the next round stays at the same van (§15.3). Everyone else takes the lowest
  *   free slot, in join order (§9.1 "assigned in join order").
@@ -41,26 +47,34 @@ export function assignVans(
     return result;
   }
 
+  // Team vans are reserved with Teams on, whether or not a team has players: nobody else parks there.
+  const teamSlots = (options.teamSlots ?? [0, 1]).map((s) => Math.min(Math.max(0, Math.floor(s)), count - 1));
+  const reserved = new Set<number>(options.teams ? teamSlots : []);
+  // Slots for everyone else, lowest first; when they run out, players share them in this order and then
+  // the team slots (the order the first-two-slots rule always used).
+  const open = Array.from({ length: count }, (_, i) => i).filter((i) => !reserved.has(i));
+  const overflow = [...open, ...[...reserved].sort((a, b) => a - b)];
+
   const taken = new Set<number>();
   const solo: VanRosterEntry[] = [];
   for (const p of players) {
     if (options.teams && (p.team === 1 || p.team === 2)) {
-      const slot = Math.min(p.team - 1, count - 1);
+      const slot = teamSlots[p.team - 1] ?? 0;
       result.set(p.id, slot);
       taken.add(slot);
     } else {
       solo.push(p);
     }
   }
-  const firstFree = options.teams ? Math.min(2, count) : 0;
   const needSlot: VanRosterEntry[] = [];
   for (const p of solo) {
     const prev = p.van;
     if (
       prev !== undefined &&
       Number.isInteger(prev) &&
-      prev >= firstFree &&
+      prev >= 0 &&
       prev < count &&
+      !reserved.has(prev) &&
       !taken.has(prev)
     ) {
       result.set(p.id, prev);
@@ -69,14 +83,15 @@ export function assignVans(
       needSlot.push(p);
     }
   }
-  let next = firstFree;
+  let next = 0;
   needSlot.forEach((p, i) => {
-    while (next < count && taken.has(next)) next++;
-    if (next < count) {
-      result.set(p.id, next);
-      taken.add(next);
+    while (next < open.length && taken.has(open[next] ?? -1)) next++;
+    const slot = open[next];
+    if (slot !== undefined) {
+      result.set(p.id, slot);
+      taken.add(slot);
     } else {
-      result.set(p.id, (firstFree + i) % count);
+      result.set(p.id, overflow[i % overflow.length] ?? 0);
     }
   });
   return result;

@@ -603,7 +603,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       .sort((a, b) => a.joinOrder - b.joinOrder);
     const vans = assignVans(
       active.map((p) => ({ id: p.sessionId, joinOrder: p.joinOrder, team: p.team, van: p.van })),
-      { teams: this.state.settings.teams, slotCount: this.map.vanSlots.length },
+      {
+        teams: this.state.settings.teams,
+        slotCount: this.map.vanSlots.length,
+        teamSlots: this.map.teamVanSlots,
+      },
     );
     for (const p of active) p.van = vans.get(p.sessionId) ?? 0;
     this.movement.spawn(active);

@@ -440,6 +440,56 @@ describe('loadMap: errors', () => {
     ]);
   });
 
+  it('reads team van slots, defaulting to the first two (P1 review F3)', () => {
+    expect(loadMap(cloneFixture()).teamVanSlots).toEqual([0, 1]);
+    const raw = cloneFixture();
+    const slots = layerOf(raw, 'van_slots').objects ?? [];
+    const addTeam = (i: number, team: number) => {
+      const slot = slots[i];
+      if (!slot) throw new Error(`fixture has no van slot ${i}`);
+      slot['properties'] = [
+        ...((slot['properties'] as object[] | undefined) ?? []),
+        { name: 'team', type: 'int', value: team },
+      ];
+    };
+    // Fixture objects: #6 is index 1 (position 1), #7 index 0 (position 0).
+    addTeam(0, 1);
+    addTeam(1, 2);
+    const map = loadMap(raw);
+    expect(map.teamVanSlots).toEqual([1, 0]);
+    expect(map.vanSlots[1]?.team).toBe(1);
+  });
+
+  it('rejects team van slots that name one team only, a team twice or another team', () => {
+    const raw = cloneFixture();
+    const slots = layerOf(raw, 'van_slots').objects ?? [];
+    const addTeam = (i: number, team: number) => {
+      const slot = slots[i];
+      if (!slot) throw new Error(`fixture has no van slot ${i}`);
+      slot['properties'] = [
+        ...((slot['properties'] as object[] | undefined) ?? []),
+        { name: 'team', type: 'int', value: team },
+      ];
+    };
+    addTeam(0, 1);
+    expect(issuesOf(raw)).toEqual([
+      'van_slots: name a slot for both teams (team 1 and team 2) or for neither',
+    ]);
+    addTeam(1, 1);
+    expect(issuesOf(raw)).toEqual([
+      'van_slots: team 1 is on 2 slots, expected 1',
+      'van_slots: name a slot for both teams (team 1 and team 2) or for neither',
+    ]);
+    const other = cloneFixture();
+    const otherSlot = (layerOf(other, 'van_slots').objects ?? [])[0];
+    if (!otherSlot) throw new Error('fixture has no van slot');
+    otherSlot['properties'] = [
+      ...((otherSlot['properties'] as object[] | undefined) ?? []),
+      { name: 'team', type: 'int', value: 3 },
+    ];
+    expect(issuesOf(other)).toEqual([`van_slots #${String(otherSlot['id'])}: team must be 1 or 2, got 3`]);
+  });
+
   it('rejects wrong object shapes', () => {
     const raw = cloneFixture();
     (layerOf(raw, 'item_spawns').objects ?? []).push({ id: 151, x: 0, y: 0, width: 32, height: 32 });
