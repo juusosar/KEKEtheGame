@@ -25,21 +25,22 @@ git rm --cached -r . && git reset --hard
 
 ## Scripts
 
-| Script                | What it does                                                     |
-| --------------------- | ---------------------------------------------------------------- |
-| `npm run dev`         | Server in watch mode + Vite dev server on http://localhost:5173  |
-| `npm run build`       | Builds every workspace package that has a `build` script         |
-| `npm start`           | Runs the built server on `PORT` (default 2567)                   |
-| `npm test`            | Vitest across all packages                                       |
-| `npm run test:e2e`    | Playwright end-to-end tests against the production build         |
-| `npm run e2e:install` | Downloads Playwright's Chromium (once, before the first e2e run) |
-| `npm run lint`        | ESLint + Prettier check                                          |
-| `npm run format`      | Prettier write                                                   |
-| `npm run typecheck`   | `tsc --noEmit` for the root configs and every package            |
-| `npm run gen:art`     | Regenerates the placeholder art (see below)                      |
-| `npm run gen:map`     | Regenerates `maps/kespro.tmj` from `tools/map/kespro.ts`         |
-| `npm run gen:items`   | Regenerates the item catalogue JSON from `tools/items/*.md`      |
-| `npm run gen:sfx`     | Regenerates the placeholder sound effects and music (see below)  |
+| Script                 | What it does                                                            |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `npm run dev`          | Server in watch mode + Vite dev server on http://localhost:5173         |
+| `npm run build`        | Builds every workspace package that has a `build` script                |
+| `npm start`            | Runs the built server on `PORT` (default 2567)                          |
+| `npm test`             | Vitest across all packages                                              |
+| `npm run test:e2e`     | Playwright end-to-end tests against the production build                |
+| `npm run e2e:install`  | Downloads Playwright's Chromium (once, before the first e2e run)        |
+| `npm run lint`         | ESLint + Prettier check                                                 |
+| `npm run format`       | Prettier write                                                          |
+| `npm run typecheck`    | `tsc --noEmit` for the root configs and every package                   |
+| `npm run gen:art`      | Regenerates the placeholder art (see below)                             |
+| `npm run gen:map`      | Regenerates `maps/kespro.tmj` from `tools/map/kespro.ts`                |
+| `npm run gen:items`    | Regenerates the item catalogue JSON from `tools/items/*.md`             |
+| `npm run gen:sfx`      | Regenerates the placeholder sound effects and music (see below)         |
+| `npm run docker:smoke` | Builds the Docker image and checks that it runs the game (needs Docker) |
 
 ## Development
 
@@ -88,6 +89,10 @@ Add `?debug=1` to the URL (http://localhost:5173/?debug=1 in dev, or `?scene=gam
 
 On the host machine run `npm install && npm run build && npm start`. The server prints one line per network interface, like `Open http://192.168.1.20:2567 on any device on this network`; open that URL on any device on the same network. Set `PORT` to use another port.
 
+The server runs as a single process: game rooms, matchmaking and the game page all share one port (TCP 2567 by default), so that is the only port the firewall has to let in. Anyone on the network can open the page and join rooms; there are no accounts or passwords, so only run it on networks you trust.
+
+To run the same build without installing Node.js, use the Docker image (see [Docker image](#docker-image)) and publish the port on every interface: `docker run --rm -p 2567:2567 keke`. Inside a container the startup banner lists the container's own addresses (`172.17.x.x`), which other machines cannot reach; open `http://<host-lan-ip>:2567` instead (`ipconfig` on Windows, `ip addr` on Linux, System Settings > Network on macOS).
+
 ### LAN check (M2)
 
 The M2 goal is that 4 browser tabs, and 2 machines on one LAN, join one room by code and see each other move smoothly. `tests/e2e/multiplayer.spec.ts` covers the tabs automatically (2 and 4 players in separate browser contexts); the machines need a person:
@@ -101,6 +106,36 @@ The M2 goal is that 4 browser tabs, and 2 machines on one LAN, join one room by 
 
 With `?debug=1` the overlay's readout and `window.__KEKE__.net()` in the browser console show the netcode state; `lastCorrection` near 0 means the server agrees with the local prediction.
 
+## Docker image
+
+The `Dockerfile` builds one production image in two stages: the first installs everything and runs `npm run build` (client to `packages/client/dist`, server bundle to `packages/server/dist`, maps copied to `packages/server/dist/maps`); the second holds only the server's production dependencies and those two build outputs, and runs as the unprivileged `node` user.
+
+```sh
+docker build -t keke .
+docker run -d --name keke --restart unless-stopped -p 2567:2567 keke
+```
+
+- `PORT` inside the container is 2567; change the published side instead (`-p 8080:2567`).
+- The image never sets `KEKE_DEBUG` or `KEKE_CONFIG`, so debug room messages are off: `curl http://localhost:2567/healthz` answers `{"ok":true,"debug":false}`. Do not pass `-e KEKE_DEBUG=1` to a server other people can reach.
+- Docker's own health check polls `/healthz`; `docker ps` shows `healthy` once the server is up.
+- Game state lives in memory only. Restarting the container ends every running room; there is nothing to back up.
+- Behind a proxy that intercepts TLS, give `npm ci` its CA certificate with `docker build --secret id=npm_ca,src=/path/to/ca.pem -t keke .`. The secret is only mounted while npm runs and is not stored in the image.
+
+`npm run docker:smoke` builds the image as `keke:smoke`, starts it on a free local port and checks that the page and its script load, `/healthz` reports debug off, a debug message is refused, two clients meet in one room by its code, and the Docker health check turns healthy. Add `-- --no-build` to test an image you already built (`KEKE_IMAGE` names it), and put extra `docker build` flags in `KEKE_DOCKER_BUILD_ARGS`. Run it after changing the Dockerfile, the build scripts or anything the server loads from disk at startup.
+
+## Hosting online (VPS)
+
+For games over the internet, run the image on any small Linux VPS (1 vCPU and 1 GB of RAM should do for a few rooms of 8; not load-tested yet) with Docker and [Caddy](https://caddyserver.com/docs/install) installed, and a domain name whose DNS record points at the server.
+
+1. Copy the repo to the server (`git clone`) and build the image: `docker build -t keke .`
+2. Start it with the port published on localhost only, so the game is reached through Caddy and HTTPS: `docker run -d --name keke --restart unless-stopped -p 127.0.0.1:2567:2567 keke`
+3. Check it: `curl http://127.0.0.1:2567/healthz` answers `{"ok":true,"debug":false}`.
+4. Copy `Caddyfile.example` to `/etc/caddy/Caddyfile`, put your domain in place of `game.example.com`, and run `sudo systemctl reload caddy`. Caddy fetches the HTTPS certificate itself and passes the WebSocket connections through.
+5. Open ports 80 and 443 in the VPS firewall (for example `sudo ufw allow 80,443/tcp`), and keep 2567 closed.
+6. Open `https://<your-domain>` and share the room code with your friends.
+
+To update: `git pull`, `docker build -t keke .`, then `docker rm -f keke` and the `docker run` line from step 2 again. This ends the rooms in progress, so do it between games. Run one container only: rooms live in that process's memory, so a second instance behind a load balancer would split players across servers that cannot see each other's rooms.
+
 ## Layout
 
 ```
@@ -110,6 +145,7 @@ packages/
   client/   Phaser 3 + Vite: scenes, net, input, render, i18n, public/assets
 maps/       Tiled maps (.tmj) and tilesets
 tools/      generators (placeholder art, SFX, item tables)
+scripts/    repo scripts (docker:smoke)
 tests/e2e/  Playwright specs
 tests/guards/ repo-wide Vitest checks (brand guard)
 ```

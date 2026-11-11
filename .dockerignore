@@ -1,0 +1,12 @@
+# Keep the build context small and free of host build output: the image builds everything itself.
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/.vite
+test-results
+playwright-report
+.git
+.env
+.env.*
+*.log
