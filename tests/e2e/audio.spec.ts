@@ -78,6 +78,11 @@ test('a solo round plays the countdown, the go, our swing and the round-end buzz
   test.setTimeout(60_000);
   const pageErrors: Error[] = [];
   page.on('pageerror', (err) => pageErrors.push(err));
+  // Every server message type is registered on the client (playtest 1 idea 12).
+  const unregistered: string[] = [];
+  page.on('console', (m) => {
+    if (m.text().includes('not registered for type')) unregistered.push(m.text());
+  });
   await toPlay(page, 'Kuulija', '?debug=1');
   await createRoom(page);
   await page.getByRole('button', { name: 'Ready', exact: true }).click();
@@ -102,4 +107,5 @@ test('a solo round plays the countdown, the go, our swing and the round-end buzz
   await expect(page.locator('body')).toHaveAttribute('data-phase', 'roundResults', { timeout: 10_000 });
   await expect.poll(async () => (await played(page))['roundEnd'] ?? 0).toBe(1);
   expect(pageErrors).toEqual([]);
+  expect(unregistered).toEqual([]);
 });

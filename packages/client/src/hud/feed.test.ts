@@ -1,6 +1,15 @@
-import { getItemCatalogue, getWeaponCatalogue } from '@keke/shared';
+import { ItemEventMessage, getItemCatalogue, getWeaponCatalogue } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
-import { combatFeedLine, feedLine, npcFeedLine, raceFeedLine, teamMoveLine, type FeedContext } from './feed';
+import { IGNORED_ITEM_MESSAGES } from '../net/session';
+import {
+  FEED_MESSAGES,
+  combatFeedLine,
+  feedLine,
+  npcFeedLine,
+  raceFeedLine,
+  teamMoveLine,
+  type FeedContext,
+} from './feed';
 
 const names: Record<string, string> = { a: 'Juuso', b: 'Mikko' };
 const ctx: FeedContext = { catalogue: getItemCatalogue('kespro'), nameOf: (id) => names[id] ?? id };
@@ -11,7 +20,7 @@ describe('feedLine', () => {
   it('announces a stolen target', () => {
     expect(
       feedLine('pickup', { player: 'a', item: voi, kind: 'other_target', targetOwner: 'b' }, ctx),
-    ).toEqual({
+    ).toMatchObject({
       kind: 'steal',
       text: 'Juuso stole Paulig Juhla Mokka 500 g from Mikko',
     });
@@ -20,7 +29,7 @@ describe('feedLine', () => {
   it('announces a joke item haul in capitals', () => {
     expect(
       feedLine('pickup', { player: 'b', item: mopo, kind: 'own_target', targetOwner: null }, ctx),
-    ).toEqual({
+    ).toMatchObject({
       kind: 'joke',
       text: 'Mikko is hauling a KURKKUMOPO',
     });
@@ -45,7 +54,7 @@ describe('feedLine', () => {
 
 describe('slip drops', () => {
   it('announces a slip and stays quiet for other drops', () => {
-    expect(feedLine('drop', { player: 'a', item: voi, reason: 'slip' }, ctx)).toEqual({
+    expect(feedLine('drop', { player: 'a', item: voi, reason: 'slip' }, ctx)).toMatchObject({
       kind: 'slip',
       text: 'Juuso slipped on a banana peel and dropped Paulig Juhla Mokka 500 g',
     });
@@ -53,7 +62,7 @@ describe('slip drops', () => {
   });
 
   it('announces a forklift run-over drop (M5-5)', () => {
-    expect(feedLine('drop', { player: 'b', item: voi, reason: 'forklift' }, ctx)).toEqual({
+    expect(feedLine('drop', { player: 'b', item: voi, reason: 'forklift' }, ctx)).toMatchObject({
       kind: 'runover',
       text: 'Mikko got run over by a forklift and dropped Paulig Juhla Mokka 500 g',
     });
@@ -75,7 +84,7 @@ describe('combatFeedLine', () => {
         { player: 'b', source: player('c'), weapon: 'frozen_salmon', respawnInSeconds: 3 },
         combatCtx,
       ),
-    ).toEqual({ kind: 'ko', text: 'c knocked out Mikko with Frozen salmon' });
+    ).toMatchObject({ kind: 'ko', text: 'c knocked out Mikko with Frozen salmon' });
     expect(
       combatFeedLine('ko', { player: 'a', source: player('b'), weapon: null, respawnInSeconds: 3 }, combatCtx)
         ?.text,
@@ -161,7 +170,7 @@ describe('store workers and Wanted in the feed (M5-7)', () => {
         { npc: 'stocker_1', source: player('a'), weapon: 'fists', respawnInSeconds: 30 },
         npcCtx,
       ),
-    ).toEqual({ kind: 'ko', text: 'You knocked out the stocker' });
+    ).toMatchObject({ kind: 'ko', text: 'You knocked out the stocker' });
     expect(
       npcFeedLine(
         'npcKo',
@@ -178,7 +187,7 @@ describe('store workers and Wanted in the feed (M5-7)', () => {
       refreshed,
       seconds: 20,
     });
-    expect(npcFeedLine('wanted', wanted('a', false), npcCtx)).toEqual({
+    expect(npcFeedLine('wanted', wanted('a', false), npcCtx)).toMatchObject({
       kind: 'wanted',
       text: 'You are WANTED! Security is after you',
     });
@@ -186,6 +195,41 @@ describe('store workers and Wanted in the feed (M5-7)', () => {
     expect(npcFeedLine('wanted', wanted('a', true), npcCtx)).toBeNull();
     expect(npcFeedLine('wantedEnded', { player: 'a' }, npcCtx)).toBeNull();
     expect(npcFeedLine('wanted', null, npcCtx)).toBeNull();
+  });
+
+  it('only announces other players turning Wanted near us (playtest 1 problem 8)', () => {
+    const wanted = (player: string) => ({ player, reason: 'npc_damage', refreshed: false, seconds: 20 });
+    const near = { ...npcCtx, near: (id: string) => id === 'b' };
+    expect(npcFeedLine('wanted', wanted('b'), near)?.text).toBe('Mikko is wanted');
+    expect(npcFeedLine('wanted', wanted('c'), near)).toBeNull();
+    // Our own Wanted line always shows, and is ours.
+    expect(npcFeedLine('wanted', wanted('a'), { ...npcCtx, near: () => false })).toMatchObject({
+      mine: true,
+    });
+  });
+});
+
+describe('feed lines about us (playtest 1 problem 8)', () => {
+  it('marks our own hits, KOs and deposits as ours, and other players’ as not', () => {
+    const weapons = getWeaponCatalogue();
+    const combat = { weapons, me: 'a', nameOf: (id: string) => id.toUpperCase() };
+    const ko = (player: string, by: string) => ({
+      player,
+      source: { kind: 'player', id: by },
+      weapon: 'fists',
+    });
+    expect(combatFeedLine('ko', ko('a', 'b'), combat)?.mine).toBe(true);
+    expect(combatFeedLine('ko', ko('b', 'a'), combat)?.mine).toBe(true);
+    expect(combatFeedLine('ko', ko('b', 'c'), combat)?.mine).toBe(false);
+    const item = { id: 3, itemId: 'coffee_juhla_mokka', rarity: 'normal', x: 0, y: 0 };
+    const deposit = (player: string) => ({ player, item, van: 0, points: 1, vanTotal: 1 });
+    expect(feedLine('deposit', deposit('a'), { ...ctx, me: 'a' })?.mine).toBe(true);
+    expect(feedLine('deposit', deposit('b'), { ...ctx, me: 'a' })?.mine).toBe(false);
+  });
+
+  it('registers every item event: the ones without a feed line are ignored on purpose (playtest 1 idea 12)', () => {
+    const handled = new Set<string>([...FEED_MESSAGES, ...IGNORED_ITEM_MESSAGES]);
+    expect(Object.values(ItemEventMessage).filter((type) => !handled.has(type))).toEqual([]);
   });
 });
 
@@ -202,7 +246,9 @@ describe('race feed lines (M6-3)', () => {
   };
 
   it('announces a box snatched from another van', () => {
-    expect(feedLine('pickup', { player: 'a', item: box, kind: 'box', targetOwner: null }, race)).toEqual({
+    expect(
+      feedLine('pickup', { player: 'a', item: box, kind: 'box', targetOwner: null }, race),
+    ).toMatchObject({
       kind: 'box',
       text: 'Juuso snatched Mikko’s order box!',
     });
@@ -210,7 +256,7 @@ describe('race feed lines (M6-3)', () => {
 
   it('tells us when our side’s box hits the floor, unless we put it down (playtest 1 problem 6)', () => {
     const ours: FeedContext = { ...race, me: 'b' };
-    expect(feedLine('drop', { player: 'a', item: box, reason: 'ko' }, ours)).toEqual({
+    expect(feedLine('drop', { player: 'a', item: box, reason: 'ko' }, ours)).toMatchObject({
       kind: 'box',
       text: 'Your order box hit the floor! Follow the red arrow.',
     });
@@ -235,7 +281,7 @@ describe('race feed lines (M6-3)', () => {
 
   it('announces packing, ours in its own words', () => {
     const packed = { player: 'b', van: 1, box, points: 7 };
-    expect(raceFeedLine('boxPacked', packed, rctx)).toEqual({
+    expect(raceFeedLine('boxPacked', packed, rctx)).toMatchObject({
       kind: 'packed',
       text: 'Mikko packed an order box (7 items)',
     });
@@ -246,7 +292,7 @@ describe('race feed lines (M6-3)', () => {
 
   it('announces deliveries, stolen ones with the victim', () => {
     const delivery = { player: 'b', van: 1, box, packedVan: 1, points: 6, stolen: false };
-    expect(raceFeedLine('delivery', delivery, rctx)).toEqual({
+    expect(raceFeedLine('delivery', delivery, rctx)).toMatchObject({
       kind: 'delivery',
       text: 'Mikko delivered the order box!',
     });
@@ -266,7 +312,10 @@ describe('race feed lines (M6-3)', () => {
 
 describe('team move line (M6 review F7)', () => {
   it('tells us when a rebalance moved us to the other team', () => {
-    expect(teamMoveLine(1, 2)).toEqual({ kind: 'team', text: 'Teams were rebalanced: you moved to Team 2' });
+    expect(teamMoveLine(1, 2)).toMatchObject({
+      kind: 'team',
+      text: 'Teams were rebalanced: you moved to Team 2',
+    });
     expect(teamMoveLine(2, 1)?.text).toBe('Teams were rebalanced: you moved to Team 1');
   });
 

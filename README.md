@@ -31,7 +31,7 @@ git rm --cached -r . && git reset --hard
 | `npm run build`        | Builds every workspace package that has a `build` script                   |
 | `npm start`            | Runs the built server on `PORT` (default 2567)                             |
 | `npm test`             | Vitest across all packages                                                 |
-| `npm run test:e2e`     | Playwright end-to-end tests against the production build                   |
+| `npm run test:e2e`     | Playwright end-to-end tests against the production build (Chromium)        |
 | `npm run e2e:install`  | Downloads Playwright's Chromium (once, before the first e2e run)           |
 | `npm run lint`         | ESLint + Prettier check                                                    |
 | `npm run format`       | Prettier write                                                             |
@@ -51,7 +51,7 @@ git rm --cached -r . && git reset --hard
 
 ## End-to-end tests
 
-Run `npm run e2e:install` once to download Playwright's Chromium. After that, `npm run test:e2e` builds everything, starts the built server on port 2568 (`E2E_PORT` to change it) and runs the specs in `tests/e2e/`. Locally it reuses a server that is already listening on that port; with `CI` set it always starts a fresh one. Specs wait on `<body data-connection="connected">` and `<body data-scene="game">`, and read game state through the `?debug=1` hook `window.__KEKE__`, instead of reading the canvas. On Linux, a fresh machine may also need the browser's system libraries: `npx playwright install-deps chromium`. Failure traces and the HTML report land in `test-results/` and `playwright-report/` (open it with `npx playwright show-report`).
+Run `npm run e2e:install` once to download Playwright's Chromium. After that, `npm run test:e2e` builds everything, starts the built server on port 2568 (`E2E_PORT` to change it) and runs the specs in `tests/e2e/`. Locally it reuses a server that is already listening on that port; with `CI` set it always starts a fresh one. Specs wait on `<body data-connection="connected">` and `<body data-scene="game">`, and read game state through the `?debug=1` hook `window.__KEKE__`, instead of reading the canvas. On Linux, a fresh machine may also need the browser's system libraries: `npx playwright install-deps chromium`. The gate runs Chromium only (Edge is Chromium too); `npm run test:e2e:firefox` runs the light specs (boot, menus, lobby, walking, audio) in Firefox after a one-time `npx playwright install firefox`. Plain `npx playwright test` runs every project, Firefox included. Failure traces and the HTML report land in `test-results/` and `playwright-report/` (open it with `npx playwright show-report`).
 
 ## Soak test
 
@@ -154,7 +154,7 @@ docker run -d --name keke --restart unless-stopped -p 2567:2567 keke
 
 ## Hosting online (VPS)
 
-For games over the internet, run the image on any small Linux VPS (1 vCPU and 1 GB of RAM should do for a few rooms of 8; not load-tested yet) with Docker and [Caddy](https://caddyserver.com/docs/install) installed, and a domain name whose DNS record points at the server.
+For games over the internet, run the image on any small Linux VPS (1 vCPU and 1 GB of RAM is plenty for a few rooms of 8: the M7-4 soak measured one 8-player room at 0.4 to 0.6 ms mean and at most 1.3 ms p95 server tick time of its 50 ms budget, a few percent of one core, with about 35 MB of heap after GC; rerun `npm run soak` to measure again after server changes) with Docker and [Caddy](https://caddyserver.com/docs/install) installed, and a domain name whose DNS record points at the server.
 
 1. Copy the repo to the server (`git clone`) and build the image: `docker build -t keke .`
 2. Start it with the port published on localhost only, so the game is reached through Caddy and HTTPS: `docker run -d --name keke --restart unless-stopped -p 127.0.0.1:2567:2567 keke`

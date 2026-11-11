@@ -449,6 +449,11 @@
   flex: none;
   border: 1px solid #000;
 }
+.keke-hud .hud-board td.team .swatch {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
 .keke-hud .hud-scores .name {
   flex: 1;
   overflow: hidden;
@@ -1322,4 +1327,8 @@ body[data-phase='podium'] .keke-minimap {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+/* Feed lines about us (playtest 1 problem 8): kept when the feed is full, and a little bolder. */
+.keke-hud .hud-feed li.mine {
+  font-weight: 600;
 }

@@ -46,6 +46,11 @@ export interface FeedLine {
    * the amounts add up and `render` writes the text for the total.
    */
   merge?: { key: string; amount: number; render(amount: number): string };
+  /**
+   * About us (we did it, it was done to us, or it is our side's box): when the feed is full, other
+   * players' lines make room first (playtest 1 problem 8).
+   */
+  mine?: boolean;
 }
 
 export interface FeedContext {
@@ -91,12 +96,18 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
       const packedVan = race && typeof id === 'number' ? race.boxVan(id) : undefined;
       if (!race || packedVan === undefined || packedVan < 0) return null;
       if (race.vanOf(pickup.player) === packedVan) return null;
-      return { kind: 'box', text: t('hud.feed.boxGrabStolen', { name, owner: race.vanName(packedVan) }) };
+      const mine = ctx.me !== undefined && (pickup.player === ctx.me || race.vanOf(ctx.me) === packedVan);
+      return {
+        kind: 'box',
+        text: t('hud.feed.boxGrabStolen', { name, owner: race.vanName(packedVan) }),
+        mine,
+      };
     }
     if (pickup.kind === 'other_target' && typeof pickup.targetOwner === 'string') {
       return {
         kind: 'steal',
         text: t('hud.feed.stole', { thief: name, item: item.name, victim: ctx.nameOf(pickup.targetOwner) }),
+        mine: ctx.me !== undefined && (pickup.player === ctx.me || pickup.targetOwner === ctx.me),
       };
     }
     if (item.joke) {
@@ -119,7 +130,11 @@ export function feedLine(type: string, message: unknown, ctx: FeedContext): Feed
   if (type === ItemEventMessage.deposit) {
     const deposit = message as unknown as DepositMessage;
     const points = typeof deposit.points === 'number' ? deposit.points : 0;
-    return { kind: 'deposit', text: t('hud.feed.deposit', { name, item: item.name, points }) };
+    return {
+      kind: 'deposit',
+      text: t('hud.feed.deposit', { name, item: item.name, points }),
+      mine: deposit.player === ctx.me,
+    };
   }
   return null;
 }
@@ -137,7 +152,7 @@ function ownBoxDropped(message: Bag, drop: DropMessage, ctx: FeedContext): FeedL
   if (packedVan === undefined || packedVan < 0 || packedVan !== race.vanOf(ctx.me)) return null;
   // Put down on purpose by our side (Q): not news.
   if (drop.reason === 'drop' && race.vanOf(drop.player) === packedVan) return null;
-  return { kind: 'box', text: t('hud.feed.boxDroppedOurs') };
+  return { kind: 'box', text: t('hud.feed.boxDroppedOurs'), mine: true };
 }
 
 /** Message types the feed listens to. */
@@ -178,8 +193,9 @@ export function combatFeedLine(type: string, message: unknown, ctx: CombatFeedCo
     if (typeof ko.player !== 'string' || !isBag(ko.source)) return null;
     const victim = ko.player === ctx.me ? t('hud.feed.you') : ctx.nameOf(ko.player);
     const by = sourceName(ko.source, ctx);
+    const mine = ko.player === ctx.me || (ko.source.kind === 'player' && ko.source.id === ctx.me);
     if (by === null || ko.source.id === ko.player)
-      return { kind: 'ko', text: t('hud.feed.koAlone', { victim }) };
+      return { kind: 'ko', text: t('hud.feed.koAlone', { victim }), mine };
     const weapon = typeof ko.weapon === 'string' ? weaponName(ko.weapon, ctx.weapons) : null;
     let text: string;
     if (ko.player === ctx.me) {
@@ -193,7 +209,7 @@ export function combatFeedLine(type: string, message: unknown, ctx: CombatFeedCo
           ? t('hud.feed.ko', { attacker: by, victim })
           : t('hud.feed.koWith', { attacker: by, victim, weapon });
     }
-    return { kind: 'ko', text };
+    return { kind: 'ko', text, mine };
   }
   if (type === CombatEventMessage.hit) {
     const hit = message as unknown as HitMessage;
@@ -215,6 +231,7 @@ export function combatFeedLine(type: string, message: unknown, ctx: CombatFeedCo
     return {
       kind: 'hit',
       text: render(damage),
+      mine: true,
       merge: {
         key: `hit:${hit.source.kind}:${hit.source.id}:${hit.target}:${hit.weapon ?? ''}`,
         amount: damage,
@@ -230,24 +247,30 @@ export const COMBAT_FEED_MESSAGES = [CombatEventMessage.hit, CombatEventMessage.
 
 /**
  * One feed line for a store worker or Wanted event (M5-7), or null. Announced: a worker we knocked out,
- * and anyone becoming Wanted (not a refresh of a running timer).
+ * and us or a player near us becoming Wanted (not a refresh of a running timer).
  */
 export function npcFeedLine(
   type: string,
   message: unknown,
-  ctx: CombatFeedContext & { npcName(npcId: string): string },
+  ctx: CombatFeedContext & {
+    npcName(npcId: string): string;
+    /** Whether another player is close to us; without it every Wanted line shows. */
+    near?(sessionId: string): boolean;
+  },
 ): FeedLine | null {
   if (!isBag(message)) return null;
   if (type === NpcEventMessage.npcKo) {
     const ko = message as unknown as NpcKoMessage;
     if (typeof ko.npc !== 'string' || !isBag(ko.source)) return null;
     if (ko.source.kind !== 'player' || ko.source.id !== ctx.me) return null;
-    return { kind: 'ko', text: t('hud.feed.youKoNpc', { npc: ctx.npcName(ko.npc) }) };
+    return { kind: 'ko', text: t('hud.feed.youKoNpc', { npc: ctx.npcName(ko.npc) }), mine: true };
   }
   if (type === NpcEventMessage.wanted) {
     const w = message as unknown as WantedMessage;
     if (typeof w.player !== 'string' || w.refreshed === true) return null;
-    if (w.player === ctx.me) return { kind: 'wanted', text: t('hud.feed.wantedYou') };
+    if (w.player === ctx.me) return { kind: 'wanted', text: t('hud.feed.wantedYou'), mine: true };
+    // Playtest 1 problem 8: 14 of 104 lines were "X is wanted"; only players near us are news.
+    if (ctx.near && !ctx.near(w.player)) return null;
     return { kind: 'wanted', text: t('hud.feed.wanted', { name: ctx.nameOf(w.player) }) };
   }
   return null;
@@ -270,7 +293,7 @@ export function raceFeedLine(type: string, message: unknown, ctx: RaceFeedContex
   if (!isBag(message) || typeof message['player'] !== 'string') return null;
   if (type === RaceEventMessage.boxPacked) {
     const packed = message as unknown as BoxPackedMessage;
-    if (packed.player === ctx.me) return { kind: 'packed', text: t('hud.feed.boxPackedYou') };
+    if (packed.player === ctx.me) return { kind: 'packed', text: t('hud.feed.boxPackedYou'), mine: true };
     const points = typeof packed.points === 'number' ? packed.points : 0;
     return { kind: 'packed', text: t('hud.feed.boxPacked', { name: ctx.nameOf(packed.player), points }) };
   }
@@ -281,9 +304,10 @@ export function raceFeedLine(type: string, message: unknown, ctx: RaceFeedContex
       return {
         kind: 'delivery',
         text: t('hud.feed.deliveryStolen', { name, owner: ctx.vanName(delivery.packedVan) }),
+        mine: true,
       };
     }
-    return { kind: 'delivery', text: t('hud.feed.delivery', { name }) };
+    return { kind: 'delivery', text: t('hud.feed.delivery', { name }), mine: true };
   }
   return null;
 }
@@ -298,5 +322,5 @@ export const RACE_FEED_MESSAGES = [RaceEventMessage.boxPacked, RaceEventMessage.
  */
 export function teamMoveLine(before: number | undefined, now: number): FeedLine | null {
   if (before === undefined || before <= 0 || now <= 0 || before === now) return null;
-  return { kind: 'team', text: t('hud.feed.teamMoved', { team: now }) };
+  return { kind: 'team', text: t('hud.feed.teamMoved', { team: now }), mine: true };
 }

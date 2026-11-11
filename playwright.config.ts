@@ -7,6 +7,8 @@ const port = Number(process.env['E2E_PORT'] ?? 2568);
 const baseURL = `http://localhost:${port}`;
 /** Specs that open 3 or more pages. */
 const HEAVY = /(multiplayer|teamRace)\.spec\.ts/;
+/** Light specs for the opt-in Firefox run (M7 review F10): boot, menus, lobby, walking, audio. */
+const FIREFOX = /(^|[\\/])(connect|menus|lobby|game|audio)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -28,6 +30,9 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: HEAVY },
     { name: 'heavy', use: { ...devices['Desktop Chrome'] }, testMatch: HEAVY, dependencies: ['chromium'] },
+    // Opt-in, not part of the gate: `npm run test:e2e:firefox` (after `npx playwright install firefox`).
+    // Edge is Chromium; Firefox has its own WebAudio and gamepad paths (§1 platforms).
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: FIREFOX },
   ],
   webServer: {
     command: 'npm run build && npm start',

@@ -360,6 +360,32 @@ describe('readHud in race mode (M6-3)', () => {
     ]);
   });
 
+  it('shows each team member’s own deposits, not the shared van total (playtest 1 problem 7)', () => {
+    const hud = readHud(
+      race(
+        [
+          player('a', 0, { van: 0, team: 1, deposited: 3 }),
+          player('c', 2, { van: 0, team: 1, deposited: 1 }),
+          player('b', 1, { van: 1, team: 2, deposited: 0 }),
+        ],
+        {},
+        {
+          '0': { van: 0, points: 4, team: 1, controlled: 4 },
+          '1': { van: 1, points: 0, team: 2, controlled: 0 },
+        },
+        true,
+      ),
+      'a',
+      raceCtx,
+    );
+    expect(hud.teamRows[0]).toEqual({ team: 1, points: 4, place: 1 });
+    expect(hud.rows.map((r) => [r.id, r.points, r.place])).toEqual([
+      ['a', 3, 1],
+      ['c', 1, 1],
+      ['b', 0, 2],
+    ]);
+  });
+
   it('has no race model in Timed', () => {
     expect(readHud(state([player('a', 0)]), 'a', raceCtx).race).toBeNull();
   });

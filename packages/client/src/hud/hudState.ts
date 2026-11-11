@@ -234,7 +234,9 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
       nickname: p.nickname,
       color: p.color,
       team: p.team,
-      points: pointsOf.get(p.id) ?? 0,
+      // Race + Teams (playtest 1 problem 7): the van total is the team row's; each member shows their own
+      // deposits instead of the same total four times.
+      points: race && teams ? Math.max(0, num(bag, 'deposited')) : (pointsOf.get(p.id) ?? 0),
       place: placeOf.get(p.id) ?? 0,
       isMe: p.isMe,
       connected: p.connected,

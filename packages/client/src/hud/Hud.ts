@@ -23,7 +23,7 @@
 //
 // Layout: target + carry top-left, timer top-centre, scores and feed top-right, HP and weapon
 // bottom-centre, KO overlay in the middle, minimap (M3-8) owns the bottom-right corner. The Game scene owns one Hud and feeds it from state patches and item events.
-import type { Vec2 } from '@keke/shared';
+import { teamColor, type Vec2 } from '@keke/shared';
 import { renderConfig } from '../game/renderConfig';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
@@ -53,6 +53,7 @@ interface FeedEntry {
   el: HTMLLIElement;
   expires: number;
   merge?: FeedLine['merge'];
+  mine: boolean;
 }
 
 /**
@@ -74,6 +75,13 @@ const ARROW_AVOID_SELECTOR = [
 
 /** Panels move only when their content changes; their boxes are read again this often. */
 const ARROW_AVOID_REFRESH_MS = 250;
+
+/** A small square in a team's colour. */
+function teamSwatch(team: number): HTMLElement {
+  const el = h('i', { class: 'swatch', 'aria-hidden': true });
+  el.style.setProperty('background', teamColor(team) ?? '#888');
+  return el;
+}
 
 /** Zone label for the target card; unknown zones show their id. */
 function zoneLabel(zone: string): string {
@@ -356,10 +364,23 @@ export class Hud {
         return;
       }
     }
+    // The same line twice in a row ("Aino is hauling a …" for a pickup, a drop and a pickup again) shows
+    // once, kept on screen a little longer (playtest 1 problem 8).
+    const last = this.feedEntries[this.feedEntries.length - 1];
+    if (last !== undefined && !line.merge && last.el.textContent === line.text) {
+      last.expires = expires;
+      return;
+    }
     const el = h('li', { class: `feed-${line.kind}`, 'data-kind': line.kind }, line.text);
+    if (line.mine) el.classList.add('mine');
     this.feed.append(el);
-    this.feedEntries.push({ el, expires, merge: line.merge });
-    while (this.feedEntries.length > renderConfig.hudFeedLines) this.feedEntries.shift()?.el.remove();
+    this.feedEntries.push({ el, expires, merge: line.merge, mine: line.mine === true });
+    // Full: the oldest line about someone else makes room first, so lines about us stay up.
+    while (this.feedEntries.length > renderConfig.hudFeedLines) {
+      const i = this.feedEntries.findIndex((e) => !e.mine);
+      const [gone] = this.feedEntries.splice(i >= 0 ? i : 0, 1);
+      gone?.el.remove();
+    }
   }
 
   /** Our Wanted status (§8, §13.2 "Wanted indicator"): seconds left, or null when not wanted. */
@@ -592,6 +613,7 @@ export class Hud {
           'data-place': team.place,
           'data-points': team.points,
         },
+        teamSwatch(team.team),
         h(
           'span',
           { class: 'name' },
@@ -600,11 +622,11 @@ export class Hud {
         h('span', { class: 'points' }, String(team.points)),
       ),
     );
-    for (const row of rows) items.push(this.scoreItem(row));
+    for (const row of rows) items.push(this.scoreItem(row, model.teams));
     this.scores.replaceChildren(...items);
   }
 
-  private scoreItem(row: HudPlayerRow): HTMLLIElement {
+  private scoreItem(row: HudPlayerRow, teams: boolean): HTMLLIElement {
     const li = h(
       'li',
       {
@@ -617,7 +639,10 @@ export class Hud {
       h('span', { class: 'name' }, t('hud.score.row', { place: row.place, name: row.nickname })),
       h('span', { class: 'points' }, String(row.points)),
     );
-    li.querySelector<HTMLElement>('.swatch')?.style.setProperty('background', row.color || '#888');
+    // With Teams on the swatch is the team's colour (playtest 1 problem 7), else the player's.
+    const swatch = (teams ? teamColor(row.team) : undefined) ?? (row.color || '#888');
+    li.querySelector<HTMLElement>('.swatch')?.style.setProperty('background', swatch);
+    if (teams && row.team > 0) li.dataset['team'] = String(row.team);
     if (!row.connected) li.classList.add('away');
     return li;
   }
@@ -646,7 +671,16 @@ export class Hud {
           h('td', { class: 'place' }, String(row.place)),
           h('td', { class: 'player' }, row.nickname),
         ];
-        if (model.teams) cells.push(h('td', { class: 'team' }, row.team > 0 ? String(row.team) : '–'));
+        if (model.teams) {
+          cells.push(
+            h(
+              'td',
+              { class: 'team' },
+              row.team > 0 ? teamSwatch(row.team) : '',
+              row.team > 0 ? String(row.team) : '–',
+            ),
+          );
+        }
         cells.push(h('td', { class: 'items' }, String(row.points)));
         if (model.hasSession) {
           cells.push(
