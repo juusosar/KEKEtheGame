@@ -23,6 +23,11 @@ export interface NpcLookInput {
   attackUntil: number;
   /** Until when the body flashes white (an `npcHit` with damage arrived), scene seconds. */
   flashUntil: number;
+  /**
+   * The round is in its playing phase. NPCs tick only then (M5 review F3): outside it forklifts stand
+   * parked, so their light is off. Default true.
+   */
+  playing?: boolean;
 }
 
 export interface NpcLook {
@@ -45,13 +50,13 @@ export function npcLook(input: NpcLookInput, sheetHasAnims: (key: string) => boo
   const { npc, sheet, facing, now } = input;
   const flash = npc.alive && now < input.flashUntil;
   if (npc.behaviour === 'forklift') {
-    // 64 × 32 sheet with drive_<dir> only (§11.1). The light runs whenever the forklift is out.
+    // 64 × 32 sheet with drive_<dir> only (§11.1). The light runs whenever the forklift is out in play.
     return {
       anim: `${sheet}/drive_${facing}`,
       alpha: 1,
       flash: false,
       hostile: false,
-      light: npc.alive,
+      light: npc.alive && input.playing !== false,
       hpFill: null,
     };
   }
@@ -84,10 +89,12 @@ export function npcMelee(def: NpcDef | undefined): Pick<MeleeStats, 'rangePx' | 
 
 /**
  * Whether a forklift's reversing beep runs (M5-5 modes): while it drives ('drive') and while it waits
- * for a stock cart ('blocked'), not during the corner stop. Other modes fall back to `moving`.
+ * for a stock cart ('blocked'), not during the corner stop. Other modes fall back to `moving`. Never
+ * outside the playing phase (M5 review F3): NPCs do not tick then, so the mode stays 'drive' through
+ * the countdown and freezes through the results and podium.
  */
-export function forkliftBeeping(npc: Pick<NpcView, 'mode' | 'moving' | 'alive'>): boolean {
-  if (!npc.alive) return false;
+export function forkliftBeeping(npc: Pick<NpcView, 'mode' | 'moving' | 'alive'>, playing: boolean): boolean {
+  if (!npc.alive || !playing) return false;
   if (npc.mode === 'drive' || npc.mode === 'blocked') return true;
   if (npc.mode === 'corner' || npc.mode === 'idle') return false;
   return npc.moving;

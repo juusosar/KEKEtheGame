@@ -73,6 +73,9 @@ const TIMER_REFRESH_MS = 250;
 /** Codes of the rooms alive in this process. One process serves every room in v1 (§16). */
 const codesInUse = new Set<string>();
 
+/** Least gap between two `wanted` refresh messages to one player, seconds (M5 review F8). */
+const WANTED_REFRESH_MIN_GAP_SECONDS = 1;
+
 /** Seeds for room RNGs. The server may read the clock; shared rules get the RNG passed in. */
 function randomSeed(): number {
   return Math.floor(Math.random() * 0x100000000);
@@ -100,6 +103,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private npcs!: NpcSystem;
   /** Wanted status per player this round (§8; M5-2 rules, wired in M5-3). */
   private wanted: WantedWorld = createWantedWorld();
+  /** Round seconds of the last `wanted` refresh sent to each player (rate limit, M5 review F8). */
+  private readonly wantedRefreshSentAt = new Map<string, number>();
   /** Landed combat events and NPC damage of the current tick, fed to the wanted rules at its end. */
   private tickCombatEvents: CombatEvent[] = [];
   private tickNpcHits: WantedHit[] = [];
@@ -690,6 +695,15 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.wanted = result.world;
     for (const event of events) {
       const wire = wantedEventToWire(event, now);
+      if (event.type === 'wanted' && event.refreshed) {
+        // A refresh only restarts the timer: other clients have the synced flag, and a spray lands a few
+        // times a second. Only the Wanted player hears it, at most once a second (M5 review F8).
+        const last = this.wantedRefreshSentAt.get(event.player) ?? -Infinity;
+        if (now - last < WANTED_REFRESH_MIN_GAP_SECONDS) continue;
+        this.wantedRefreshSentAt.set(event.player, now);
+        this.clients.find((c) => c.sessionId === event.player)?.send(wire.type, wire.payload);
+        continue;
+      }
       this.broadcast(wire.type, wire.payload);
     }
     for (const p of round) {
@@ -703,6 +717,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   /** A new round or the lobby: nobody is Wanted. */
   private resetWanted(): void {
     this.wanted = createWantedWorld();
+    this.wantedRefreshSentAt.clear();
     this.tickCombatEvents = [];
     this.tickNpcHits = [];
     this.state.players.forEach((p) => {

@@ -763,7 +763,7 @@ export class GameScene extends Phaser.Scene {
     const listener = this.local.body.visible
       ? { x: this.local.body.x, y: this.local.body.y }
       : this.cameras.main.midPoint;
-    return npcs.draw(now, performance.now(), (_id, at) => {
+    return npcs.draw(now, performance.now(), this.view?.phase === 'playing', (_id, at) => {
       this.sfx?.play('forkliftBeep', hearingVolume(at, listener, renderConfig.forkliftBeepHearingPx));
     });
   }
