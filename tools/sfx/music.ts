@@ -37,9 +37,33 @@ export const STORE_TUNE: MusicSpec = {
   ],
 };
 
+const D = [50, 54, 57];
+const BM = [47, 50, 54];
+const GD = [43, 47, 50];
+const A = [45, 49, 52];
+
+/** The second store's tune: a bit quicker, in D major, D - Bm - G - A then D - G - A - D. Original placeholder. */
+export const PRISMA_TUNE: MusicSpec = {
+  bpm: 136,
+  chords: [D, BM, GD, A, D, GD, A, D],
+  // One bar per line.
+  // prettier-ignore
+  melody: [
+    [74, 2], [78, 2], [81, 4], [78, 2], [76, 2], [74, 4],
+    [71, 4], [74, 2], [78, 2], [76, 4], [null, 4],
+    [79, 2], [78, 2], [76, 2], [74, 2], [71, 4], [74, 4],
+    [76, 6], [73, 2], [69, 4], [null, 4],
+    [81, 2], [81, 2], [78, 2], [86, 6], [85, 2], [83, 2],
+    [83, 4], [79, 4], [74, 2], [76, 2], [79, 4],
+    [81, 4], [79, 2], [78, 2], [76, 2], [73, 2], [76, 4],
+    [74, 6], [78, 2], [74, 4], [null, 4],
+  ],
+};
+
 /** Music per theme id (§14: the theme file names the track; phase 2 adds the second map's tune). */
 export const MUSIC: Record<string, MusicSpec> = {
   kespro: STORE_TUNE,
+  prisma: PRISMA_TUNE,
 };
 
 export function midiHz(m: number): number {

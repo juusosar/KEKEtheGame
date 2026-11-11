@@ -81,19 +81,26 @@ export class SoakBot {
   private lastButtons = 0;
   private readonly half;
   private readonly step: number;
-  private readonly office: Vec2;
+  private office: Vec2;
 
   constructor(
     readonly conn: SoakConn,
     readonly persona: Persona,
-    private readonly map: MapModel,
+    private map: MapModel,
     private readonly config: GameConfig,
     private readonly random: () => number,
   ) {
     this.half = playerHalfSize(config);
     this.step = 1 / config.inputHz;
-    const b = map.officeTrigger.bounds;
-    this.office = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
+    this.office = officeCentre(map);
+  }
+
+  /** The map the next session plays on (Phase 2: the soak plays sessions on both maps). */
+  useMap(map: MapModel): void {
+    this.map = map;
+    this.office = officeCentre(map);
+    this.path = [];
+    this.goal = undefined;
   }
 
   get state(): GameState {
@@ -293,4 +300,9 @@ export class SoakBot {
 
 function dist(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function officeCentre(map: MapModel): Vec2 {
+  const b = map.officeTrigger.bounds;
+  return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 };
 }

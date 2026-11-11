@@ -3,6 +3,8 @@ import type { Room as ClientRoom } from '@colyseus/sdk';
 import {
   ClientMessage,
   ServerMessage,
+  defaultThemeId,
+  getTheme,
   isRoomCode,
   loadConfig,
   type GameRoomMetadata,
@@ -10,6 +12,7 @@ import {
 } from '@keke/shared';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createGameServer } from './app';
+import { loadMapRegistry } from './maps';
 import type { GameRoom } from './rooms/GameRoom';
 import type { GameState } from './schema/GameState';
 
@@ -33,7 +36,8 @@ describe('GameRoom (integration)', () => {
   beforeAll(async () => {
     // Own port: hello.test.ts uses the default test port 2568 and test files run in parallel.
     // boot() ignores its port argument for a Server instance, so listen here instead.
-    const server = createGameServer({ config });
+    // Only the first map, so the map_unavailable refusal has a map this server lacks.
+    const server = createGameServer({ config, maps: loadMapRegistry([getTheme(defaultThemeId)]) });
     await server.listen(2571);
     colyseus = new ColyseusTestServer(server);
   });

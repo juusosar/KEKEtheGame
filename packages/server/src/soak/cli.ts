@@ -1,16 +1,17 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import type { GameMode } from '@keke/shared';
+import { themes, type GameMode, type ThemeId } from '@keke/shared';
 import { DEFAULT_CLIENT_DIST } from '../app';
 import { startBrowserPlayers, type BrowserPlayers } from './browsers';
-import { DEFAULT_SESSIONS, judge, runSoak, type SessionPlan } from './runSoak';
+import { DEFAULT_SESSIONS, judge, planName, runSoak, type SessionPlan } from './runSoak';
 
 // M7-4: `npm run soak` runs the 8-player soak and prints a summary; the full report goes to
 // test-results/soak/report.json. Exit code 1 when the soak failed. Options:
 //   --players 8          players in the room (the first bot hosts)
 //   --browsers 0         how many of them are real clients in headless Chromium (needs npm run build)
-//   --sessions timed,race,timed+teams,race+teams   sessions played back to back, 3 rounds each
+//   --sessions timed,race,timed+teams,race+teams,timed@prisma,race@prisma   sessions played back to back,
+//                        3 rounds each; `@<map>` plays it on that map (default: the first map)
 //   --rounds 3           rounds per session (1 to maxRoundsPerMap)
 //   --timed 45 --race 75 round lengths in seconds (the game's real ones are 180 and 240)
 //   --port 2597 --seed 7 --out <file>
@@ -32,9 +33,16 @@ const { values } = parseArgs({
 const rounds = Number(values.rounds);
 const sessions: SessionPlan[] = values.sessions
   ? values.sessions.split(',').map((s) => {
-      const [mode, flag] = s.trim().split('+');
+      const [plan = '', map] = s.trim().split('@');
+      const [mode, flag] = plan.split('+');
       if (mode !== 'timed' && mode !== 'race') throw new Error(`unknown session "${s}"`);
-      return { mode: mode as GameMode, teams: flag === 'teams', rounds };
+      if (map !== undefined && !Object.hasOwn(themes, map)) throw new Error(`unknown map in session "${s}"`);
+      return {
+        mode: mode as GameMode,
+        teams: flag === 'teams',
+        rounds,
+        ...(map ? { map: map as ThemeId } : {}),
+      };
     })
   : DEFAULT_SESSIONS.map((s) => ({ ...s, rounds }));
 
@@ -83,7 +91,7 @@ writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);
 
 console.log('');
 for (const [i, s] of report.sessions.entries()) {
-  console.log(`session ${i + 1} ${s.plan.mode}${s.plan.teams ? '+teams' : ''}: ${s.seconds} s`);
+  console.log(`session ${i + 1} ${planName(s.plan)}: ${s.seconds} s`);
   for (const r of s.rounds) {
     console.log(
       `  round ${r.round}: ${r.playingSeconds} s playing, ${r.deposited} pts deposited` +

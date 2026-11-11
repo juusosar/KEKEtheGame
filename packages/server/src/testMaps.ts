@@ -42,13 +42,3 @@ export function fixtureEntry(): MapEntry {
 export function twoMapRegistry(): MapRegistry {
   return new MapRegistry([loadMapRegistry([getTheme(defaultThemeId)]).get(defaultThemeId), fixtureEntry()]);
 }
-
-/**
- * `registry` plus the fixture map when it has no 'prisma' map yet (P1-5): the e2e server
- * (`KEKE_TEST_MAPS=1`, debug only) uses it so browser specs can pick a second map before the real one
- * is switched on. Once the real map loads, this returns the registry unchanged.
- */
-export function withFixtureMap(registry: MapRegistry): MapRegistry {
-  if (registry.has(fixtureTheme.id)) return registry;
-  return new MapRegistry([...registry.ids.map((id) => registry.get(id)), fixtureEntry()]);
-}

@@ -4,14 +4,13 @@ import {
   MapFileError,
   MapItemError,
   MapNpcError,
-  MAP_DIRS,
   MapRegistry,
   createMapEntry,
   loadMapRegistry,
   loadThemeMap,
   singleMapRegistry,
 } from './maps';
-import { FIXTURE_VAN_SLOTS, fixtureEntry, fixtureMap, twoMapRegistry, withFixtureMap } from './testMaps';
+import { FIXTURE_VAN_SLOTS, fixtureEntry, fixtureMap, twoMapRegistry } from './testMaps';
 
 describe('loadThemeMap', () => {
   it('loads the default theme map from the repo maps/ folder', () => {
@@ -62,9 +61,9 @@ describe('map registry (P1-1)', () => {
     expect(entry.map.vanSlots).toHaveLength(FIXTURE_VAN_SLOTS);
   });
 
-  it('loads the real second store map once its theme is switched on (P1-4; P1-6 flips available)', () => {
-    const prisma = { ...getTheme('prisma'), available: true };
-    const registry = loadMapRegistry([getTheme(defaultThemeId), prisma], MAP_DIRS.slice());
+  it('loads the real second store map by default (P1-6 switched its theme on)', () => {
+    const registry = loadMapRegistry();
+    expect(registry.ids).toEqual([defaultThemeId, 'prisma']);
     const entry = registry.get('prisma');
     expect(entry.npcRoster).toEqual(['stocker', 'security', 'forklift', 'butcher']);
     expect(entry.npcs.require('butcher')).toMatchObject({ homeZone: 'deli' });
@@ -81,19 +80,5 @@ describe('map registry (P1-1)', () => {
     const entry = fixtureEntry();
     expect(() => new MapRegistry([entry, entry])).toThrow(/twice/);
     expect(() => new MapRegistry([])).toThrow(/no maps/);
-  });
-});
-
-describe('withFixtureMap (P1-5, e2e server)', () => {
-  it('adds the fixture map as the second map when it is not loaded', () => {
-    const single = loadMapRegistry([getTheme(defaultThemeId)]);
-    const both = withFixtureMap(single);
-    expect(both.ids).toEqual([defaultThemeId, 'prisma']);
-    expect(both.get(defaultThemeId)).toBe(single.get(defaultThemeId));
-  });
-
-  it('leaves a registry that already has the map unchanged', () => {
-    const two = twoMapRegistry();
-    expect(withFixtureMap(two)).toBe(two);
   });
 });
