@@ -57,6 +57,18 @@ test('walks out through a self-checkout gate, is stopped, and cannot walk back i
   await expect.poll(async () => (await game(host)).net?.gateStop ?? 0, { timeout: 5_000 }).toBeGreaterThan(0);
   const stoppedAt = (await game(host)).player;
   expect(stoppedAt.y).toBeGreaterThanOrEqual(lineY);
+  // The till beeps, a bubble shows over us, and the server's stop event names this gate.
+  const gateFx = () =>
+    host.evaluate(() => {
+      const keke = (globalThis as WithHook).__KEKE__;
+      return { gate: keke?.gateFx(), beeps: keke?.sfx()['gateBeep'] ?? 0 };
+    });
+  await expect.poll(async () => (await gateFx()).gate?.stops.length ?? 0).toBeGreaterThan(0);
+  const fx = await gateFx();
+  expect(fx.gate?.stops.at(-1)).toMatchObject({ gate: lane.index, carrying: false });
+  expect(fx.gate?.bubbles).toContain('Beep! Please wait…');
+  expect(fx.gate?.looks.some((l) => l.index === lane.index)).toBe(true);
+  expect(fx.beeps).toBeGreaterThan(0);
   await expect.poll(async () => (await game(host)).player.y, { timeout: 5_000 }).toBeGreaterThan(lineY + 40);
   await host.keyboard.up('KeyS');
   await expectSettled(host);

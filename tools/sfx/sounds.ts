@@ -128,6 +128,11 @@ export const SOUNDS: Record<SfxName, readonly Layer[]> = {
   ],
   // An offence restarted our Wanted timer: one blip.
   wantedRefresh: [{ wave: 'square', seconds: 0.08, freq: 990, gain: 0.25 }],
+  // Self-checkout gate (P2-1): the till's two-tone "please wait" beep.
+  gateBeep: [
+    { wave: 'square', seconds: 0.09, freq: 1568, gain: 0.22, duty: 0.25, release: 0.01 },
+    { wave: 'square', at: 0.12, seconds: 0.14, freq: 1175, gain: 0.22, duty: 0.25, release: 0.03 },
+  ],
   // Race: our order box is packed, a rising triad.
   boxPacked: [
     { wave: 'triangle', seconds: 0.3, freq: 523, steps: [523, 659, 784], gain: 0.4, release: 0.04 },

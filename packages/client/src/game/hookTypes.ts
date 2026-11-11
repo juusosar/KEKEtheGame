@@ -259,6 +259,15 @@ export interface KekeHook {
   zoneAt(x: number, y: number): string | null;
   /** The map's one-way gates (P2-1); empty on a map without any. */
   gates(): KekeGateSnapshot[];
+  /**
+   * Gate effects (P2-1): the last 20 `gateStop` broadcasts received, each drawn checkout gate's look
+   * (open while someone walks through, closed otherwise) and the bubble texts shown now.
+   */
+  gateFx(): {
+    stops: { player: string; gate: number; carrying: boolean; seconds: number }[];
+    looks: { index: number; look: 'open' | 'closed' }[];
+    bubbles: string[];
+  };
   /** Room and prediction state; null offline. */
   net(): KekeNetSnapshot | null;
   /** Other players on the map, in join order; empty offline. */

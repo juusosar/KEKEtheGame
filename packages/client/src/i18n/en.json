@@ -85,6 +85,8 @@
   "game.spectating": "Spectating {name}",
   "game.spectatingNobody": "Waiting for the next round…",
   "game.spectateHint": "Click or press A for the next player. You join at the next round.",
+  "gate.unexpected": "Unexpected item in bagging area!",
+  "gate.wait": "Beep! Please wait…",
   "hud.label": "Game HUD",
   "hud.target": "Your target",
   "hud.carry": "Carrying",

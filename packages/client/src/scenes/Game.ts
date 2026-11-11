@@ -24,6 +24,7 @@ import {
   type MapTheme,
   type Vec2,
   GateEventMessage,
+  type GateStopMessage,
   gateStopped,
 } from '@keke/shared';
 import Phaser from 'phaser';
@@ -84,6 +85,7 @@ import { RoundScreen } from '../hud/RoundScreen';
 import { GameMenu } from '../ui/gameMenu';
 import { readRoundScreen } from '../hud/roundScreens';
 import { t, type MessageKey } from '../i18n';
+import { GateLayer, type GateBody } from '../game/gates';
 import { InputManager, STANDARD, coneAimAssist, inputConfig } from '../input';
 import {
   DEFAULT_COMBAT,
@@ -147,6 +149,8 @@ export class GameScene extends Phaser.Scene {
   private profileColor = '';
   /** Items and vans (M3-6). */
   private world!: WorldRenderer;
+  /** Self-checkout gate sprites and stop bubbles (P2-1); none on a map without checkout gates. */
+  private gateLayer: GateLayer | undefined;
 
   // Online only.
   private room: Room | null = null;
@@ -301,6 +305,7 @@ export class GameScene extends Phaser.Scene {
     this.updateMinimap(dt);
     this.ambient?.update(this.listenerPosition());
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
+    this.gateLayer?.update(this.gateBodies(), time / 1000);
     if (this.hud) this.updateHud(this.hud);
     if (this.debug) this.updateDebug();
   }
@@ -404,6 +409,13 @@ export class GameScene extends Phaser.Scene {
         orderBox: themeAtlasKey(this.manifest, this.theme.id, 'order_box'),
       },
     );
+    this.gateLayer = new GateLayer(this, this.model.gates, {
+      atlas: themeAtlasKey(this.manifest, this.theme.id, 'gate'),
+      tileSize: this.model.tileSize,
+      halfSize: playerHalfSize(this.config).hw,
+      depth: DEPTH.decor + 0.4,
+      bubbleDepth: DEPTH.label + 0.5,
+    });
     // Offline walk: our van in slot 1, where we start. In a room the state says which vans exist.
     if (this.room === null) this.world.showOfflineVan(offlineColor);
   }
@@ -917,9 +929,42 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Gate broadcasts (P2-1): registered so the SDK does not warn; the effects come with the gate sprites. */
+  /**
+   * Gate stops (P2-1): the till beep (ours at full volume, others fading with distance) and a bubble over
+   * the stopped player, "unexpected item in bagging area" for a carrier.
+   */
   private createGates(room: Room): void {
-    this.unsubscribe.push(room.onMessage(GateEventMessage.gateStop, () => undefined));
+    this.unsubscribe.push(
+      room.onMessage(GateEventMessage.gateStop, (message: GateStopMessage) => {
+        const at = this.drawnPosition(message.player);
+        const mine = message.player === room.sessionId;
+        const listener = this.local.body.visible
+          ? { x: this.local.body.x, y: this.local.body.y }
+          : this.cameras.main.midPoint;
+        this.sfx?.play('gateBeep', mine || !at ? 1 : hearingVolume(at, listener, renderConfig.sfxHearingPx));
+        if (!at) return;
+        const text = t(message.carrying ? 'gate.unexpected' : 'gate.wait');
+        this.gateLayer?.stopped(message, at, text, this.time.now / 1000);
+      }),
+    );
+  }
+
+  /** Bodies the gate sprites react to: us (predicted) and everyone drawn, with their stop state. */
+  private gateBodies(): GateBody[] {
+    const out: GateBody[] = [];
+    if (this.local.body.visible) {
+      out.push({
+        x: this.local.body.x,
+        y: this.local.body.y,
+        stopped: gateStopped(this.predictor.state.gate),
+      });
+    }
+    for (const p of this.view?.players ?? []) {
+      if (p.isMe) continue;
+      const at = this.drawnPosition(p.id);
+      if (at) out.push({ ...at, stopped: gateStopped(p.gate) });
+    }
+    return out;
   }
 
   // --- HUD (§13.2) -----------------------------------------------------------------------------------
@@ -1133,6 +1178,8 @@ export class GameScene extends Phaser.Scene {
     for (const remote of this.remotes.values()) remote.avatar.destroy();
     this.remotes.clear();
     this.world.destroy();
+    this.gateLayer?.destroy();
+    this.gateLayer = undefined;
     this.hideSpectateBanner();
     this.minimap?.destroy();
     this.minimap = undefined;
@@ -1374,6 +1421,7 @@ export class GameScene extends Phaser.Scene {
       },
       zoneAt: (x, y) => model.zoneAt(x, y)?.id ?? null,
       gates: () => model.gates.map((g) => ({ ...g })),
+      gateFx: () => this.gateLayer?.snapshot() ?? { stops: [], looks: [], bubbles: [] },
       net: () => this.netSnapshot(),
       remotePlayers: () => this.remoteSnapshots(),
       minimap: () => (this.minimap?.markers ?? []).map((m) => ({ ...m })),
