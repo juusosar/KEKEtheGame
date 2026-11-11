@@ -212,6 +212,61 @@ describe('readHud in race mode (M6-3)', () => {
     '5': { id: 5, itemId: 'order_box', state: 'carried', x: 0, y: 0, carrier, packedVan, points: 6 },
   });
 
+  describe('our lost order box (playtest 1 problem 6)', () => {
+    const vans = { '0': { van: 0, points: 0, team: 0, controlled: 6 }, '1': { van: 1, points: 2, team: 0 } };
+    const loose: P = {
+      '5': {
+        id: 5,
+        itemId: 'order_box',
+        state: 'loose',
+        x: 900,
+        y: 700,
+        carrier: '',
+        packedVan: 0,
+        points: 6,
+      },
+    };
+
+    it('points the card and arrow at our box lying on the floor', () => {
+      const hud = readHud(race([player('a', 0, { van: 0, target: 0 })], loose, vans), 'a', raceCtx);
+      expect(hud.lostBox).toMatchObject({ how: 'loose', by: '', item: { id: 5, x: 900, y: 700 } });
+      expect(hud.arrow).toEqual({ kind: 'box', at: { x: 900, y: 700 } });
+    });
+
+    it('points at the rival who carries our box', () => {
+      const players = [player('a', 0, { van: 0 }), player('b', 1, { van: 1, x: 333, y: 444, carrying: 5 })];
+      const hud = readHud(race(players, box('b', 0), vans), 'a', raceCtx);
+      expect(hud.lostBox).toMatchObject({ how: 'taken', by: 'B', item: { x: 333, y: 444 } });
+      expect(hud.arrow?.kind).toBe('box');
+    });
+
+    it('is not lost while our side holds it, nor for a box another van packed', () => {
+      const mine = readHud(race([player('a', 0, { van: 0, carrying: 5 })], box('a', 0), vans), 'a', raceCtx);
+      expect(mine.lostBox).toBeNull();
+      expect(mine.arrow?.kind).toBe('office');
+      const theirs = readHud(
+        race(
+          [player('a', 0, { van: 0 }), player('b', 1, { van: 1 })],
+          { '5': { ...(loose['5'] as P), packedVan: 1 } },
+          vans,
+        ),
+        'a',
+        raceCtx,
+      );
+      expect(theirs.lostBox).toBeNull();
+    });
+
+    it('waits until our hands are empty', () => {
+      const items = {
+        ...loose,
+        '7': { id: 7, itemId: 'coffee_juhla_mokka', state: 'carried', carrier: 'a' },
+      };
+      const hud = readHud(race([player('a', 0, { van: 0, carrying: 7 })], items, vans), 'a', raceCtx);
+      expect(hud.lostBox).toBeNull();
+      expect(hud.arrow?.kind).toBe('van');
+    });
+  });
+
   it('shows our van’s quota progress', () => {
     const hud = readHud(
       race([player('a', 0, { van: 0 })], {}, { '0': { van: 0, points: 4, team: 0, controlled: 4 } }),
