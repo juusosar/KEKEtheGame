@@ -4,14 +4,13 @@ import { Client } from '@colyseus/sdk';
 import {
   ClientMessage,
   defaultThemeId,
-  getTheme,
   loadConfig,
   type GameConfig,
   type GameMode,
   type MapModel,
 } from '@keke/shared';
 import { createGameServer } from '../app';
-import { loadThemeMap } from '../maps';
+import { loadMapRegistry } from '../maps';
 import type { GameRoom } from '../rooms/GameRoom';
 import type { GameState } from '../schema/GameState';
 import { PERSONAS, SoakBot, mulberry32, type BotStats, type SoakConn } from './bot';
@@ -215,7 +214,8 @@ class RoomProbe {
 export async function runSoak(options: SoakOptions): Promise<SoakReport> {
   const log = options.log ?? (() => {});
   const config = loadConfig({ ...loadConfig(), ...SOAK_CONFIG, ...options.config });
-  const map: MapModel = loadThemeMap(getTheme(defaultThemeId));
+  const maps = loadMapRegistry();
+  const map: MapModel = maps.get(defaultThemeId).map;
   const random = mulberry32(options.seed ?? 7);
   const errors: string[] = [];
   const desyncs: string[] = [];
@@ -228,7 +228,7 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
   const memoryStart = memory();
   const server: Server = createGameServer({
     config,
-    map,
+    maps,
     ...(options.clientDist ? { clientDist: options.clientDist } : {}),
   });
   await server.listen(options.port);

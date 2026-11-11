@@ -26,7 +26,7 @@ describe('readLobby', () => {
       expect(view.synced).toBe(false);
       expect(view.phase).toBe('lobby');
       expect(view.players).toEqual([]);
-      expect(view.settings).toEqual({ mode: 'timed', roundsPerMap: 1, teams: false });
+      expect(view.settings).toEqual({ mode: 'timed', roundsPerMap: 1, teams: false, maps: 'kespro' });
       expect(view.isHost).toBe(false);
       expect(view.everyoneReady).toBe(false);
     }
@@ -38,7 +38,7 @@ describe('readLobby', () => {
         code: 'KXBD',
         phase: 'lobby',
         hostId: 'a',
-        settings: { mode: 'race', roundsPerMap: 3, teams: true },
+        settings: { mode: 'race', roundsPerMap: 3, teams: true, maps: 'both' },
         players: schemaMap({ b: player('b', 2, { team: 2 }), a: player('a', 1, { ready: true, team: 1 }) }),
       },
       'b',
@@ -49,7 +49,7 @@ describe('readLobby', () => {
     expect(view.me).toMatchObject({ id: 'b', isMe: true, isHost: false, team: 2 });
     expect(view.isHost).toBe(false);
     expect(view.synced).toBe(true);
-    expect(view.settings).toEqual({ mode: 'race', roundsPerMap: 3, teams: true });
+    expect(view.settings).toEqual({ mode: 'race', roundsPerMap: 3, teams: true, maps: 'both' });
   });
 
   it('applies the server Start rule: every non-spectator ready', () => {
@@ -70,6 +70,7 @@ describe('readLobby', () => {
     const view = readLobby({ phase: 'warmup', settings: { mode: 'deathmatch' } }, 'me');
     expect(view.phase).toBe('lobby');
     expect(view.settings.mode).toBe('timed');
+    expect(view.settings.maps).toBe('kespro');
   });
 
   it('reports a running round', () => {
@@ -82,6 +83,7 @@ describe('lobbyErrorKey', () => {
     expect(lobbyErrorKey('not_ready')).toBe('lobby.error.not_ready');
     expect(lobbyErrorKey('teams_off')).toBe('lobby.error.teams_off');
     expect(lobbyErrorKey('debug_off')).toBe('lobby.error.debug_off');
+    expect(lobbyErrorKey('map_unavailable')).toBe('lobby.error.map_unavailable');
     expect(lobbyErrorKey('something_new')).toBe('lobby.error.unknown');
     expect(lobbyErrorKey(undefined)).toBe('lobby.error.unknown');
   });

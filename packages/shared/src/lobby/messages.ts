@@ -88,6 +88,8 @@ export const LOBBY_ERROR_CODES = [
   'teams_off',
   /** A debug-only message (`DebugMessage`) on a server without KEKE_DEBUG=1. */
   'debug_off',
+  /** A `maps` setting naming a map this server has not loaded (theme not available yet). */
+  'map_unavailable',
 ] as const;
 export type LobbyErrorCode = (typeof LOBBY_ERROR_CODES)[number];
 
@@ -112,4 +114,8 @@ export interface GameRoomMetadata {
   hostName: string;
   mode: string;
   phase: string;
+  /** The `maps` setting (MapChoice). */
+  maps: string;
+  /** Theme id of the current (or, in the lobby, first) map: `GameState.mapId`. */
+  map: string;
 }

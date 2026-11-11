@@ -93,8 +93,22 @@ describe('GameRoom (integration)', () => {
       hostName: 'Juuso',
       mode: 'timed',
       phase: 'lobby',
+      maps: 'kespro',
+      map: 'kespro',
     });
+    expect(room.state.mapId).toBe('kespro');
     expect(room.maxClients).toBe(3);
+  });
+
+  it('refuses a map this server has not loaded (P1-1)', async () => {
+    const { client, room } = await create();
+    for (const maps of ['prisma', 'both']) {
+      const refused = nextError(client);
+      client.send(ClientMessage.settings, { maps });
+      expect(await refused).toEqual({ code: 'map_unavailable', request: ClientMessage.settings });
+    }
+    expect(room.state.settings.maps).toBe('kespro');
+    expect(room.state.mapId).toBe('kespro');
   });
 
   it('joins by code and rejects a wrong or missing code', async () => {

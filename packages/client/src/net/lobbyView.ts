@@ -6,6 +6,7 @@ import {
   GAME_MODES,
   ROUND_PHASES,
   canStart,
+  isMapChoice,
   type GameMode,
   type LobbyErrorCode,
   type LobbySettings,
@@ -64,6 +65,10 @@ export function mapEntries(value: unknown): [string, unknown][] {
   return Object.entries(value);
 }
 
+function readMaps(value: string): LobbySettings['maps'] {
+  return isMapChoice(value) ? value : DEFAULT_LOBBY_SETTINGS.maps;
+}
+
 function readSettings(value: unknown): LobbySettings {
   if (!isBag(value)) return { ...DEFAULT_LOBBY_SETTINGS };
   const mode = str(value, 'mode', DEFAULT_LOBBY_SETTINGS.mode);
@@ -71,6 +76,7 @@ function readSettings(value: unknown): LobbySettings {
     mode: (GAME_MODES as readonly string[]).includes(mode) ? (mode as GameMode) : DEFAULT_LOBBY_SETTINGS.mode,
     roundsPerMap: num(value, 'roundsPerMap', DEFAULT_LOBBY_SETTINGS.roundsPerMap),
     teams: bool(value, 'teams', DEFAULT_LOBBY_SETTINGS.teams),
+    maps: readMaps(str(value, 'maps', DEFAULT_LOBBY_SETTINGS.maps)),
   };
 }
 
@@ -123,6 +129,7 @@ export function lobbyErrorKey(code: unknown): `lobby.error.${LobbyErrorCode | 'u
     case 'not_ready':
     case 'teams_off':
     case 'debug_off':
+    case 'map_unavailable':
       return `lobby.error.${code}`;
     default:
       return 'lobby.error.unknown';

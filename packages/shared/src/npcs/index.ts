@@ -4,6 +4,7 @@ export {
   getNpcCatalogue,
   loadNpcCatalogue,
   npcCatalogueSchema,
+  npcCatalogueForMap,
   npcCount,
   npcSchema,
   type NpcAttack,
@@ -14,4 +15,4 @@ export {
   type NpcOf,
   type NpcRange,
 } from './catalogue';
-export { checkNpcMap, planNpcs, type NpcMap, type NpcPlacement } from './placement';
+export { checkNpcMap, npcRoster, planNpcs, type NpcMap, type NpcPlacement } from './placement';

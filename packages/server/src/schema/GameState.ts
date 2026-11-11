@@ -296,6 +296,8 @@ export const RoomSettingsState = schema(
     mode: t.string().default('timed'),
     roundsPerMap: t.uint8().default(1),
     teams: t.boolean().default(false),
+    /** MapChoice: 'kespro' | 'prisma' | 'both' (Phase 2). Only maps the server loaded can be picked. */
+    maps: t.string().default('kespro'),
   },
   'RoomSettingsState',
 );
@@ -343,6 +345,11 @@ export const GameState = schema(
      * follows a `KEKE_CONFIG` override instead of its bundled config. 0 = unknown (client falls back).
      */
     raceQuota: t.uint8().default(0),
+    /**
+     * Theme id of the map the room plays on (Phase 2, P1-1): the round's map from each countdown, and in
+     * the lobby the first map of the `maps` setting. Clients build their tilemap from this theme.
+     */
+    mapId: t.string().default('kespro'),
   },
   'GameState',
 );

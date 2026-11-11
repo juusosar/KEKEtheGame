@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError } from '../config';
 import npcsJson from '../data/npcs.json';
-import { getNpcCatalogue, loadNpcCatalogue, npcCount, type NpcCount } from './catalogue';
+import { getNpcCatalogue, loadNpcCatalogue, npcCatalogueForMap, npcCount, type NpcCount } from './catalogue';
 
 const raw = (): typeof npcsJson => structuredClone(npcsJson);
 
@@ -128,5 +128,33 @@ describe('loadNpcCatalogue validation', () => {
 
   it('rejects an empty list', () => {
     expect(issuesOf({ npcs: [] }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('per-map counts (Phase 2)', () => {
+  function withPrismaGuards(): ReturnType<typeof loadNpcCatalogue> {
+    const data = raw();
+    (data.npcs[1] as Record<string, unknown>)['mapCounts'] = { prisma: { base: 1, min: 1, max: 1 } };
+    return loadNpcCatalogue(data, 'test');
+  }
+
+  it('uses the override on its map and the default elsewhere', () => {
+    const catalogue = withPrismaGuards();
+    const prisma = npcCatalogueForMap(catalogue, 'prisma');
+    expect(npcCount(prisma.require('security').count, 12)).toBe(1);
+    expect(npcCount(npcCatalogueForMap(catalogue, 'kespro').require('security').count, 12)).toBe(4);
+    expect(prisma.require('stocker')).toBe(catalogue.require('stocker'));
+    expect(Object.isFrozen(prisma.require('security'))).toBe(true);
+  });
+
+  it('returns the same catalogue when nothing overrides the map', () => {
+    const catalogue = getNpcCatalogue();
+    expect(npcCatalogueForMap(catalogue, 'kespro')).toBe(catalogue);
+  });
+
+  it('rejects a bad override', () => {
+    const data = raw();
+    (data.npcs[0] as Record<string, unknown>)['mapCounts'] = { prisma: { base: -1, min: 0 } };
+    expect(issuesOf(data).length).toBeGreaterThan(0);
   });
 });

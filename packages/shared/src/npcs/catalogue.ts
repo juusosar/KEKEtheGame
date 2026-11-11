@@ -53,6 +53,11 @@ const base = {
   /** Normal walking speed. */
   speedPxPerSecond: positive,
   count: countSchema,
+  /**
+   * Per-map count overrides (Phase 2 decision 7), keyed by theme id, e.g. `{ "prisma": {...} }`. A map
+   * without an entry uses `count`. Which types a map has at all comes from its `npc_spawns`.
+   */
+  mapCounts: z.record(z.string().regex(idPattern), countSchema).optional(),
 };
 
 export const npcSchema = z.discriminatedUnion('behaviour', [
@@ -178,6 +183,10 @@ export function loadNpcCatalogue(raw: unknown, source = 'npcs.json'): NpcCatalog
   const npcs = deepFreeze(
     result.data.npcs.map((n) => ({ ...n, sprite: n.sprite ?? n.id })),
   ) as readonly NpcDef[];
+  return buildCatalogue(npcs, source);
+}
+
+function buildCatalogue(npcs: readonly NpcDef[], source: string): NpcCatalogue {
   const byId = new Map(npcs.map((n) => [n.id, n]));
   return Object.freeze({
     npcs,
@@ -190,6 +199,19 @@ export function loadNpcCatalogue(raw: unknown, source = 'npcs.json'): NpcCatalog
     ofBehaviour: <B extends NpcBehaviour>(behaviour: B) =>
       npcs.filter((n): n is NpcOf<B> => n.behaviour === behaviour),
   });
+}
+
+/**
+ * The catalogue as one map sees it: each type's `count` replaced by its `mapCounts[mapId]` override
+ * when it has one. Everything else is shared. The server builds one per loaded map (P1-1).
+ */
+export function npcCatalogueForMap(catalogue: NpcCatalogue, mapId: string): NpcCatalogue {
+  if (!catalogue.npcs.some((n) => n.mapCounts?.[mapId] !== undefined)) return catalogue;
+  const npcs = catalogue.npcs.map((n) => {
+    const override = n.mapCounts?.[mapId];
+    return override === undefined ? n : deepFreeze({ ...n, count: override });
+  }) as readonly NpcDef[];
+  return buildCatalogue(Object.freeze(npcs), `npcs.json (map ${mapId})`);
 }
 
 let cached: NpcCatalogue | undefined;

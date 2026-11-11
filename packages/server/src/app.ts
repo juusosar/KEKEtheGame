@@ -3,23 +3,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LobbyRoom, Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
-import {
-  HEALTH_PATH,
-  ROOM_NAMES,
-  checkItemMap,
-  checkNpcMap,
-  defaultThemeId,
-  getItemCatalogue,
-  getNpcCatalogue,
-  getTheme,
-  loadConfig,
-  type GameConfig,
-  type HealthResponse,
-  type MapModel,
-} from '@keke/shared';
+import { HEALTH_PATH, ROOM_NAMES, loadConfig, type GameConfig, type HealthResponse } from '@keke/shared';
 import express from 'express';
 import { gameRoomWithConfig } from './rooms/GameRoom';
-import { loadThemeMap } from './maps';
+import { loadMapRegistry, type MapRegistry } from './maps';
 
 /** Default port from §16; override with the PORT env var. */
 export const DEFAULT_PORT = 2567;
@@ -35,8 +22,11 @@ export interface GameServerOptions {
   clientDist?: string;
   /** Validated game config. Defaults to the bundled shared/data/config.json. */
   config?: GameConfig;
-  /** The map rooms simulate on. Defaults to the default theme's map from maps/. */
-  map?: MapModel;
+  /**
+   * The maps rooms can play (Phase 2, P1-1). Defaults to the map of every `available` theme from maps/,
+   * each checked against the NPC types it spawns.
+   */
+  maps?: MapRegistry;
   /**
    * Accept the debug-only room messages (teleport, end phase; `DebugMessage` in @keke/shared). For the
    * e2e server and local testing only: `KEKE_DEBUG=1` turns it on in index.ts. Default off.
@@ -48,18 +38,10 @@ export interface GameServerOptions {
 export function createGameServer({
   clientDist = DEFAULT_CLIENT_DIST,
   config = loadConfig(),
-  map = loadThemeMap(getTheme(defaultThemeId)),
+  // §8: loading refuses a map that cannot host the NPCs it spawns (M5-1 handoff, per map since P1-1).
+  maps = loadMapRegistry(),
   debug = false,
 }: GameServerOptions = {}): Server {
-  // §8: refuse to start when the map cannot host the NPCs in npcs.json (M5-1 handoff).
-  const npcProblems = checkNpcMap(getNpcCatalogue(), map);
-  if (npcProblems.length > 0) {
-    throw new Error(`The map cannot host the store workers:\n${npcProblems.join('\n')}`);
-  }
-  const itemProblems = checkItemMap(getItemCatalogue(defaultThemeId), map);
-  if (itemProblems.length > 0) {
-    throw new Error(`The map cannot host the item catalogue:\n${itemProblems.join('\n')}`);
-  }
   const server = new Server({
     transport: new WebSocketTransport(),
     greet: false,
@@ -85,7 +67,7 @@ export function createGameServer({
   });
   // Join by code: the room puts its code in metadata, and filterBy matches `{ code }` join options against it.
   server
-    .define(ROOM_NAMES.game, gameRoomWithConfig(config, map, { debug }))
+    .define(ROOM_NAMES.game, gameRoomWithConfig(config, maps, { debug }))
     .filterBy(['code'])
     .enableRealtimeListing();
   // Built-in room list (§15.1): clients join it to get "rooms", "+" and "-" updates.

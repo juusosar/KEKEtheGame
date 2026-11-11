@@ -11,7 +11,7 @@ import {
 } from '@keke/shared';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createGameServer } from './app';
-import { loadThemeMap } from './maps';
+import { loadThemeMap, singleMapRegistry } from './maps';
 import { GameRoom } from './rooms/GameRoom';
 import type { GameState, PlayerState } from './schema/GameState';
 
@@ -59,7 +59,7 @@ describe('GameRoom round flow and scoring (integration)', () => {
       entered.set(this, list);
     });
     // boot() ignores its port argument for a Server instance, so listen here instead.
-    const server = createGameServer({ config, map });
+    const server = createGameServer({ config, maps: singleMapRegistry(map) });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
   });
