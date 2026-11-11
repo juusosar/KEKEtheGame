@@ -68,6 +68,7 @@ import {
 import type { MapEntry, MapRegistry } from '../maps';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
 import { CombatSystem } from '../systems/combat/CombatSystem';
+import { HazardSystem } from '../systems/hazards';
 import { ItemSystem } from '../systems/items';
 import type { MapSystem } from '../systems/mapSystem';
 import { MovementSystem } from '../systems/movement';
@@ -122,6 +123,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
    * `buildMapSystems`.
    */
   private mapSystems: MapSystem[] = [];
+  /** Floor hazards of the round's map (the bakery oven, P2-2). */
+  private hazards!: HazardSystem;
   /** Wanted status per player this round (§8; M5-2 rules, wired in M5-3). */
   private wanted: WantedWorld = createWantedWorld();
   /** Round seconds of the last `wanted` refresh sent to each player (rate limit, M5 review F8). */
@@ -500,6 +503,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       entry.npcs,
     );
     this.combat.npcTargets = this.npcs;
+    // §9.2 bakery oven (P2-2): burns land through the combat damage path like a forklift's run-over.
+    this.hazards = new HazardSystem(liveMap, this.config, (hit) => this.combat.externalHit(hit));
     // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2); an order box does not
     // (plan M4-1, M6-2): the carrier keeps the weapon they hold.
     this.items.onPickup = (playerId, kind) => {
@@ -509,6 +514,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.mapSystems = [
       this.items,
       this.combat,
+      this.hazards,
       // NPC counts scale with the number of players (§8).
       { reset: () => npcs.reset(), startRound: (players) => npcs.startRound(players.length) },
     ];
@@ -798,6 +804,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.npcs.tick(now);
     // Attacks resolve after everyone has moved this tick (M3 review H3).
     this.combat.tick(now);
+    // The oven burns after attacks resolve, so a burn never cancels this tick's own swing.
+    this.hazards.tick(now, this.state.players.values());
     this.items.tick(now);
     this.updateWanted(now);
     // Race: a delivery ends the round in this tick, after this tick's KOs (a KO'd carrier dropped the box).

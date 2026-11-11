@@ -424,6 +424,11 @@
               "name": "id",
               "type": "string",
               "value": "oven"
+            },
+            {
+              "name": "damagePerSecond",
+              "type": "float",
+              "value": 8
             }
           ]
         },

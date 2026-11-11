@@ -109,6 +109,12 @@ describe('maps/prisma.tmj', () => {
     expect(map.zones.filter((z) => z.wantedOnEnter).map((z) => z.id)).toEqual(['stockroom']);
   });
 
+  it('only the oven floor burns, at the decision 10 rate (P2-2)', () => {
+    expect(
+      map.zones.filter((z) => z.damagePerSecond !== undefined).map((z) => [z.id, z.damagePerSecond]),
+    ).toEqual([['oven', 8]]);
+  });
+
   it('nests the oven in the bakery, behind_counter in the deli and the bottle return in drinks', () => {
     for (const [inner, outer] of [
       ['oven', 'bakery'],

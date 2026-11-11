@@ -369,6 +369,27 @@ describe('loadMap: errors', () => {
     ]);
   });
 
+  it('reads damagePerSecond on a zone and rejects a non-positive one (P2-2)', () => {
+    const raw = cloneFixture();
+    const zones = layerOf(raw, 'zones').objects ?? [];
+    Object.assign(zones[1] as object, {
+      properties: [
+        { name: 'id', type: 'string', value: 'cold_room' },
+        { name: 'damagePerSecond', type: 'float', value: 8 },
+      ],
+    });
+    const map = loadMap(raw, 'test-map');
+    expect(map.zones.find((z) => z.id === 'cold_room')?.damagePerSecond).toBe(8);
+    expect(map.zones.some((z) => z.id !== 'cold_room' && 'damagePerSecond' in z)).toBe(false);
+    Object.assign(zones[1] as object, {
+      properties: [
+        { name: 'id', type: 'string', value: 'cold_room' },
+        { name: 'damagePerSecond', type: 'float', value: 0 },
+      ],
+    });
+    expect(issuesOf(raw)).toEqual(['zones #101: damagePerSecond must be positive, got 0']);
+  });
+
   it('rejects van slots without an index or with a duplicate index', () => {
     const raw = cloneFixture();
     const slots = layerOf(raw, 'van_slots').objects ?? [];
