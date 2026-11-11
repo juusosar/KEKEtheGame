@@ -3,8 +3,10 @@ import { matchMaker, type Server } from '@colyseus/core';
 import { Client } from '@colyseus/sdk';
 import {
   ClientMessage,
+  configForMap,
   defaultThemeId,
   loadConfig,
+  mergeConfigOverride,
   type GameConfig,
   type GameMode,
   type MapModel,
@@ -225,7 +227,8 @@ class RoomProbe {
 
 export async function runSoak(options: SoakOptions): Promise<SoakReport> {
   const log = options.log ?? (() => {});
-  const config = loadConfig({ ...loadConfig(), ...SOAK_CONFIG, ...options.config });
+  // mergeConfigOverride: the soak's short timers apply on every map, over its per-map overrides (P4-1).
+  const config = loadConfig(mergeConfigOverride(loadConfig(), { ...SOAK_CONFIG, ...options.config }));
   const maps = loadMapRegistry();
   const map: MapModel = maps.get(options.sessions[0]?.map ?? defaultThemeId).map;
   const random = mulberry32(options.seed ?? 7);
@@ -363,12 +366,15 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
       const rounds: RoundReport[] = [];
       const flowProblems: string[] = [];
       let standings: SessionReport['standings'] = [];
-      const roundSeconds = plan.mode === 'race' ? config.raceRoundSeconds : config.timedRoundSeconds;
-      const sessionLimitMs =
-        (plan.rounds * (config.countdownSeconds + roundSeconds + config.roundResultsSeconds + 10) +
-          config.podiumSeconds +
-          30) *
-        1000;
+      // The slowest map's round (per-map overrides, P4-1), so a session over both maps never times out early.
+      const roundLimit = Math.max(
+        ...maps.ids.map((id) => {
+          const c = configForMap(config, id);
+          const playing = plan.mode === 'race' ? c.raceRoundSeconds : c.timedRoundSeconds;
+          return c.countdownSeconds + playing + c.roundResultsSeconds;
+        }),
+      );
+      const sessionLimitMs = (plan.rounds * (roundLimit + 10) + config.podiumSeconds + 30) * 1000;
       const sessionUntil = Date.now() + sessionLimitMs;
       let lastPhase = '';
       let playingSince = 0;

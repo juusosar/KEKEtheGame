@@ -4,7 +4,7 @@
 // so a bad override refuses to start like a bad config.json (§15.4).
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ConfigError, loadConfig } from '@keke/shared';
+import { ConfigError, loadConfig, mergeConfigOverride } from '@keke/shared';
 
 export interface ConfigOverride {
   /** Absolute path of the override file. */
@@ -35,8 +35,9 @@ export function readConfigOverride(file: string): ConfigOverride {
     throw new ConfigError(source, ['(root): expected a JSON object of config keys']);
   }
   const override = parsed as Record<string, unknown>;
-  // Validate the merge here too, so the error names the override file rather than config.json.
-  const raw = { ...loadConfig(), ...override };
+  // Validate the merge here too, so the error names the override file rather than config.json. A key the
+  // file sets also beats every map's override of it (P4-1), so a long e2e countdown holds on every map.
+  const raw = mergeConfigOverride(loadConfig(), override);
   loadConfig(raw, source);
   return { path, keys: Object.keys(override), raw };
 }

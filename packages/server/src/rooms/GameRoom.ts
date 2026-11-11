@@ -48,6 +48,7 @@ import {
   teamSideId,
   totalRounds,
   type CombatEvent,
+  configForMap,
   type GameConfig,
   type GameJoinOptions,
   type GameMode,
@@ -115,6 +116,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private phaseEndsAt = 0;
   /** The map the systems below are built for (`buildMapSystems`); `state.mapId` names it from each countdown. */
   private mapEntry: MapEntry | undefined;
+  /**
+   * The config of that map (P4-1): `config` with the map's `maps.<id>` overrides on top (`configForMap`).
+   * Everything the map's rounds run on reads it; session-wide rules (tick rate, scoring, limits) read
+   * `config`, whose keys a map cannot override anyway.
+   */
+  private mapConfig!: GameConfig;
   private movement!: MovementSystem;
   /** The map with parked stock carts as walls (built with the map systems). */
   private liveMap!: MapModel;
@@ -147,7 +154,6 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.maxClients = this.config.maxPlayersPerRoom;
     this.state.code = generateRoomCode(this.rng, codesInUse);
     codesInUse.add(this.state.code);
-    this.state.raceQuota = Math.min(255, this.config.raceQuota);
 
     this.onMessage(ClientMessage.ready, (client, message: unknown) => this.handleReady(client, message));
     this.onMessage(ClientMessage.settings, (client, message: unknown) =>
@@ -451,6 +457,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private buildMapSystems(entry: MapEntry): void {
     this.resetMapSystems();
     this.mapEntry = entry;
+    const config = configForMap(this.config, entry.id);
+    this.mapConfig = config;
+    // The client's quota meter follows the server (M6 review F5), and now the map too.
+    this.state.raceQuota = Math.min(255, config.raceQuota);
     // The live map: stock carts parked by stockers block movement like walls (M5-3). Items keep the
     // static map (spawns and drops never depend on a cart that is gone a few seconds later).
     // Pushable carts (P2-5) are not tiles: movement resolves them through the `resolve` hook, and lines of
@@ -463,11 +473,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       ),
     };
     this.liveMap = liveMap;
-    this.carts = new CartSystem(this.state, this.config, liveMap);
-    this.movement = new MovementSystem(this.config, liveMap);
+    this.carts = new CartSystem(this.state, config, liveMap);
+    this.movement = new MovementSystem(config, liveMap);
     this.items = new ItemSystem(
       this.state,
-      this.config,
+      config,
       entry.map,
       (event) => this.broadcast(event.type, event.payload),
       entry.items,
@@ -475,7 +485,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     );
     this.combat = new CombatSystem(
       this.state,
-      this.config,
+      config,
       liveMap,
       (event) => this.broadcast(event.type, event.payload),
       // §3.2/§3.3: a KO drops the carried item where the player fell (M3 review H1).
@@ -503,7 +513,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     // through it too (blocks, KO item drops).
     this.npcs = new NpcSystem(
       this.state,
-      this.config,
+      config,
       liveMap,
       (event) => this.broadcast(event.type, event.payload),
       {
@@ -519,7 +529,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     );
     this.combat.npcTargets = this.npcs;
     // §9.2 bakery oven (P2-2): burns land through the combat damage path like a forklift's run-over.
-    this.hazards = new HazardSystem(liveMap, this.config, (hit) => this.combat.externalHit(hit));
+    this.hazards = new HazardSystem(liveMap, config, (hit) => this.combat.externalHit(hit));
     // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2); an order box does not
     // (plan M4-1, M6-2): the carrier keeps the weapon they hold.
     this.items.onPickup = (playerId, kind) => {
@@ -571,6 +581,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     return this.mapEntry;
   }
 
+  /** The config the current map's rounds run on (`configForMap`, P4-1), for tests. */
+  get currentConfig(): GameConfig {
+    return this.mapConfig;
+  }
+
   // --- Round state machine ---------------------------------------------------------------------
 
   /** Ends the current phase now. Called by the phase timer; tests and later systems may call it too. */
@@ -601,7 +616,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (phase === 'lobby') this.resetToLobby();
     this.runSimulation(phase === 'playing');
 
-    const seconds = phaseSeconds(phase, this.state.settings.mode as GameMode, this.config);
+    const seconds = phaseSeconds(phase, this.state.settings.mode as GameMode, this.mapConfig);
     if (seconds === null) {
       this.phaseEndsAt = 0;
     } else {
@@ -880,14 +895,14 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         blockers: this.npcs.solidBodies(),
       },
       now,
-      this.config,
+      this.mapConfig,
     );
     events.push(...result.events);
     result = updateWantedZones(
       result.world,
       round.map((p) => ({ id: p.sessionId, inZone: p.alive && inWantedZone(this.map.zones, p.x, p.y) })),
       now,
-      this.config,
+      this.mapConfig,
     );
     events.push(...result.events);
     // A KO ends Wanted (playtest 1): otherwise the respawn at the dock walks into the staff-door guard.
