@@ -55,7 +55,7 @@ test('standing on the oven floor burns: HP drops, the HUD warns, the oven sizzle
   await teleportNear(page, BAKERY, 8);
   await expect(heat).toBeHidden();
   // Out in the parking lot the crackle is silent.
-  await teleportNear(page, { x: 1600, y: 1856 }, 32);
+  await teleportNear(page, { x: 1600, y: 1648 }, 32);
   await expect.poll(() => crackle(page)).toBe(0);
   await teleportNear(page, BAKERY, 8);
   const outside = (await game(page)).net?.hp ?? 0;

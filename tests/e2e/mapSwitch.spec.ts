@@ -22,9 +22,9 @@ import {
 
 type WithHook = { __KEKE__?: KekeHook };
 
-/** Map sizes in px: maps/kespro.tmj 96 x 64 and maps/prisma.tmj 100 x 72 tiles of 32 px. */
+/** Map sizes in px: maps/kespro.tmj 96 x 64 and maps/prisma.tmj 96 x 60 tiles of 32 px. */
 const KESPRO_PX = { width: 3072, height: 2048 };
-const PRISMA_PX = { width: 3200, height: 2304 };
+const PRISMA_PX = { width: 3072, height: 1920 };
 
 const hook = (page: Page) =>
   page.evaluate(() => {

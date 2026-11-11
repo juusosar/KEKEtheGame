@@ -2,7 +2,8 @@
 // like tools/map/kespro.ts. `npm run gen:map` writes maps/prisma.tmj; tools/gen-prisma-map.test.ts and
 // tools/prisma-play.test.ts check it.
 //
-// Layout (tile coordinates, 100 × 72; the store's front faces south onto the parking lot):
+// Layout (tile coordinates, 96 × 60; it was 100 × 72 until Juhi asked for a tighter map, 2026-11-11; the
+// store kept its size and the lot and the office plot shrank. The store's front faces south onto the lot):
 //   x 2–73, y 2–43   the store (walled). Back row: dairy fridges (west) and the staff-only stockroom
 //                    (east, one forklift loop, doors to the dairy aisle and the freezers, a guard post).
 //                    Middle: bakery with the oven (west wall) over produce stands, pantry shelves in
@@ -10,18 +11,18 @@
 //                    the drinks aisle. Front row: entrance doors (west), the self-checkout line with
 //                    one-tile gate lanes and the exit doors behind it, candy bins, and the
 //                    bottle-return alcove (a dead end off the drinks aisle).
-//   y 44–69          sidewalk and the customer parking lot: 16 van slots in two rows in the west half,
+//   y 44–57          sidewalk and the customer parking lot: 16 van slots in two rows in the west half,
 //                    the cart corral pen next to the exit, parked cars as cover in the east half.
 //   x 78–84          the road (sidewalks both sides, a crosswalk to the office door).
-//   x 85–99          the office building across the road with the race-mode office trigger.
+//   x 85–95          the office building across the road with the race-mode office trigger.
 // Tree lines along the top and bottom edges (west of the road) and the west edge frame the lot.
 // Room is left for the phase 2 twists, whose object layers come later: gate lanes in the checkout line
 // and the doorways (P2-1), the oven floor (P2-2), the corral pen (P2-5), the bottle-return alcove (P2-6).
 import { TILE } from '../art/tiles';
 import { PRISMA_TILES, prismaTileIndex, type PrismaTileName } from '../art/prismaTiles';
 
-export const MAP_WIDTH = 100;
-export const MAP_HEIGHT = 72;
+export const MAP_WIDTH = 96;
+export const MAP_HEIGHT = 60;
 
 /** Inclusive tile rectangle. */
 type Rect = readonly [x0: number, y0: number, x1: number, y1: number];
@@ -55,7 +56,7 @@ class TileLayer {
 const STORE: Rect = [2, 2, 73, 43]; // walls included
 const FRONT_Y = STORE[3];
 const STOCKROOM: Rect = [43, 2, 73, 13]; // walls included (shares the store's north and east walls)
-const OFFICE_BUILDING: Rect = [87, 26, 97, 41]; // walls included
+const OFFICE_BUILDING: Rect = [86, 26, 94, 41]; // walls included
 const ROAD_X: readonly [number, number] = [79, 83];
 
 /** Doorways in the store front (columns in y = FRONT_Y). */
@@ -70,7 +71,7 @@ const STAFF_SOUTH_DOOR: readonly [number, number] = [47, 48];
  * shortcut to the office for the price of being Wanted on the way through.
  */
 export const STAFF_EXIT_DOOR: readonly [number, number] = [7, 8];
-const OFFICE_DOOR: readonly [number, number] = [32, 35]; // rows in x = 87
+const OFFICE_DOOR: readonly [number, number] = [32, 35]; // rows in x = 86
 
 /**
  * Self-checkout line (row y = CHECKOUT_Y, x 12–34): kiosks with one-tile gate lanes, the only way from
@@ -132,8 +133,8 @@ export const CART_SPAWN_TILES: readonly TilePoint[] = [
  */
 export const STRAY_CART_TILES: readonly TilePoint[] = [
   [14, 46],
-  [9, 58],
-  [22, 58],
+  [9, 51],
+  [22, 51],
 ];
 
 /** Pantry gondolas: 1-tile rows with 2-tile aisles between; cross aisles at x 17–18, 30–31, 41–42. */
@@ -188,22 +189,22 @@ const DRINK_PALLETS: readonly TilePoint[] = [
 
 /** Parked cars (1 × 2), top tiles, in the east half of the lot and in the lane between the van rows. */
 const CARS: readonly TilePoint[] = [
+  [40, 47],
+  [46, 47],
+  [52, 47],
+  [58, 47],
+  [64, 47],
+  [70, 47],
+  [38, 54],
+  [44, 54],
+  [50, 54],
+  [56, 54],
+  [62, 54],
+  [68, 54],
+  [74, 51],
   [36, 52],
-  [40, 52],
-  [46, 52],
-  [52, 52],
-  [58, 52],
-  [64, 52],
-  [70, 52],
-  [38, 62],
-  [44, 62],
-  [50, 62],
-  [56, 62],
-  [62, 62],
-  [68, 62],
-  [74, 57],
-  [30, 58],
-  [16, 58],
+  [30, 51],
+  [16, 51],
 ];
 
 // ── Objects ────────────────────────────────────────────────────────────────────────────────────
@@ -215,20 +216,20 @@ const CARS: readonly TilePoint[] = [
  */
 const VAN_COLUMN_ORDER: readonly number[] = [3, 4, 2, 5, 1, 6, 0, 7];
 /** Van slot centres in tiles (vans are 2 × 3 tiles). Slots 1–8 front row, 9–16 back row, middle outwards. */
-export const VAN_SLOT_TILES: readonly TilePoint[] = [53.5, 63.5].flatMap((y) =>
+export const VAN_SLOT_TILES: readonly TilePoint[] = [48.5, 55.5].flatMap((y) =>
   VAN_COLUMN_ORDER.map((i): TilePoint => [4 + 3 * i, y]),
 );
 /**
  * Van slot `index` of team 1's and team 2's van with Teams on (P1 review F3). Slots 1 and 2 stand 3 tiles
  * apart here, so Teams rounds opened with a fight at the vans. Slots 7 (front row, west end) and 9 (back
- * row, fourth from the west) are 13.5 tiles apart, and their mean walk to the item spawns (54 and 59 tiles)
- * and to the office (92 and 87) differ by under 10 %, the closest pair at least 8 tiles apart
+ * row, fourth from the west) are about 10 tiles apart, and their mean walk to the item spawns (51 and 52 tiles)
+ * and to the office (92 and 86) differ by under 10 %, the closest pair at least 8 tiles apart
  * (tools/prisma-play.test.ts). They were slots 1 and 12 before the P4-2 middle-out order: same places.
  */
 export const TEAM_VAN_SLOTS: readonly [number, number] = [7, 9];
 const VAN_ROWS: readonly [number, number][] = [
-  [52, 54],
-  [62, 64],
+  [47, 49],
+  [54, 56],
 ];
 
 /** Item spawn tiles per item zone (P1-3 catalogue zones). Positions are tile centres. */
@@ -424,12 +425,12 @@ function zoneSpecs(): ZoneSpec[] {
     { id: 'candy', name: 'Candy', polygon: rectPolygon([35, 36, 63, 42]) },
     { id: 'entrance', name: 'Entrance', polygon: rectPolygon([3, 36, 10, 42]) },
     { id: 'self_checkout', name: 'Self-checkout', polygon: rectPolygon([11, 36, 34, 42]) },
-    { id: 'parking', name: 'Parking lot', polygon: rectPolygon([0, 44, 77, 69]) },
+    { id: 'parking', name: 'Parking lot', polygon: rectPolygon([0, 44, 77, 57]) },
     { id: 'cart_corral', name: 'Cart corral', polygon: rectPolygon(CORRAL) },
     // The strip east of the store, down to the lot (P4-2): outside, so guards let Wanted players go here.
     { id: 'sidewalk', name: 'Sidewalk', polygon: rectPolygon([74, 0, 77, 43]) },
     { id: 'street', name: 'Street', polygon: rectPolygon([78, 0, 84, MAP_HEIGHT - 1]) },
-    { id: 'office', name: 'Office', polygon: rectPolygon([85, 24, 99, 43]) },
+    { id: 'office', name: 'Office', polygon: rectPolygon([85, 24, 95, 43]) },
   ];
 }
 
@@ -451,7 +452,7 @@ function paintTiles(): TileLayers {
   // Outside: grass, sidewalk along the store front, the parking lot, the road.
   ground.fill([0, 0, MAP_WIDTH - 1, MAP_HEIGHT - 1], 'grass');
   ground.fill([0, FRONT_Y + 1, 77, FRONT_Y + 2], 'sidewalk');
-  ground.fill([0, FRONT_Y + 3, 77, 69], 'asphalt');
+  ground.fill([0, FRONT_Y + 3, 77, 57], 'asphalt');
   for (const [y0, y1] of VAN_ROWS) {
     for (let x = 2; x <= 26; x += 3) ground.fill([x, y0 - 1, x, y1 + 1], 'parking_line');
   }
@@ -462,7 +463,7 @@ function paintTiles(): TileLayers {
   ground.fill([ROAD_X[0], OFFICE_DOOR[0], ROAD_X[1], OFFICE_DOOR[1]], 'crosswalk');
 
   // Tree lines: top and bottom edges west of the road, and the strip west of the store.
-  for (const y of [0, 1, 70, 71]) walls.fill([0, y, ROAD_X[0] - 2, y], 'tree');
+  for (const y of [0, 1, 58, 59]) walls.fill([0, y, ROAD_X[0] - 2, y], 'tree');
   walls.fill([0, 2, 1, FRONT_Y], 'tree');
   for (const [x, y] of [
     [75, 8],
@@ -576,15 +577,15 @@ function paintTiles(): TileLayers {
   walls.fill([OFFICE_BUILDING[0], OFFICE_DOOR[0], OFFICE_BUILDING[0], OFFICE_DOOR[1]], null);
   ground.fill([OFFICE_BUILDING[0], OFFICE_DOOR[0], OFFICE_BUILDING[0], OFFICE_DOOR[1]], 'door');
   ground.fill([ROAD_X[1] + 2, OFFICE_DOOR[0], OFFICE_BUILDING[0] - 1, OFFICE_DOOR[1]], 'sidewalk');
-  walls.fill([91, 29, 92, 29], 'office_desk').fill([91, 38, 92, 38], 'office_desk');
+  walls.fill([89, 29, 90, 29], 'office_desk').fill([89, 38, 90, 38], 'office_desk');
   walls.set(OFFICE_BUILDING[0], 29, 'wall_window').set(OFFICE_BUILDING[0], 38, 'wall_window');
   above.set(OFFICE_BUILDING[0], OFFICE_DOOR[0] - 1, 'sign');
   for (const [x, y] of [
-    [90, 8],
-    [95, 15],
-    [93, 50],
-    [97, 60],
-    [89, 66],
+    [89, 8],
+    [93, 15],
+    [91, 50],
+    [94, 54],
+    [88, 57],
   ] as const) {
     walls.set(x, y, 'tree');
   }
