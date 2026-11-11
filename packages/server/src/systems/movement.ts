@@ -2,6 +2,7 @@
 // movement rules, so client prediction (M2-3) replays exactly what the server runs.
 import {
   InputQueue,
+  NO_GATE_TIMERS,
   applyInput,
   playerHalfSize,
   vanSpawn,
@@ -17,6 +18,8 @@ import type { PlayerState } from '../schema/GameState';
 export interface FrameHooks {
   /** Modifiers for this player's next frame, from synced state only, so prediction can match (review H1). */
   modifiers?(player: PlayerState): StepModifiers;
+  /** A checkout gate just stopped this player (phase 2 decision 9) for `frames` input frames. */
+  onGateStop?(player: PlayerState, gate: number, frames: number): void;
   /**
    * Runs after each applied frame, with the player already moved and acked. `pressed` holds the
    * buttons that went down in this frame compared with the player's previous applied frame (review H2).
@@ -65,6 +68,7 @@ export class MovementSystem {
       player.y = pos.y;
       player.vx = 0;
       player.vy = 0;
+      resetGateTimers(player);
     });
   }
 
@@ -78,12 +82,24 @@ export class MovementSystem {
       const frames = this.queues.get(player.sessionId)?.take() ?? [];
       for (const frame of frames) {
         const modifiers = hooks.modifiers?.(player) ?? {};
-        const start: MovementState = { x: player.x, y: player.y, vx: player.vx, vy: player.vy };
+        const start: MovementState = {
+          x: player.x,
+          y: player.y,
+          vx: player.vx,
+          vy: player.vy,
+          gate: { stop: player.gateStop, gate: player.gateLast, cooldown: player.gateCooldown },
+        };
         const state = applyInput(start, frame, this.map, this.config, modifiers);
         player.x = state.x;
         player.y = state.y;
         player.vx = state.vx;
         player.vy = state.vy;
+        const gate = state.gate ?? NO_GATE_TIMERS;
+        const stopped = gate.stop > 0 && player.gateStop === 0;
+        player.gateStop = gate.stop;
+        player.gateLast = gate.gate;
+        player.gateCooldown = gate.cooldown;
+        if (stopped) hooks.onGateStop?.(player, gate.gate, gate.stop);
         player.aim = frame.aim;
         player.ack = frame.seq;
         const previous = this.lastButtons.get(player.sessionId) ?? 0;
@@ -104,4 +120,11 @@ export class MovementSystem {
     this.queues.delete(sessionId);
     this.lastButtons.delete(sessionId);
   }
+}
+
+/** Clears a player's gate stop and cooldown (spawn, respawn, a new round). */
+export function resetGateTimers(player: PlayerState): void {
+  player.gateStop = 0;
+  player.gateLast = -1;
+  player.gateCooldown = 0;
 }

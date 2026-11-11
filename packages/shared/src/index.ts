@@ -33,6 +33,25 @@ export {
   type StepModifiers,
 } from './rules/movement';
 export {
+  GATE_DIRS,
+  GATE_KINDS,
+  NO_GATE_TIMERS,
+  crossesGateWrongWay,
+  gateCentre,
+  gateCooldownFrames,
+  gateDirVector,
+  gateStopFrames,
+  gateStopped,
+  holdAtGates,
+  passGates,
+  type Gate,
+  type GateConfig,
+  type GateDir,
+  type GateKind,
+  type GatePass,
+  type GateTimers,
+} from './rules/gates';
+export {
   InputQueue,
   MAX_INPUT_SEQ,
   applyInput,

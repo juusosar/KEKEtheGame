@@ -8,3 +8,4 @@ export * from './itemEvents';
 export * from './combatEvents';
 export * from './npcEvents';
 export * from './raceEvents';
+export * from './gateEvents';

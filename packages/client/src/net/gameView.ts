@@ -33,6 +33,12 @@ export function readGame(state: unknown, mySessionId: string): GameView {
         vy: num(value, 'vy'),
         ack: num(value, 'ack'),
         carrying: num(value, 'carrying'),
+        // Gate stop and cooldown (phase 2 decision 9), replayed by prediction from the server's values.
+        gate: {
+          stop: num(value, 'gateStop'),
+          gate: num(value, 'gateLast', -1),
+          cooldown: num(value, 'gateCooldown'),
+        },
       });
     }
   }

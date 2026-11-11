@@ -412,3 +412,66 @@ describe('MapModel and the movement rules', () => {
     expect(grid.isSolid(0, 0)).toBe(true);
   });
 });
+
+describe('loadMap: gates (phase 2 decision 9)', () => {
+  type Obj = Record<string, unknown>;
+  const gateObject = (id: number, props: Obj[], shape: Obj = {}): Obj => ({
+    id,
+    name: '',
+    type: '',
+    rotation: 0,
+    visible: true,
+    x: 64,
+    y: 96,
+    width: 32,
+    height: 64,
+    properties: props,
+    ...shape,
+  });
+  const withGates = (objects: Obj[]): unknown => {
+    const raw = cloneFixture() as { layers: unknown[] };
+    raw.layers.push({
+      id: 99,
+      name: 'gates',
+      type: 'objectgroup',
+      draworder: 'topdown',
+      x: 0,
+      y: 0,
+      opacity: 1,
+      visible: true,
+      objects,
+    });
+    return raw;
+  };
+  const dir = (value: string): Obj => ({ name: 'dir', type: 'string', value });
+  const kind = (value: string): Obj => ({ name: 'kind', type: 'string', value });
+
+  it('is optional: a map without the layer has no gates', () => {
+    expect(map.gates).toEqual([]);
+  });
+
+  it('reads rectangles with a direction and a kind (checkout by default), indexed in layer order', () => {
+    const loaded = loadMap(withGates([gateObject(50, [dir('s')]), gateObject(51, [dir('n'), kind('door')])]));
+    expect(loaded.gates).toEqual([
+      { index: 0, x: 64, y: 96, width: 32, height: 64, dir: 's', kind: 'checkout' },
+      { index: 1, x: 64, y: 96, width: 32, height: 64, dir: 'n', kind: 'door' },
+    ]);
+  });
+
+  it('lists every bad gate', () => {
+    const issues = issuesOf(
+      withGates([
+        gateObject(50, []),
+        gateObject(51, [dir('up')]),
+        gateObject(52, [dir('e'), kind('turnstile')]),
+        gateObject(53, [dir('e')], { width: 0, height: 0, point: true }),
+      ]),
+    );
+    expect(issues).toEqual([
+      'gates #50: property "dir" must be one of n, e, s, w',
+      'gates #51: property "dir" must be one of n, e, s, w',
+      'gates #52: property "kind" must be one of checkout, door',
+      'gates #53: must be a rectangle',
+    ]);
+  });
+});

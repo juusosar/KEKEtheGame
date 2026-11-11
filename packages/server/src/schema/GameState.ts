@@ -35,6 +35,15 @@ export const PlayerState = schema(
      * first round. Teammates share one van (§4.3). Kept across reconnects and rounds (§15.3, M3-4).
      */
     van: t.int8().default(-1),
+    /**
+     * Gate timers (phase 2 decision 9, `GateTimers`), in input frames, written by the movement system and
+     * replayed by client prediction. `gateStop`: frames left standing at a self-checkout gate (cannot
+     * move, attack, pick up or drop while > 0). `gateLast`: index in `MapModel.gates` of the gate that
+     * stopped the player last, -1 = none. `gateCooldown`: frames until that gate may stop them again.
+     */
+    gateStop: t.uint8().default(0),
+    gateLast: t.int16().default(-1),
+    gateCooldown: t.uint16().default(0),
     /** World item id (key in `GameState.items`) this player carries; 0 = nothing. Movement is 0.85× while set. */
     carrying: t.uint32().default(0),
     /** World item id of this player's current target; 0 = none (while carrying their own, or no spawn free). */

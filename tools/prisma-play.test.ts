@@ -18,9 +18,11 @@ import {
 import { createRng } from '../packages/shared/src/rng';
 import { addCarryPlayer, assignTargets, createItemWorld } from '../packages/shared/src/rules/carry';
 import { aabbOverlapsSolid } from '../packages/shared/src/rules/collision';
+import { crossesGateWrongWay } from '../packages/shared/src/rules/gates';
 import { advanceAlongPath, findPath, findTilePath, tileOf } from '../packages/shared/src/rules/pathfinding';
 import { eligibleSpawns, spawnsForItem } from '../packages/shared/src/rules/targets';
 import type { Vec2 } from '../packages/shared/src/types';
+import { ENTRANCE_DOORS, GATE_LANES } from './map/prisma';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const map = loadMap(
@@ -208,5 +210,61 @@ describe('target assignment on the prisma map', () => {
     for (const s of map.itemSpawns) {
       expect(findPath(grid, van, s, { radius: half }), `${s.zone} at ${s.x},${s.y}`).not.toBeNull();
     }
+  });
+});
+
+describe('one-way gates on the prisma map (P2-1, decision 9)', () => {
+  const half = { hw: config.playerHitboxSize / 2, hh: config.playerHitboxSize / 2 };
+  const refuses = (a: Vec2, b: Vec2): boolean => crossesGateWrongWay(map.gates, a, b, half);
+  const gateTiles = (kind: string): Set<string> => {
+    const out = new Set<string>();
+    for (const g of map.gates.filter((g) => g.kind === kind)) {
+      for (let y = g.y; y < g.y + g.height; y += map.tileSize)
+        for (let x = g.x; x < g.x + g.width; x += map.tileSize)
+          out.add(`${x / map.tileSize},${y / map.tileSize}`);
+    }
+    return out;
+  };
+  const van = must(map.vanSlots[0]);
+  const dairy = must(map.itemSpawns.find((s) => s.zone === 'dairy'));
+
+  it('has a checkout gate out of the store on every lane and the entrance doors in', () => {
+    const checkout = map.gates.filter((g) => g.kind === 'checkout');
+    expect(checkout.map((g) => g.x / map.tileSize)).toEqual([...GATE_LANES]);
+    expect(
+      checkout.every((g) => g.dir === 's' && g.width === map.tileSize && g.height === map.tileSize),
+    ).toBe(true);
+    const doors = map.gates.filter((g) => g.kind === 'door');
+    expect(doors).toHaveLength(1);
+    expect(doors[0]).toMatchObject({
+      dir: 'n',
+      x: ENTRANCE_DOORS[0] * 32,
+      width: (ENTRANCE_DOORS[1] - ENTRANCE_DOORS[0] + 1) * 32,
+    });
+    for (const g of map.gates) {
+      expect(
+        aabbOverlapsSolid(grid, { x: g.x + g.width / 2, y: g.y + g.height / 2 }, half),
+        `gate ${g.index}`,
+      ).toBe(false);
+    }
+  });
+
+  it('every item spawn can be fetched from every van and brought back, going the right way through the gates', () => {
+    for (const v of map.vanSlots) {
+      for (const s of map.itemSpawns) {
+        const where = `van ${v.index} / ${s.zone} at ${s.x},${s.y}`;
+        expect(findPath(grid, v, s, { radius: half.hw, refuses }), where).not.toBeNull();
+        expect(findPath(grid, s, v, { radius: half.hw, refuses }), where).not.toBeNull();
+      }
+    }
+  });
+
+  it('the only way in is the entrance and the only way out is the checkout', () => {
+    const doors = gateTiles('door');
+    const checkout = gateTiles('checkout');
+    const blockedBy = (tiles: Set<string>) => (tx: number, ty: number) => tiles.has(`${tx},${ty}`);
+    expect(findPath(grid, van, dairy, { radius: half.hw, refuses })).not.toBeNull();
+    expect(findPath(grid, van, dairy, { radius: half.hw, refuses, blocked: blockedBy(doors) })).toBeNull();
+    expect(findPath(grid, dairy, van, { radius: half.hw, refuses, blocked: blockedBy(checkout) })).toBeNull();
   });
 });

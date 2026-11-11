@@ -233,3 +233,39 @@ describe('Predictor correction smoothing (M4 review F7)', () => {
     expect(p.renderPosition(1).x).toBe(start.x + 150);
   });
 });
+
+describe('Predictor at a one-way gate (phase 2 decision 9)', () => {
+  // A gate across the middle of the room (row y = 5), crossable southwards only.
+  const gated: MovementMap = {
+    ...map,
+    gates: [{ index: 0, x: 32, y: 160, width: 256, height: 32, dir: 's', kind: 'checkout' }],
+  };
+  const top: MovementState = { x: 100, y: 150, vx: 0, vy: 0 };
+  const down = (seq: number): InputFrame => ({ seq, move: { x: 0, y: 1 }, aim: 0, buttons: 0 });
+  const run = (from: MovementState, frames: InputFrame[], modifiers = {}) =>
+    frames.reduce((s, f) => applyInput(s, f, gated, config, modifiers), from);
+
+  it('agrees with the server while stopped: replays from the synced timers without a correction', () => {
+    const p = new Predictor(gated, config, top);
+    p.setModifiers({ carrying: true });
+    const frames = Array.from({ length: 30 }, (_, i) => down(i + 1));
+    for (const f of frames) p.apply(f);
+    expect(p.state.gate?.stop).toBeGreaterThan(0);
+    // The server has applied 12 frames (the stop started on one of them); its body carries the timers.
+    const server = run(top, frames.slice(0, 12), { carrying: true });
+    expect(server.gate?.stop).toBeGreaterThan(0);
+    p.reconcile({ ...server, ack: 12 });
+    expect(p.lastCorrection).toBe(0);
+    expect(p.state).toEqual(run(top, frames, { carrying: true }));
+  });
+
+  it('a server body without timers would be corrected: the timers matter', () => {
+    const p = new Predictor(gated, config, top);
+    const frames = Array.from({ length: 20 }, (_, i) => down(i + 1));
+    for (const f of frames) p.apply(f);
+    const server = run(top, frames.slice(0, 8));
+    const { gate: _dropped, ...withoutTimers } = server;
+    p.reconcile({ ...withoutTimers, ack: 8 });
+    expect(p.lastCorrection).toBeGreaterThan(0);
+  });
+});

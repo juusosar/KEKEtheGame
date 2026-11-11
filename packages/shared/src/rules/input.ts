@@ -10,8 +10,10 @@
 //   sending more frames, and a stalled client stands still instead of being extrapolated.
 import type { GameConfig } from '../config';
 import { Button, type InputFrame } from '../types';
+import { NO_GATE_TIMERS, passGates, type GateConfig } from './gates';
 import {
   normalizeMove,
+  playerHalfSize,
   step,
   type MovementConfig,
   type MovementMap,
@@ -24,15 +26,30 @@ export function inputStepSeconds(config: Pick<GameConfig, 'inputHz'>): number {
   return 1 / config.inputHz;
 }
 
-/** Advances a player by one InputFrame: `step()` with the fixed input dt. */
+/**
+ * Advances a player by one InputFrame: `step()` with the fixed input dt, then the map's one-way gates
+ * (`passGates`). A player stopped at a gate stands still for the frame (velocity zero) and the stop
+ * counts down by one frame; the gate cooldown counts down every frame.
+ */
 export function applyInput(
   state: MovementState,
   frame: Pick<InputFrame, 'move'> & { readonly buttons?: number },
   map: MovementMap,
-  config: MovementConfig & Pick<GameConfig, 'inputHz'>,
+  config: MovementConfig & GateConfig,
   modifiers: StepModifiers = {},
 ): MovementState {
-  return step(
+  const gates = map.gates ?? [];
+  const timers = state.gate ?? NO_GATE_TIMERS;
+  if (timers.stop > 0) {
+    return {
+      x: state.x,
+      y: state.y,
+      vx: 0,
+      vy: 0,
+      gate: { ...timers, stop: timers.stop - 1, cooldown: Math.max(0, timers.cooldown - 1) },
+    };
+  }
+  const moved = step(
     state,
     frame,
     inputStepSeconds(config),
@@ -40,6 +57,18 @@ export function applyInput(
     config,
     frameModifiers(modifiers, frame.buttons ?? 0),
   );
+  if (gates.length === 0 && state.gate === undefined) return moved;
+  const ticked = timers.cooldown > 0 ? { ...timers, cooldown: timers.cooldown - 1 } : timers;
+  const passed = passGates(
+    gates,
+    state,
+    moved,
+    playerHalfSize(config),
+    ticked,
+    modifiers.carrying === true,
+    config,
+  );
+  return { x: passed.x, y: passed.y, vx: passed.vx, vy: passed.vy, gate: passed.timers };
 }
 
 /** The modifiers one frame moves with: `blockSpeedMultiplier` applies while that frame holds Block. */

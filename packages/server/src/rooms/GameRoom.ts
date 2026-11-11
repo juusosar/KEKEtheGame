@@ -64,13 +64,15 @@ import {
   type WantedEvent,
   type WantedHit,
   type WantedWorld,
+  GateEventMessage,
+  type GateStopMessage,
 } from '@keke/shared';
 import type { MapEntry, MapRegistry } from '../maps';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
 import { CombatSystem } from '../systems/combat/CombatSystem';
 import { ItemSystem } from '../systems/items';
 import type { MapSystem } from '../systems/mapSystem';
-import { MovementSystem } from '../systems/movement';
+import { MovementSystem, resetGateTimers } from '../systems/movement';
 import { NpcSystem } from '../systems/npcs/NpcSystem';
 
 /** Close/auth error code for a join with a missing or wrong room code. */
@@ -384,6 +386,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     player.y = y;
     player.vx = 0;
     player.vy = 0;
+    resetGateTimers(player);
   }
 
   /** Sets the banked points of the sender's van; race e2e specs reach the quota with one deposit. */
@@ -782,16 +785,29 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         const block = this.combat.blockSpeedMultiplier(player);
         return {
           speedMultiplier: carry * this.combat.speedMultiplier(player),
+          carrying: player.carrying !== 0,
           ...(block === undefined ? {} : { blockSpeedMultiplier: block }),
           ...(solids.length === 0 ? {} : { solids }),
         };
+      },
+      onGateStop: (player, gate, frames) => {
+        const message: GateStopMessage = {
+          player: player.sessionId,
+          gate,
+          carrying: player.carrying !== 0,
+          seconds: frames / this.config.inputHz,
+        };
+        this.broadcast(GateEventMessage.gateStop, message);
       },
       afterFrame: (player, frame, pressed) => {
         // A KO'd player can neither pick up nor attack until the respawn (§3.3); a stunned or sliding
         // one cannot pick up or drop either (M4 review F4), but still deposits at the van.
         if (!this.combat.canAct(player)) return;
-        this.items.afterFrame(player, pressed, now, this.combat.canPickUp(player));
-        this.combat.afterFrame(player, frame, pressed);
+        // Stopped at a self-checkout gate (decision 9): no attack, pick-up or drop until the stop ends.
+        const atGate = player.gateStop > 0;
+        this.items.afterFrame(player, pressed, now, this.combat.canPickUp(player) && !atGate);
+        if (atGate) this.combat.afterFrame(player, { ...frame, buttons: 0 }, 0);
+        else this.combat.afterFrame(player, frame, pressed);
       },
     });
     // NPCs move (and swing) after the players and before player attacks resolve (M4 review H4).
