@@ -6,9 +6,9 @@ import { DEFAULT_CLIENT_DIST } from '../app';
 import { startBrowserPlayers, type BrowserPlayers } from './browsers';
 import { DEFAULT_SESSIONS, judge, planName, runSoak, type SessionPlan } from './runSoak';
 
-// M7-4: `npm run soak` runs the 8-player soak and prints a summary; the full report goes to
+// M7-4: `npm run soak` runs the full-room (16-player) soak and prints a summary; the full report goes to
 // test-results/soak/report.json. Exit code 1 when the soak failed. Options:
-//   --players 8          players in the room (the first bot hosts)
+//   --players 16         players in the room (the first bot hosts; rooms hold 16)
 //   --browsers 0         how many of them are real clients in headless Chromium (needs npm run build)
 //   --sessions timed,race,timed+teams,race+teams,timed@prisma,race@prisma,timed@both,race+teams@both
 //                        sessions played back to back, 3 rounds each; `@<map>` plays it on that map
@@ -19,7 +19,7 @@ import { DEFAULT_SESSIONS, judge, planName, runSoak, type SessionPlan } from './
 
 const { values } = parseArgs({
   options: {
-    players: { type: 'string', default: '8' },
+    players: { type: 'string', default: '16' },
     browsers: { type: 'string', default: '0' },
     sessions: { type: 'string' },
     rounds: { type: 'string', default: '3' },

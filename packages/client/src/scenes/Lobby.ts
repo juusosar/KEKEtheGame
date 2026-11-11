@@ -31,6 +31,9 @@ import { rulesSummary } from '../ui/rules';
 import { RulesEditor } from '../ui/rulesEditor';
 import { BotPicker } from '../ui/botPicker';
 
+/** Lobby players listed in one column; more (rooms hold 16) take two compact columns. */
+const LOBBY_ONE_COLUMN_MAX = 8;
+
 /** Scene that takes over when the host starts (or when we join a room that is already playing). */
 export const AFTER_LOBBY_SCENE = 'Game';
 
@@ -474,6 +477,9 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private renderPlayers(view: LobbyView): void {
+    // A room holds up to 16 players: past 8 the list goes into two compact columns, so Ready and the
+    // room code stay on screen at 720p (see ui.css).
+    this.playerList.classList.toggle('many', view.players.length > LOBBY_ONE_COLUMN_MAX);
     this.playerList.replaceChildren(...view.players.map((p) => this.playerRow(p, view.settings.teams)));
   }
 
