@@ -58,6 +58,8 @@ export interface CombatHooks {
   onKo(player: PlayerState, now: number): void;
   /** A dash swept the band from→to: scatter the lying items in it (pallet jack, M4-6). */
   onScatterItems?(from: Vec2, to: Vec2, halfWidth: number, px: number): void;
+  /** A dash swept the band from→to heading `dir`: shove the carts in it (pallet jack, P2-5). */
+  onShoveCarts?(from: Vec2, to: Vec2, halfWidth: number, dir: Vec2, skip: ReadonlySet<number>): number[];
   /** A hit makes the player drop their carried item (banana peel slip, M4-5). */
   onDropCarried?(player: PlayerState, now: number): void;
   /** Every combat event after it was applied (the room feeds landed hits to the wanted rules, M5-3). */
@@ -334,6 +336,8 @@ export class CombatSystem {
       hit: (h) => this.landHit(h),
       push: (target, dir, px) => this.push(target, dir, px),
       scatterItems: (from, to, halfWidth, px) => this.hooks.onScatterItems?.(from, to, halfWidth, px),
+      shoveCarts: (from, to, halfWidth, dir, skip) =>
+        this.hooks.onShoveCarts?.(from, to, halfWidth, dir, skip) ?? [],
       dropCarried: (target) => {
         const p = findCombatant(this.world, target) ? this.state.players.get(target) : undefined;
         if (p) this.hooks.onDropCarried?.(p, this.now);

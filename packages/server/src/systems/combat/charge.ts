@@ -3,7 +3,8 @@
 // synced `charging` flag zeroes its walk speed, server and prediction alike). Every body the dash's band
 // (`widthPx`) sweeps over is hit once: damage, knocked down (stun `knockdownSeconds`) and flung forward
 // and aside. Lying items in the band scatter `scatterPx` out of the line. A wall, a stun or a KO ends the
-// dash early. NPCs in the line are hit the same way (M5-3).
+// dash early. NPCs in the line are hit the same way (M5-3). A pushable cart in the line is shoved and ends
+// the dash too (P2-5).
 import {
   Button,
   chargeKnockbackDirection,
@@ -28,6 +29,8 @@ interface Dash {
   left: number;
   /** Bodies already hit by this dash. */
   readonly hit: Set<string>;
+  /** Carts already shoved by this dash (P2-5). */
+  readonly carts: Set<number>;
 }
 
 export function createChargeBehaviour(): BehaviourModule {
@@ -79,6 +82,11 @@ export function createChargeBehaviour(): BehaviourModule {
       });
     }
     if (dash.stats.scattersItems) ctx.scatterItems(from, to, halfWidth, dash.stats.scatterPx);
+    // Pushable carts in the line roll away about `cartShoveTiles` (decision 12; P2-5). Ramming a cart
+    // ends the dash like a wall, so the jack does not run over the cart it just sent rolling.
+    const shoved = ctx.shoveCarts(from, to, halfWidth, dash.dir, dash.carts);
+    for (const cart of shoved) dash.carts.add(cart);
+    if (shoved.length > 0) return end(id);
 
     const gateHeld = moved.x !== slid.x || moved.y !== slid.y;
     if (dash.left <= 1e-6 || slid.hitX || slid.hitY || gateHeld) end(id);
@@ -100,6 +108,7 @@ export function createChargeBehaviour(): BehaviourModule {
         dir: { x: Math.cos(intent.aim), y: Math.sin(intent.aim) },
         left: def.charge.distanceTiles * ctx.map.collision.tileSize,
         hit: new Set(),
+        carts: new Set(),
       });
       player.charging = true;
     },

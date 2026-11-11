@@ -3,6 +3,7 @@ import { loadConfig } from '../config';
 import { clearLine } from './collision';
 import {
   cartDirFor,
+  cartGrid,
   cartsSegmentTime,
   newCart,
   pushCarts,
@@ -123,6 +124,14 @@ describe('carts: pushing', () => {
     for (let i = 0; i < 10; i++) p = walk(p, { x: -1, y: 0 }, w);
     expect(p.x).toBeCloseTo(195 - 10 * config.playerSpeed * dt, 6);
     expect(cart.x).toBe(200);
+  });
+
+  it('keeps what else the movement step carries (gate timers)', () => {
+    const cart = newCart(1, { x: 200, y: 80 });
+    const prev = at(200 - CART - half.hw, 80);
+    const gate = { stop: 0, gate: 2, cooldown: 1.5 };
+    const next = { ...applyInput(prev, { move: { x: 1, y: 0 } }, map, config), gate };
+    expect(pushCarts(prev, next, ctx(world([cart]))).state.gate).toEqual(gate);
   });
 
   it('reports which carts moved', () => {
@@ -253,6 +262,24 @@ describe('carts: lines of sight and projectiles', () => {
     expect(hit.flight.x).toBeCloseTo(300 - CART, 6);
     // Without the cart it reaches the body.
     expect(stepProjectile(grid, flight, 0.5, behind, 10).impact).toEqual({ kind: 'body', id: 'b' });
+  });
+});
+
+describe('carts: gates (P2-1)', () => {
+  it('a cart stops at a gate tile, players are not affected by cartGrid', () => {
+    // A 1x1 gate on tile (10, 2).
+    const gates = [{ x: 320, y: 64, width: 32, height: 32 }];
+    const g = cartGrid(grid, gates);
+    expect(g.isSolid(10, 2)).toBe(true);
+    expect(g.isSolid(9, 2)).toBe(false);
+    expect(grid.isSolid(10, 2)).toBe(false);
+    expect(cartGrid(grid, [])).toBe(grid);
+    const cart = newCart(1, { x: 250, y: 80 });
+    const w: CartWorld = { grid: g, carts: [cart], obstacles: [] };
+    let p = at(250 - CART - half.hw, 80);
+    for (let i = 0; i < 40; i++) p = walk(p, { x: 1, y: 0 }, w);
+    expect(cart.x).toBeCloseTo(320 - CART, 6);
+    expect(p.x).toBeCloseTo(320 - 2 * CART - half.hw, 6);
   });
 });
 

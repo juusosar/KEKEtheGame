@@ -108,6 +108,11 @@ export interface CombatContext {
    * (pallet jack, M4-6). Nothing happens when the room has no item hook.
    */
   scatterItems(from: Vec2, to: Vec2, halfWidth: number, px: number): void;
+  /**
+   * Shoves the pushable carts the band from→to touches along `dir` (pallet jack, P2-5), except `skip`.
+   * Returns the ids shoved; none when the room has no cart hook.
+   */
+  shoveCarts(from: Vec2, to: Vec2, halfWidth: number, dir: Vec2, skip: ReadonlySet<number>): number[];
   /** The round player drops what they carry where they stand (banana peel slip, M4-5). */
   dropCarried(target: string): void;
 }

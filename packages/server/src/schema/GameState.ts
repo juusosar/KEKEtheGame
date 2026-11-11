@@ -306,6 +306,24 @@ export const StockCartState = schema(
 );
 export type StockCartState = SchemaType<typeof StockCartState>;
 
+/**
+ * A pushable shopping cart (Phase 2 decision 12; P2-5). Keyed by String(id) in `GameState.carts`.
+ * float64 like `PlayerState.x/y`, so client prediction replays pushes from the exact server body.
+ */
+export const CartState = schema(
+  {
+    /** From 1, the map's `cart_spawns` order. */
+    id: t.uint8().default(0),
+    /** Centre, pixels. */
+    x: t.float64().default(0),
+    y: t.float64().default(0),
+    /** CartDir: 'down' | 'up' | 'left' | 'right', the way its nose points (art frame `cart_<dir>`). */
+    dir: t.string().default('left'),
+  },
+  'CartState',
+);
+export type CartState = SchemaType<typeof CartState>;
+
 /** Host settings (§13.1). */
 export const RoomSettingsState = schema(
   {
@@ -353,6 +371,8 @@ export const GameState = schema(
     npcs: t.map(NpcState),
     /** Stock carts parked in aisles right now (M5-3). */
     stockCarts: t.map(StockCartState),
+    /** Pushable shopping carts this round (P2-5). Refilled at each countdown, emptied in the lobby. */
+    carts: t.map(CartState),
     /**
      * Race (§4.2, M6-2): sessionId of the player who delivered a box and ended the round; '' while the
      * round runs, when the time cap ended it, and in Timed. Reset at each countdown and in the lobby.

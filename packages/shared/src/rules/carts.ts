@@ -8,6 +8,8 @@
 import type { GameConfig } from '../config';
 import type { Vec2 } from '../types';
 import { moveAabb, type CollisionGrid, type HalfSize } from './collision';
+import type { Gate } from './gates';
+import { gridWithBlocked } from './stockCart';
 import type { MovementState } from './movement';
 
 /** The way a cart's nose points: the way it last rolled. Matches the art frames `cart_<dir>`. */
@@ -61,6 +63,28 @@ export type CartConfig = Pick<
 const CART_REST_SPEED = 1;
 /** Float slack for "already touching" comparisons. */
 const EPS = 1e-6;
+
+/**
+ * The grid carts roll on: the walls plus every tile a one-way gate covers (self-checkout lanes and the
+ * entrance doors). Carts stay on their side of the gates, so a cart can never sit in a lane and block it;
+ * players go through gates, carts do not. The server and prediction both push carts on this grid.
+ */
+export function cartGrid<G extends CollisionGrid>(
+  grid: G,
+  gates: readonly Pick<Gate, 'x' | 'y' | 'width' | 'height'>[] = [],
+): G {
+  if (gates.length === 0) return grid;
+  const ts = grid.tileSize;
+  const blocked = new Set<number>();
+  for (const g of gates) {
+    for (let ty = Math.floor(g.y / ts); ty <= Math.ceil((g.y + g.height) / ts) - 1; ty++) {
+      for (let tx = Math.floor(g.x / ts); tx <= Math.ceil((g.x + g.width) / ts) - 1; tx++) {
+        blocked.add(ty * grid.width + tx);
+      }
+    }
+  }
+  return gridWithBlocked(grid, (tx, ty) => blocked.has(ty * grid.width + tx));
+}
 
 /** Half extents of a cart body. */
 export function cartHalfSize(config: Pick<GameConfig, 'cartSizePx'>): HalfSize {
@@ -213,7 +237,8 @@ export function pushCarts(prev: MovementState, next: MovementState, ctx: PushCon
     vel[axis] = blocked ? 0 : vel[axis] * config.cartPushSpeedMultiplier;
   }
   return {
-    state: { x: pos.x, y: pos.y, vx: vel.x, vy: vel.y },
+    // Keep everything else `next` carries (gate timers).
+    state: { ...next, x: pos.x, y: pos.y, vx: vel.x, vy: vel.y },
     pushed: [...pushed].sort((a, b) => a - b),
   };
 }

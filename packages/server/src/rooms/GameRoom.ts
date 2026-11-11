@@ -15,6 +15,7 @@ import {
   expireWanted,
   generateRoomCode,
   gridWithBlocked,
+  withSegmentBlocker,
   inOfficeTrigger,
   inWantedZone,
   isMapChoice,
@@ -69,6 +70,7 @@ import {
 } from '@keke/shared';
 import type { MapEntry, MapRegistry } from '../maps';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
+import { CartSystem } from '../systems/carts';
 import { CombatSystem } from '../systems/combat/CombatSystem';
 import { HazardSystem } from '../systems/hazards';
 import { ItemSystem } from '../systems/items';
@@ -127,6 +129,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private mapSystems: MapSystem[] = [];
   /** Floor hazards of the round's map (the bakery oven, P2-2). */
   private hazards!: HazardSystem;
+  private carts!: CartSystem;
   /** Wanted status per player this round (§8; M5-2 rules, wired in M5-3). */
   private wanted: WantedWorld = createWantedWorld();
   /** Round seconds of the last `wanted` refresh sent to each player (rate limit, M5 review F8). */
@@ -382,7 +385,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
       return this.refuse(client, DebugMessage.teleport, 'invalid_payload');
     }
-    if (aabbOverlapsSolid(this.map.collision, { x, y }, playerHalfSize(this.config))) {
+    const half = playerHalfSize(this.config);
+    if (aabbOverlapsSolid(this.map.collision, { x, y }, half) || this.carts.overlaps({ x, y }, half)) {
       return this.refuse(client, DebugMessage.teleport, 'invalid_payload');
     }
     player.x = x;
@@ -449,11 +453,17 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.mapEntry = entry;
     // The live map: stock carts parked by stockers block movement like walls (M5-3). Items keep the
     // static map (spawns and drops never depend on a cart that is gone a few seconds later).
+    // Pushable carts (P2-5) are not tiles: movement resolves them through the `resolve` hook, and lines of
+    // sight (swings, sprays, splashes, projectiles, guard sight) stop at them through `segmentBlockedAt`.
     const liveMap: MapModel = {
       ...entry.map,
-      collision: gridWithBlocked(entry.map.collision, (tx, ty) => this.npcs.isCartTile(tx, ty)),
+      collision: withSegmentBlocker(
+        gridWithBlocked(entry.map.collision, (tx, ty) => this.npcs.isCartTile(tx, ty)),
+        (from, delta) => this.carts.segmentBlockedAt(from, delta),
+      ),
     };
     this.liveMap = liveMap;
+    this.carts = new CartSystem(this.state, this.config, liveMap);
     this.movement = new MovementSystem(this.config, liveMap);
     this.items = new ItemSystem(
       this.state,
@@ -473,6 +483,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         onKo: (player, now) => this.items.dropCarried(player, now, 'ko'),
         // §7 pallet jack: loose items in the dash's line scatter (M4-6).
         onScatterItems: (from, to, halfWidth, px) => this.items.scatter(from, to, halfWidth, px),
+        // Decision 12: a pallet jack dash shoves the carts in its line (P2-5).
+        onShoveCarts: (from, to, halfWidth, dir, skip) => this.carts.shove(from, to, halfWidth, dir, skip),
         // §7: a banana peel slip drops the carried item where the player slipped (M4-5).
         onDropCarried: (player, now) => this.items.dropCarried(player, now, 'slip'),
         // Landed hits feed the wanted rules at the end of the tick (§8; M5-3).
@@ -520,6 +532,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.hazards,
       // NPC counts scale with the number of players (§8).
       { reset: () => npcs.reset(), startRound: (players) => npcs.startRound(players.length) },
+      // Pushable carts back at their spawns each round (P2-5).
+      this.carts,
     ];
   }
 
@@ -544,6 +558,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   /** The map the room simulates on now. */
   private get map(): MapModel {
     return this.currentMap.map;
+  }
+
+  /** The pushable carts of the round (P2-5), for tests. */
+  get cartSystem(): CartSystem {
+    return this.carts;
   }
 
   /** The map entry the room's systems run on, for tests. */
@@ -809,6 +828,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         };
         this.broadcast(GateEventMessage.gateStop, message);
       },
+      // Pushable carts (P2-5): walking into one pushes it, one that cannot move stops the player.
+      resolve: (player, prev, next) => this.carts.push(player, prev, next, now),
       afterFrame: (player, frame, pressed) => {
         // A KO'd player can neither pick up nor attack until the respawn (§3.3); a stunned or sliding
         // one cannot pick up or drop either (M4 review F4), but still deposits at the van.
@@ -820,6 +841,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         else this.combat.afterFrame(player, frame, pressed);
       },
     });
+    // Released and shoved carts roll on after everyone walked (P2-5).
+    this.carts.tick(now);
     // NPCs move (and swing) after the players and before player attacks resolve (M4 review H4).
     this.npcs.tick(now);
     // Attacks resolve after everyone has moved this tick (M3 review H3).

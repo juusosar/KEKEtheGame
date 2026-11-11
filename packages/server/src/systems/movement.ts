@@ -21,6 +21,11 @@ export interface FrameHooks {
   /** A checkout gate just stopped this player (phase 2 decision 9) for `frames` input frames. */
   onGateStop?(player: PlayerState, gate: number, frames: number): void;
   /**
+   * Bodies that are not walls (pushable carts, P2-5): resolves the frame's move `prev` → `next` (already
+   * through the walls) and returns where the player ends up.
+   */
+  resolve?(player: PlayerState, prev: MovementState, next: MovementState): MovementState;
+  /**
    * Runs after each applied frame, with the player already moved and acked. `pressed` holds the
    * buttons that went down in this frame compared with the player's previous applied frame (review H2).
    */
@@ -89,7 +94,8 @@ export class MovementSystem {
           vy: player.vy,
           gate: { stop: player.gateStop, gate: player.gateLast, cooldown: player.gateCooldown },
         };
-        const state = applyInput(start, frame, this.map, this.config, modifiers);
+        const moved = applyInput(start, frame, this.map, this.config, modifiers);
+        const state = hooks.resolve ? hooks.resolve(player, start, moved) : moved;
         player.x = state.x;
         player.y = state.y;
         player.vx = state.vx;
