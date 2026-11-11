@@ -13,7 +13,7 @@ import { GameState, PlayerState } from '../schema/GameState';
 import { CombatSystem } from './combat/CombatSystem';
 import { HazardSystem } from './hazards';
 
-const config = loadConfig();
+const config = loadConfig({ ...loadConfig(), roundStartProtectionSeconds: 0 });
 const TICK = 1 / config.serverTickHz;
 const prisma = loadThemeMap(getTheme('prisma'));
 const kespro = loadThemeMap(getTheme('kespro'));

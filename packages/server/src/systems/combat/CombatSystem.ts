@@ -118,7 +118,11 @@ export class CombatSystem {
     return this.weapons;
   }
 
-  /** A new round (countdown): everyone in it at full HP with fists, no protection (§3.3). */
+  /**
+   * A new round (countdown): everyone in it at full HP with fists (§3.3), and spawn-protected for the
+   * first `roundStartProtectionSeconds` of play (P4-2), so a round does not open with a brawl between
+   * neighbouring vans. Round time starts at 0 at the Go, so the protection covers the countdown too.
+   */
   startRound(players: readonly PlayerState[], seed?: number): void {
     if (seed !== undefined) this.rng = createRng(seed);
     this.reset();
@@ -127,6 +131,8 @@ export class CombatSystem {
     for (const p of players) {
       world = addCombatant(world, p.sessionId, teams ? p.team : 0, this.weapons, this.config);
     }
+    const protectedUntil = this.config.roundStartProtectionSeconds;
+    if (protectedUntil > 0) world = { players: world.players.map((c) => ({ ...c, protectedUntil })) };
     this.world = world;
     this.running = true;
     this.now = 0;

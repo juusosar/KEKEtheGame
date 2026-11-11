@@ -23,7 +23,7 @@ import { ProjectileSystem } from './projectiles';
 import { thrownBehaviour } from './thrown';
 import type { BehaviourModule } from './types';
 
-const config = loadConfig();
+const config = loadConfig({ ...loadConfig(), roundStartProtectionSeconds: 0 });
 const weapons = getWeaponCatalogue();
 const TICK = 1 / config.serverTickHz;
 const MAX = config.maxHp;

@@ -27,6 +27,7 @@ const configShape = {
   maxHp: positiveInt,
   respawnSeconds: nonNegative,
   spawnProtectionSeconds: nonNegative,
+  roundStartProtectionSeconds: nonNegative,
   looseItemDespawnSeconds: positive,
   pickupRangeTiles: positive,
   depositRangeTiles: positive,

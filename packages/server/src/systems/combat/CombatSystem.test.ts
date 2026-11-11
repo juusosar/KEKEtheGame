@@ -10,6 +10,7 @@ import {
   vanSpawn,
   type CombatEventWire,
   type InputFrame,
+  type GameConfig,
   type MapModel,
 } from '@keke/shared';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -17,7 +18,7 @@ import { loadThemeMap } from '../../maps';
 import { GameState, PlayerState } from '../../schema/GameState';
 import { CombatSystem } from './CombatSystem';
 
-const config = loadConfig();
+const config = loadConfig({ ...loadConfig(), roundStartProtectionSeconds: 0 });
 const weapons = getWeaponCatalogue();
 const TICK = 1 / config.serverTickHz;
 let map: MapModel;
@@ -43,7 +44,11 @@ interface Setup {
 
 function setup(
   count: number,
-  { teams = false, team = (_i: number): number => 0 }: { teams?: boolean; team?: (i: number) => number } = {},
+  {
+    teams = false,
+    team = (_i: number): number => 0,
+    cfg = config,
+  }: { teams?: boolean; team?: (i: number) => number; cfg?: GameConfig } = {},
 ): Setup {
   const state = new GameState();
   state.settings.teams = teams;
@@ -64,7 +69,7 @@ function setup(
   const kos: string[] = [];
   const combat = new CombatSystem(
     state,
-    config,
+    cfg,
     map,
     (e) => events.push(e),
     { onKo: (p) => kos.push(p.sessionId) },
@@ -270,6 +275,26 @@ describe('CombatSystem', () => {
       idle(s, config.spawnProtectionSeconds);
       expect(b.protected).toBe(false);
     });
+  });
+
+  it('protects everyone for the first seconds of a round, so neighbouring vans do not open with a brawl (P4-2)', () => {
+    const cfg = loadConfig({ ...loadConfig(), roundStartProtectionSeconds: 3 });
+    const s = setup(2, { cfg });
+    const [a, b] = s.players as [PlayerState, PlayerState];
+    expect(a.protected).toBe(true);
+    expect(b.protected).toBe(true);
+    b.x = a.x + 25;
+    b.y = a.y;
+    swing(s, a);
+    expect(b.hp).toBe(config.maxHp);
+    idle(s, 3);
+    expect(a.protected).toBe(false);
+    expect(b.protected).toBe(false);
+    b.x = a.x + 25;
+    b.y = a.y;
+    swing(s, a);
+    idle(s, 0.5);
+    expect(b.hp).toBeLessThan(config.maxHp);
   });
 
   it('resolves attacks after every frame of the tick is recorded (review H3)', () => {

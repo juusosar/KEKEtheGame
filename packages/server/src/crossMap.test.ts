@@ -19,6 +19,7 @@ const PORT = 2612;
 // Long phases: the test steps the room with advancePhase().
 const config = loadConfig({
   ...loadConfig(),
+  roundStartProtectionSeconds: 0,
   countdownSeconds: 60,
   timedRoundSeconds: 60,
   raceRoundSeconds: 60,

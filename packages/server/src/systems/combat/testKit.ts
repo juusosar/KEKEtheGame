@@ -17,7 +17,7 @@ import { loadThemeMap } from '../../maps';
 import { GameState, PlayerState } from '../../schema/GameState';
 import { CombatSystem } from './CombatSystem';
 
-export const config = loadConfig();
+export const config = loadConfig({ ...loadConfig(), roundStartProtectionSeconds: 0 });
 export const weapons = getWeaponCatalogue();
 export const TICK = 1 / config.serverTickHz;
 

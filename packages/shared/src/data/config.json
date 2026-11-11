@@ -17,6 +17,7 @@
   "maxHp": 100,
   "respawnSeconds": 3,
   "spawnProtectionSeconds": 1.5,
+  "roundStartProtectionSeconds": 3,
   "looseItemDespawnSeconds": 30,
   "pickupRangeTiles": 1,
   "depositRangeTiles": 2,
