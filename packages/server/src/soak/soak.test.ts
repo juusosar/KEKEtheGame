@@ -8,6 +8,8 @@ import { runSoak } from './runSoak';
 const PORT = 2596;
 /** P1-6: the second map's short soak. */
 const PRISMA_PORT = 2603;
+/** P3-3: a session over both maps. */
+const BOTH_PORT = 2613;
 
 describe('soak (8 bots, short)', () => {
   it('plays a 2-round Race with teams without errors or desync', { timeout: 60_000 }, async () => {
@@ -48,6 +50,27 @@ describe('soak (8 bots, short)', () => {
       expect(report.bots.framesSent).toBeGreaterThan(0);
       // No activity check, as above: on this map the vans are in the lot, so a first pickup takes a walk
       // that a loaded machine may not finish in 6 s. The full `npm run soak` plays it with real timers.
+    },
+  );
+
+  it(
+    'plays a Both session, one round on each map, without errors or desync across the switch (P3-3)',
+    { timeout: 60_000 },
+    async () => {
+      const report = await runSoak({
+        port: BOTH_PORT,
+        players: 8,
+        sessions: [{ mode: 'race', teams: true, rounds: 1, map: 'both' }],
+        config: { countdownSeconds: 0.5, raceRoundSeconds: 6, roundResultsSeconds: 0.5, podiumSeconds: 0.5 },
+        desyncEverySeconds: 3,
+      });
+      expect(report.errors).toEqual([]);
+      expect(report.desyncs).toEqual([]);
+      expect(report.desyncChecks).toBeGreaterThan(0);
+      // The map checks at each round start and in the lobby are flow problems.
+      expect(report.sessions[0]?.flowProblems).toEqual([]);
+      expect(report.sessions[0]?.rounds.map((r) => r.map)).toEqual(['kespro', 'prisma']);
+      expect(report.bots.framesSent).toBeGreaterThan(0);
     },
   );
 });
