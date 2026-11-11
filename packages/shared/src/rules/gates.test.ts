@@ -5,6 +5,7 @@ import {
   gateCooldownFrames,
   gateStopFrames,
   gateStopped,
+  GATE_HOLD_PX,
   holdAtGates,
   passGates,
   NO_GATE_TIMERS,
@@ -274,6 +275,27 @@ describe('server-moved bodies', () => {
     const r = knockbackStep(mapFrom(ROWS).collision, { x: 144, y: 160 }, half, shove, 0.1, [LANE]);
     expect(r.pos.y).toBe(LINE_Y);
     expect(holdAtGates(undefined, { x: 0, y: 0 }, { x: 5, y: 5 }, half)).toEqual({ x: 5, y: 5 });
+  });
+
+  it('a shove the right way ends just short of a checkout line, so the next step gets the stop (P2 review F2)', () => {
+    const shove = { dir: { x: 0, y: 1 }, remainingPx: 96, speedPxPerSecond: 640 };
+    const grid = mapFrom(ROWS).collision;
+    const r = knockbackStep(grid, { x: 144, y: 120 }, half, shove, 0.1, [LANE]);
+    expect(r.pos.y).toBe(LINE_Y - GATE_HOLD_PX);
+    expect(r.knockback).toBeNull();
+    const start: MovementState = { x: r.pos.x, y: r.pos.y, vx: 0, vy: 0, gate: NO_GATE_TIMERS };
+    const { trail } = walk(start, south, 5, map, true);
+    expect(trail.some((s) => s.gate?.stop === gateStopFrames('checkout', true, config))).toBe(true);
+  });
+
+  it('a body already within the hold distance is not moved back', () => {
+    const before = { x: 144, y: LINE_Y - 0.2 };
+    expect(holdAtGates([LANE], before, { x: 144, y: LINE_Y + 20 }, half)).toEqual(before);
+  });
+
+  it('a door lets a shove through the right way', () => {
+    const door: Gate = { ...LANE, kind: 'door' };
+    expect(holdAtGates([door], { x: 144, y: 120 }, { x: 144, y: 170 }, half)).toEqual({ x: 144, y: 170 });
   });
 });
 

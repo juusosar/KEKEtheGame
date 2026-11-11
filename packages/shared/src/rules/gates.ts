@@ -161,8 +161,21 @@ export function passGates(
 }
 
 /**
+ * How far before a checkout gate's line `holdAtGates` leaves a body that something else pushed at it the
+ * right way: just short of the line, so the body's own next step crosses it and gets the stop.
+ */
+export const GATE_HOLD_PX = 0.5;
+
+/**
  * Keeps a body that something else moved (a shove, a slide, a pallet jack dash) from going through a
- * gate the wrong way. Crossing the right way is allowed without a stop. Returns the corrected position.
+ * gate without the gate having its say (phase 2 decision 9):
+ *
+ * - the wrong way through any gate: the body stays on the line, as at a wall;
+ * - the right way through a checkout gate: the body stops `GATE_HOLD_PX` short of the line, so it has to
+ *   walk through and gets the stop ("unexpected item" while carrying) like everyone else (P2 review F2);
+ * - the right way through a door: allowed, doors never stop anyone.
+ *
+ * Returns the corrected position. Callers end the forced move when it differs from `after`.
  */
 export function holdAtGates(
   gates: readonly Gate[] | undefined,
@@ -176,8 +189,14 @@ export function holdAtGates(
     const s1 = sideOf(gate, pos, half);
     if (Number.isNaN(s1)) continue;
     const a = AXES[gate.dir];
-    const s0 = a.sign * (before[a.along] - gateCentre(gate)[a.along]);
-    if (s0 >= 0 && s1 < 0) pos = { ...pos, [a.along]: gateCentre(gate)[a.along] };
+    const line = gateCentre(gate)[a.along];
+    const s0 = a.sign * (before[a.along] - line);
+    if (s0 >= 0 && s1 < 0) pos = { ...pos, [a.along]: line };
+    else if (gate.kind === 'checkout' && s0 < 0 && s1 >= 0) {
+      // Never move the body backwards: one already within the hold distance stays where it was.
+      const held = Math.max(-GATE_HOLD_PX, s0);
+      pos = { ...pos, [a.along]: line + a.sign * held };
+    }
   }
   return pos;
 }

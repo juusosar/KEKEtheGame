@@ -28,6 +28,11 @@ export class HazardSystem implements MapSystem {
     this.hazards = hazardZones(map.zones);
   }
 
+  /** True when `id` names one of this map's hazard zones (a burn's source id), not an NPC. */
+  isZone(id: string): boolean {
+    return this.hazards.some((z) => z.id === id);
+  }
+
   /** True when the map has a zone that hurts. */
   get active(): boolean {
     return this.hazards.length > 0;

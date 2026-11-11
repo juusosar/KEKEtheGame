@@ -54,6 +54,7 @@ export {
   gateDirVector,
   gateStopFrames,
   gateStopped,
+  GATE_HOLD_PX,
   holdAtGates,
   passGates,
   type Gate,

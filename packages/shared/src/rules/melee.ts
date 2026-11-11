@@ -103,7 +103,8 @@ export function startKnockback(
 
 /**
  * Moves a body along its shove for `dt` seconds through the collision grid. Returns the new position
- * and the shove left, or null when it has finished or ran into a wall or a gate (either stops the shove).
+ * and the shove left, or null when it has finished or ran into a wall or a gate (either stops the shove). A
+ * shove ends short of a checkout gate's line too: the body walks through on its own and gets the stop.
  */
 export function knockbackStep(
   grid: CollisionGrid,
@@ -120,7 +121,8 @@ export function knockbackStep(
   const remainingPx = knockback.remainingPx - px;
   // Pinned against a wall (nothing moved although it should have): the shove ends.
   const stuck = px > 0 && Math.hypot(moved.x - pos.x, moved.y - pos.y) < 1e-6;
-  const done = remainingPx <= 1e-6 || stuck;
+  const gateHeld = moved.x !== slid.x || moved.y !== slid.y;
+  const done = remainingPx <= 1e-6 || stuck || gateHeld;
   return {
     pos: { x: moved.x, y: moved.y },
     knockback: done ? null : { ...knockback, remainingPx },
