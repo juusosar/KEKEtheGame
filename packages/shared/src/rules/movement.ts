@@ -2,7 +2,7 @@
 // so it must stay pure and deterministic: same state + input + dt + map gives the same result everywhere.
 import type { GameConfig } from '../config';
 import type { InputFrame, Vec2 } from '../types';
-import { moveAabb, type CollisionGrid, type HalfSize } from './collision';
+import { circleSeparation, moveAabb, type Circle, type CollisionGrid, type HalfSize } from './collision';
 
 /** Floor properties of a map zone. `Zone` from shared/src/map satisfies this shape. */
 export interface FloorZone {
@@ -40,6 +40,13 @@ export interface StepModifiers {
    * the block goes up or down. Undefined when the player cannot block.
    */
   readonly blockSpeedMultiplier?: number;
+  /**
+   * Solid bodies the player cannot walk into (Phase 2 decision 8: customers), as circles. After the
+   * wall move the player's circle (radius `playerHitboxSize / 2`) is pushed out of each one it overlaps,
+   * through the walls. The server passes the bodies' positions this tick; prediction passes the
+   * interpolated ones it draws.
+   */
+  readonly solids?: readonly Circle[];
 }
 
 /** Velocities below this (px/s) snap to zero so a slide ends instead of decaying forever. Not a tunable. */
@@ -104,11 +111,36 @@ export function step(
   if (Math.abs(vx) < REST_SPEED) vx = 0;
   if (Math.abs(vy) < REST_SPEED) vy = 0;
 
-  const moved = moveAabb(map.collision, state, playerHalfSize(config), { x: vx * dt, y: vy * dt });
+  const half = playerHalfSize(config);
+  const moved = moveAabb(map.collision, state, half, { x: vx * dt, y: vy * dt });
+  const out = pushOutOfSolids(map.collision, moved, half, config.playerHitboxSize / 2, modifiers.solids);
   return {
-    x: moved.x,
-    y: moved.y,
+    x: out.x,
+    y: out.y,
     vx: moved.hitX ? 0 : vx,
     vy: moved.hitY ? 0 : vy,
   };
+}
+
+/**
+ * Moves a body of radius `r` at `pos` out of every solid circle it overlaps, one after another in
+ * order, each push going through the walls (`moveAabb`). Pure and order-stable, so server and
+ * prediction agree when they see the same bodies.
+ */
+export function pushOutOfSolids(
+  grid: CollisionGrid,
+  pos: Vec2,
+  half: HalfSize,
+  r: number,
+  solids: readonly Circle[] | undefined,
+): Vec2 {
+  if (!solids || solids.length === 0) return pos;
+  let at: Vec2 = { x: pos.x, y: pos.y };
+  for (const solid of solids) {
+    const sep = circleSeparation({ x: at.x, y: at.y, r }, solid);
+    if (!sep) continue;
+    const next = moveAabb(grid, at, half, sep);
+    at = { x: next.x, y: next.y };
+  }
+  return at;
 }

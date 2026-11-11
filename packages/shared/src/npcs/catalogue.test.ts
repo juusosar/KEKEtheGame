@@ -24,9 +24,38 @@ function issuesOf(data: unknown): readonly string[] {
 describe('bundled npcs.json', () => {
   const npcs = getNpcCatalogue();
 
-  it('has the four §8 store workers', () => {
-    expect(npcs.npcs.map((n) => n.id)).toEqual(['stocker', 'security', 'forklift', 'butcher']);
-    expect(npcs.npcs.map((n) => n.behaviour)).toEqual(['stocker', 'security', 'forklift', 'butcher']);
+  it('has the four §8 store workers and the Phase 2 customers', () => {
+    expect(npcs.npcs.map((n) => n.id)).toEqual(['stocker', 'security', 'forklift', 'butcher', 'customer']);
+    expect(npcs.npcs.map((n) => n.behaviour)).toEqual([
+      'stocker',
+      'security',
+      'forklift',
+      'butcher',
+      'customer',
+    ]);
+  });
+
+  it('matches the Phase 2 decision 8 customer numbers', () => {
+    const customer = npcs.ofBehaviour('customer')[0];
+    expect(customer).toMatchObject({
+      hp: 30,
+      speedPxPerSecond: 60,
+      solid: true,
+      group: { min: 2, max: 4 },
+      panic: { radiusTiles: 5, seconds: 4, speedPxPerSecond: 150 },
+    });
+    // 6 + players, capped by data.
+    const count = must(customer).count;
+    expect([1, 4, 8].map((p) => npcCount(count, p))).toEqual([7, 10, 14]);
+    expect(npcCount(count, 16)).toBe(14);
+    // Only customers are solid.
+    expect(npcs.npcs.filter((n) => n.solid === true).map((n) => n.id)).toEqual(['customer']);
+  });
+
+  it('refuses customer groups that cannot be split evenly within min and max', () => {
+    const data = raw() as { npcs: Record<string, unknown>[] };
+    must(data.npcs.find((n) => n.id === 'customer')).group = { min: 3, max: 4 };
+    expect(issuesOf(data).join('\n')).toMatch(/2 × min - 1/);
   });
 
   it('matches the §8 HP and damage numbers', () => {
@@ -62,8 +91,8 @@ describe('bundled npcs.json', () => {
     expect(stocker.sprite).toBe('stocker');
     expect(Object.isFrozen(stocker)).toBe(true);
     expect(Object.isFrozen(npcs.npcs)).toBe(true);
-    expect(() => npcs.require('customer')).toThrow(/Unknown NPC id "customer"/);
-    expect(npcs.get('customer')).toBeUndefined();
+    expect(() => npcs.require('shopper')).toThrow(/Unknown NPC id "shopper"/);
+    expect(npcs.get('shopper')).toBeUndefined();
   });
 });
 

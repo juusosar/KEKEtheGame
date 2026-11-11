@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../config';
-import { carryMultiplier, normalizeMove, step, type MovementState } from './movement';
+import { carryMultiplier, normalizeMove, pushOutOfSolids, step, type MovementState } from './movement';
 import { mapFrom } from './testGrid';
 
 const config = loadConfig();
@@ -129,5 +129,41 @@ describe('step', () => {
       return s;
     };
     expect(simulate()).toEqual(simulate());
+  });
+});
+
+describe('solid bodies (Phase 2 decision 8: customers)', () => {
+  const r = config.playerHitboxSize / 2;
+  const body = { x: 200, y: 160, r: 10 };
+
+  it('stops a player walking into a body at the touching distance', () => {
+    let s = start;
+    for (let i = 0; i < 40; i++) s = step(s, { move: { x: 1, y: 0 } }, dt, open, config, { solids: [body] });
+    expect(body.x - s.x).toBeCloseTo(r + body.r, 5);
+    expect(s.y).toBeCloseTo(160, 5);
+  });
+
+  it('slides around a body hit off-centre instead of sticking', () => {
+    let s: MovementState = { ...start, y: 165 };
+    for (let i = 0; i < 40; i++) s = step(s, { move: { x: 1, y: 0 } }, dt, open, config, { solids: [body] });
+    expect(s.x).toBeGreaterThan(body.x);
+  });
+
+  it('never pushes a player into a wall', () => {
+    // Player against the left wall (interior starts at x = 32), body pressing from the right.
+    const at = { x: 32 + r, y: 160 };
+    const out = pushOutOfSolids(open.collision, at, { hw: r, hh: r }, r, [{ x: at.x + 5, y: 160, r: 10 }]);
+    expect(out.x).toBeCloseTo(32 + r, 5);
+  });
+
+  it('changes nothing without bodies (the first map)', () => {
+    expect(run(start, { x: 1, y: 0.3 }, 20)).toEqual(
+      (() => {
+        let s = start;
+        for (let i = 0; i < 20; i++)
+          s = step(s, { move: { x: 1, y: 0.3 } }, dt, open, config, { solids: [] });
+        return s;
+      })(),
+    );
   });
 });

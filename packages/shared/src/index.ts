@@ -10,6 +10,7 @@ export * from './weapons';
 export * from './npcs';
 export {
   aabbOverlapsSolid,
+  bodiesBlockLine,
   circleSeparation,
   circlesOverlap,
   isSolidTile,
@@ -23,6 +24,7 @@ export {
   carryMultiplier,
   normalizeMove,
   playerHalfSize,
+  pushOutOfSolids,
   step,
   type FloorZone,
   type MovementConfig,

@@ -40,7 +40,7 @@ function must<T>(value: T | undefined | null, what = 'value'): T {
 describe('NPCs on the prisma map', () => {
   it('has everything npcs.json needs, with the deli as the butcher home', () => {
     expect(checkNpcMap(npcs, map)).toEqual([]);
-    expect(npcRoster(npcs, map)).toEqual(['stocker', 'security', 'forklift', 'butcher']);
+    expect(npcRoster(npcs, map)).toEqual(['stocker', 'security', 'forklift', 'butcher', 'customer']);
     expect(npcs.require('butcher')).toMatchObject({ homeZone: 'deli', guardZone: 'behind_counter' });
   });
 
@@ -62,10 +62,25 @@ describe('NPCs on the prisma map', () => {
       expect(count('security')).toBe(2 + Math.floor(players / 6));
       expect(count('forklift')).toBe(1);
       expect(count('butcher')).toBe(1);
+      // Customers (Phase 2 decision 8): 6 + players, at most 14, in groups of 2 to 4.
+      expect(count('customer')).toBe(Math.min(14, 6 + players));
       for (const p of plan) {
         const half = npcs.require(p.type).hitboxPx / 2;
         expect(aabbOverlapsSolid(grid, p.spawn, { hw: half, hh: half }), p.key).toBe(false);
       }
+    }
+  });
+
+  it('puts every customer group inside the store, on an aisle waypoint, away from the vans', () => {
+    const spawns = map.npcSpawns.filter((s) => s.type === 'customer');
+    expect(spawns.length).toBeGreaterThanOrEqual(4);
+    const store = new Set(['pantry', 'produce', 'bakery', 'drinks', 'candy', 'frozen', 'dairy']);
+    for (const s of spawns) {
+      expect(store.has(map.zoneAt(s.x, s.y)?.id ?? ''), `${s.x},${s.y}`).toBe(true);
+      expect(
+        map.npcWaypoints.some((w) => w.x === s.x && w.y === s.y),
+        `${s.x},${s.y}`,
+      ).toBe(true);
     }
   });
 
@@ -81,7 +96,7 @@ describe('NPCs on the prisma map', () => {
   });
 
   it('lets a walker path from every stocker and guard spawn to every waypoint and back', () => {
-    const walkers = map.npcSpawns.filter((s) => s.type === 'stocker' || s.type === 'security');
+    const walkers = map.npcSpawns.filter((s) => s.type !== 'butcher');
     const points: Vec2[] = [...walkers, ...map.npcWaypoints];
     const first = must(map.npcWaypoints[0]);
     for (const p of points) {

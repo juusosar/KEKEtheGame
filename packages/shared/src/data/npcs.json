@@ -65,6 +65,19 @@
         "cooldownSeconds": 1,
         "melee": { "damage": 20, "rangePx": 34, "arcDegrees": 100, "knockbackPx": 24, "stunSeconds": 0 }
       }
+    },
+    {
+      "id": "customer",
+      "name": "Customer",
+      "behaviour": "customer",
+      "hp": 30,
+      "hitboxPx": 20,
+      "speedPxPerSecond": 60,
+      "solid": true,
+      "count": { "base": 6, "per": { "players": 1, "add": 1 }, "min": 6, "max": 14 },
+      "group": { "min": 2, "max": 4 },
+      "browse": { "pauseSeconds": { "min": 3, "max": 8 } },
+      "panic": { "radiusTiles": 5, "seconds": 4, "speedPxPerSecond": 150 }
     }
   ]
 }
