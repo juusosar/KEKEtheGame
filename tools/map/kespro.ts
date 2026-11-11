@@ -603,6 +603,7 @@ export function buildKesproMap(
 
 /** JSON text with tile data written one map row per line (like Tiled's CSV format), so diffs stay readable. */
 export function serializeMap(map: Record<string, unknown>): string {
+  const width = typeof map['width'] === 'number' ? map['width'] : MAP_WIDTH;
   const rows = new Map<string, string>();
   const json = JSON.stringify(
     map,
@@ -610,7 +611,7 @@ export function serializeMap(map: Record<string, unknown>): string {
       if (key === 'data' && Array.isArray(value)) {
         const token = `__tile_data_${rows.size}__`;
         const lines: string[] = [];
-        for (let i = 0; i < value.length; i += MAP_WIDTH) lines.push(value.slice(i, i + MAP_WIDTH).join(','));
+        for (let i = 0; i < value.length; i += width) lines.push(value.slice(i, i + width).join(','));
         rows.set(token, lines.join(',\n'));
         return token;
       }

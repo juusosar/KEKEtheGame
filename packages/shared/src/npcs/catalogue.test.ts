@@ -152,6 +152,17 @@ describe('per-map counts (Phase 2)', () => {
     expect(npcCatalogueForMap(catalogue, 'kespro')).toBe(catalogue);
   });
 
+  it('swaps the butcher zones on a map with a mapZones entry', () => {
+    const catalogue = getNpcCatalogue();
+    const butcher = npcCatalogueForMap(catalogue, 'prisma').require('butcher');
+    expect(butcher).toMatchObject({ guardZone: 'behind_counter', homeZone: 'deli' });
+    expect(catalogue.require('butcher')).toMatchObject({
+      guardZone: 'behind_counter',
+      homeZone: 'meat_fish',
+    });
+    expect(Object.isFrozen(butcher)).toBe(true);
+  });
+
   it('rejects a bad override', () => {
     const data = raw();
     (data.npcs[0] as Record<string, unknown>)['mapCounts'] = { prisma: { base: -1, min: 0 } };

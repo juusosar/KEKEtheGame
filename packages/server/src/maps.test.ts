@@ -4,6 +4,7 @@ import {
   MapFileError,
   MapItemError,
   MapNpcError,
+  MAP_DIRS,
   MapRegistry,
   createMapEntry,
   loadMapRegistry,
@@ -59,6 +60,16 @@ describe('map registry (P1-1)', () => {
     expect(entry.id).toBe('prisma');
     expect(entry.npcRoster).toEqual(['stocker']);
     expect(entry.map.vanSlots).toHaveLength(FIXTURE_VAN_SLOTS);
+  });
+
+  it('loads the real second store map once its theme is switched on (P1-4; P1-6 flips available)', () => {
+    const prisma = { ...getTheme('prisma'), available: true };
+    const registry = loadMapRegistry([getTheme(defaultThemeId), prisma], MAP_DIRS.slice());
+    const entry = registry.get('prisma');
+    expect(entry.npcRoster).toEqual(['stocker', 'security', 'forklift', 'butcher']);
+    expect(entry.npcs.require('butcher')).toMatchObject({ homeZone: 'deli' });
+    expect(entry.map.vanSlots).toHaveLength(16);
+    expect(entry.items).toBe(getItemCatalogue('prisma'));
   });
 
   it('refuses unknown maps and duplicates', () => {
