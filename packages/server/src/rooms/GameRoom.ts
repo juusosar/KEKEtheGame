@@ -310,7 +310,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (maps !== undefined) {
       settings.maps = maps;
       // The lobby shows the session's first map; each countdown sets the round's map.
-      this.state.mapId = mapForRound(maps, 0, 1);
+      this.useLobbyMap();
     }
     if (roundsPerMap !== undefined) settings.roundsPerMap = roundsPerMap;
     if (teams !== undefined && teams !== settings.teams) {
@@ -579,7 +579,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     return this.carts;
   }
 
-  /** The map entry the room's systems run on, for tests. */
+  /** The map entry the room's systems run on, for tests. Always the map `state.mapId` names. */
   get currentMap(): MapEntry {
     if (!this.mapEntry) throw new Error('GameRoom: no map before onCreate');
     return this.mapEntry;
@@ -997,7 +997,19 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       p.spectator = false;
     });
     if (this.state.settings.teams) this.applyTeams(balanceTeams(this.activeRoster()));
-    this.state.mapId = mapForRound(this.state.settings.maps as MapChoice, 0, 1);
+    this.useLobbyMap();
+  }
+
+  /**
+   * Lobby: `state.mapId` names the session's first map, and the map systems are rebuilt for it when they
+   * ran on another one (a Both session ends on the second map; the host picks another map). So
+   * `currentMap` always matches `state.mapId` (P1 review F5). The rebuilt systems hold nothing until the
+   * countdown starts a round on them.
+   */
+  private useLobbyMap(): void {
+    const id = mapForRound(this.state.settings.maps as MapChoice, 0, 1);
+    if (this.mapEntry?.id !== id) this.buildMapSystems(this.maps.get(id));
+    this.state.mapId = id;
   }
 
   private refreshSecondsLeft(): void {

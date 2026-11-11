@@ -34,8 +34,11 @@ export interface SessionPlan {
   readonly mode: GameMode;
   readonly teams: boolean;
   readonly rounds: number;
-  /** The map the session plays on (Phase 2, P1-6). Default: the first map. */
-  readonly map?: ThemeId;
+  /**
+   * The map the session plays on (Phase 2, P1-6), or `both` (P3-3): `rounds` on each map, the room
+   * switches maps between rounds. Default: the first map.
+   */
+  readonly map?: ThemeId | 'both';
 }
 
 /** `timed`, `race+teams@prisma`: the CLI's and the log's name for a session plan. */
@@ -76,6 +79,8 @@ export interface TimingStats {
 
 export interface RoundReport {
   round: number;
+  /** The map the round played on. */
+  map: string;
   playingSeconds: number;
   ticks: TimingStats;
   patches: TimingStats;
@@ -86,6 +91,8 @@ export interface RoundReport {
   players: number;
   npcs: number;
   items: number;
+  /** Heap after the round (after a full GC with --expose-gc): flat across map switches (P3-3). */
+  heapUsedMb: number;
 }
 
 export interface SessionReport {
@@ -132,6 +139,9 @@ export const DEFAULT_SESSIONS: readonly SessionPlan[] = [
   // P1-6: the second map, Timed and Race.
   { mode: 'timed', teams: false, rounds: 3, map: 'prisma' },
   { mode: 'race', teams: false, rounds: 3, map: 'prisma' },
+  // P3-3: both maps in one session (3 rounds on each, a switch after round 3), teams off and on.
+  { mode: 'timed', teams: false, rounds: 3, map: 'both' },
+  { mode: 'race', teams: true, rounds: 3, map: 'both' },
 ];
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -230,7 +240,9 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
   // mergeConfigOverride: the soak's short timers apply on every map, over its per-map overrides (P4-1).
   const config = loadConfig(mergeConfigOverride(loadConfig(), { ...SOAK_CONFIG, ...options.config }));
   const maps = loadMapRegistry();
-  const map: MapModel = maps.get(options.sessions[0]?.map ?? defaultThemeId).map;
+  const firstMap = (plan: SessionPlan | undefined): ThemeId =>
+    plan?.map === undefined ? defaultThemeId : plan.map === 'both' ? (maps.ids[0] as ThemeId) : plan.map;
+  const map: MapModel = maps.get(firstMap(options.sessions[0])).map;
   const random = mulberry32(options.seed ?? 7);
   const errors: string[] = [];
   const desyncs: string[] = [];
@@ -291,6 +303,14 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
     if (options.extraPlayers) await options.extraPlayers(room.state.code, url);
 
     // --- Bots send one frame per fixed input step, on average exactly inputHz (never faster). ------
+    // The bots path on the round's map: a Both session switches it at a countdown (P3-3).
+    let botMap = firstMap(options.sessions[0]);
+    const followMap = (): void => {
+      const id = room.state.mapId as ThemeId;
+      if (id === botMap || !maps.ids.includes(id)) return;
+      botMap = id;
+      for (const bot of bots) bot.useMap(maps.get(id).map);
+    };
     const stepMs = 1000 / config.inputHz;
     const pumpStart = performance.now();
     let stepsDone = 0;
@@ -298,6 +318,7 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
       const due = Math.floor((performance.now() - pumpStart) / stepMs);
       // After a stall send at most 3 steps' worth, like a client catching up; skip the rest.
       if (due - stepsDone > 3) stepsDone = due - 3;
+      followMap();
       while (stepsDone < due) {
         for (const bot of bots) bot.frame();
         stepsDone++;
@@ -333,6 +354,7 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
       const label = `session ${index + 1} (${planName(plan)})`;
       const sessionStart = performance.now();
       const mapId = plan.map ?? defaultThemeId;
+      const expectedRounds = plan.rounds * (mapId === 'both' ? maps.ids.length : 1);
       log(`${label}: ${plan.rounds} rounds`);
       host.send(ClientMessage.settings, {
         mode: plan.mode,
@@ -340,7 +362,7 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
         roundsPerMap: plan.rounds,
         maps: mapId,
       });
-      for (const bot of bots) bot.useMap(maps.get(mapId).map);
+      followMap();
       await waitFor(
         () =>
           room.state.settings.mode === plan.mode &&
@@ -359,8 +381,8 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
       );
       host.send(ClientMessage.start);
       await waitFor(() => room.state.phase === 'countdown', 5000, `${label} start`);
-      if (room.state.totalRounds !== plan.rounds) {
-        errors.push(`${label}: totalRounds is ${room.state.totalRounds}, expected ${plan.rounds}`);
+      if (room.state.totalRounds !== expectedRounds) {
+        errors.push(`${label}: totalRounds is ${room.state.totalRounds}, expected ${expectedRounds}`);
       }
 
       const rounds: RoundReport[] = [];
@@ -374,7 +396,7 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
           return c.countdownSeconds + playing + c.roundResultsSeconds;
         }),
       );
-      const sessionLimitMs = (plan.rounds * (roundLimit + 10) + config.podiumSeconds + 30) * 1000;
+      const sessionLimitMs = (expectedRounds * (roundLimit + 10) + config.podiumSeconds + 30) * 1000;
       const sessionUntil = Date.now() + sessionLimitMs;
       let lastPhase = '';
       let playingSince = 0;
@@ -384,6 +406,7 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
         const phase = room.state.phase;
         if (phase !== lastPhase) {
           if (phase === 'playing') {
+            flowProblems.push(...mapProblems(room, `round ${room.state.round}`));
             probe.take(); // countdown ticks do not count
             playingSince = performance.now();
             nextCheck = performance.now() + (options.desyncEverySeconds ?? 8) * 1000;
@@ -399,9 +422,12 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
               players: players.filter((p) => !p.spectator).length,
               npcs: room.state.npcs.size,
               items: room.state.items.size,
+              heapUsedMb: memory().heapUsedMb,
+              map: room.state.mapId,
             });
             log(
-              `${label} round ${room.state.round}: ${rounds.at(-1)?.deposited} points deposited` +
+              `${label} round ${room.state.round} (${room.state.mapId}): ${rounds.at(-1)?.deposited} points deposited` +
+                `, heap ${rounds.at(-1)?.heapUsedMb} MB` +
                 (winner ? `, delivered by ${winner.nickname}` : ''),
             );
             await checkSync(`${label} round ${room.state.round} results`);
@@ -439,8 +465,17 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
       // Back in the lobby: the session is over and everything is reset (M7-1 handoff).
       await checkSync(`${label} lobby`);
       flowProblems.push(...lobbyProblems(room.state));
-      if (rounds.length !== plan.rounds)
-        flowProblems.push(`played ${rounds.length} rounds, not ${plan.rounds}`);
+      if (room.currentMap.id !== room.state.mapId) {
+        flowProblems.push(`lobby: systems run on ${room.currentMap.id}, the lobby shows ${room.state.mapId}`);
+      }
+      if (rounds.length !== expectedRounds)
+        flowProblems.push(`played ${rounds.length} rounds, not ${expectedRounds}`);
+      if (mapId === 'both') {
+        const played = rounds.map((r) => r.map);
+        const want = maps.ids.flatMap((id) => Array.from({ length: plan.rounds }, () => id));
+        if (played.join() !== want.join())
+          flowProblems.push(`maps played ${played.join()}, expected ${want.join()}`);
+      }
       const report: SessionReport = {
         plan,
         rounds,
@@ -513,10 +548,42 @@ function lobbyProblems(state: GameState): string[] {
     if (left.length > 0) problems.push(`lobby: ${p.nickname} still has ${left.join(', ')}`);
     if (p.ready) problems.push(`lobby: ${p.nickname} is still ready`);
   }
-  for (const key of ['items', 'projectiles', 'traps'] as const) {
+  for (const key of ['items', 'projectiles', 'traps', 'npcs', 'stockCarts', 'carts'] as const) {
     if (state[key].size > 0) problems.push(`lobby: ${state[key].size} ${key} left`);
   }
   if (state.raceWinner !== '') problems.push('lobby: raceWinner not cleared');
+  return problems;
+}
+
+/**
+ * A round's start (P3-3): the room's systems run on the round's map, and the per-map objects in the
+ * synced state belong to it: a cart at every cart spawn (none on a map without), customers only on a map
+ * whose roster has them, every NPC of the map's roster, every item from the map's catalogue.
+ */
+function mapProblems(room: GameRoom, label: string): string[] {
+  const problems: string[] = [];
+  const state = room.state;
+  const entry = room.currentMap;
+  if (entry.id !== state.mapId)
+    problems.push(`${label}: systems run on ${entry.id}, state.mapId is ${state.mapId}`);
+  if (state.roundMaps.at(-1) !== state.mapId) {
+    problems.push(`${label}: roundMaps ends with ${state.roundMaps.at(-1)}, state.mapId is ${state.mapId}`);
+  }
+  if (state.carts.size !== entry.map.cartSpawns.length) {
+    problems.push(
+      `${label} on ${entry.id}: ${state.carts.size} carts, ${entry.map.cartSpawns.length} spawns`,
+    );
+  }
+  const roster = new Set<string>(entry.npcRoster);
+  for (const npc of state.npcs.values()) {
+    if (!roster.has(npc.type))
+      problems.push(`${label} on ${entry.id}: a ${npc.type} that the map does not have`);
+  }
+  for (const item of state.items.values()) {
+    if (!entry.items.get(item.itemId) && item.itemId !== 'order_box') {
+      problems.push(`${label} on ${entry.id}: item ${item.itemId} is not in the map's catalogue`);
+    }
+  }
   return problems;
 }
 
@@ -554,6 +621,14 @@ export function judge(report: SoakReport, plans: readonly SessionPlan[]): string
   const heapLast = report.sessions.at(-1)?.memory.heapUsedMb ?? 0;
   if (report.sessions.length >= 2 && heapLast - heapFirst > 40) {
     failures.push(`heap grew ${Math.round(heapLast - heapFirst)} MB between the first and last session`);
+  }
+  // Across map switches too (P3-3): the heap after any round may not climb far above the first round's.
+  const heapRound1 = rounds[0]?.heapUsedMb ?? 0;
+  const heapMax = Math.max(0, ...rounds.map((r) => r.heapUsedMb));
+  if (rounds.length >= 2 && heapMax - heapRound1 > 40) {
+    failures.push(
+      `heap reached ${heapMax} MB after a round, ${Math.round(heapMax - heapRound1)} MB over round 1`,
+    );
   }
   return failures;
 }
