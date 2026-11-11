@@ -31,6 +31,7 @@ export const configSchema = z
     timedRoundSeconds: positive,
     raceRoundSeconds: positive,
     raceQuota: positiveInt,
+    raceTeamQuotaPerMember: z.number().int().nonnegative(),
     placementPoints: z.array(z.number().int().nonnegative()).min(1),
     placementPointsOther: z.number().int().nonnegative(),
     wantedSeconds: positive,

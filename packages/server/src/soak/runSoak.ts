@@ -111,6 +111,7 @@ export const SOAK_CONFIG: Partial<GameConfig> = {
   podiumSeconds: 2,
   // A lower quota, so race rounds see packing, box theft and deliveries, not only the time cap.
   raceQuota: 2,
+  raceTeamQuotaPerMember: 1,
 };
 
 export const DEFAULT_SESSIONS: readonly SessionPlan[] = [

@@ -31,6 +31,7 @@ import {
   itemsControlled,
   orderBoxes,
   quotaProgress,
+  raceQuotaFor,
   raceDeposit,
   rankRaceRound,
   type RaceConfig,
@@ -102,6 +103,20 @@ describe('race config', () => {
 
   it('never clashes with a catalogue item id', () => {
     expect(getItemCatalogue('kespro').items.some((i) => i.id === ORDER_BOX_ITEM_ID)).toBe(false);
+  });
+});
+
+describe('raceQuotaFor (playtest 1)', () => {
+  const quotas = { raceQuota: 6, raceTeamQuotaPerMember: 3 };
+  it('keeps raceQuota for a solo van and small teams, and scales bigger teams per member', () => {
+    expect([1, 2, 3, 4, 8].map((n) => raceQuotaFor(quotas, n))).toEqual([6, 6, 9, 12, 24]);
+  });
+  it('does not scale with raceTeamQuotaPerMember 0 and never passes 255', () => {
+    expect(raceQuotaFor({ raceQuota: 6, raceTeamQuotaPerMember: 0 }, 4)).toBe(6);
+    expect(raceQuotaFor({ raceQuota: 6, raceTeamQuotaPerMember: 100 }, 8)).toBe(255);
+  });
+  it('the bundled config scales a team of 4 to 12', () => {
+    expect(raceQuotaFor(loadConfig(), 4)).toBe(12);
   });
 });
 
