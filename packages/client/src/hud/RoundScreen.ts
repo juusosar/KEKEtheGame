@@ -108,15 +108,19 @@ export class RoundScreen {
         'aria-labelledby': 'keke-intro-title',
       },
       h('h2', { id: 'keke-intro-title' }, t('round.intro.title')),
+      // P3-2: when the session moved to the other store this round, the one store line says so
+      // ("New store: <store description>!"), instead of naming the store twice (P2 review F3).
       h(
         'p',
-        { class: 'intro-map', 'data-map': theme.id, 'data-new-map': model.newMap },
-        theme.brand.storeDescription,
+        {
+          class: model.newMap ? 'intro-map intro-new-map' : 'intro-map',
+          'data-map': theme.id,
+          'data-new-map': model.newMap,
+        },
+        model.newMap
+          ? t('round.intro.newMap', { store: theme.brand.storeDescription })
+          : theme.brand.storeDescription,
       ),
-      // P3-2: the session moved to the other store this round.
-      model.newMap
-        ? h('p', { class: 'intro-new-map' }, t('round.intro.newMap', { store: theme.brand.storeName }))
-        : null,
       h('p', { class: 'intro-mode' }, modeLabel(model.mode)),
       model.totalRounds > 0
         ? h('p', { class: 'intro-round' }, t('round.of', { round: model.round, total: model.totalRounds }))
