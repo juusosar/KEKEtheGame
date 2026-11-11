@@ -275,8 +275,10 @@ export interface KekeHook {
   npcSprites(): KekeNpcSpriteSnapshot[];
   /** Session ids of players with the Wanted ❗ icon showing this frame (M5-7); empty offline. */
   wantedIcons(): string[];
-  /** How many times each placeholder sound has played (M5-7: wantedAlarm, forkliftBeep, ...). */
+  /** How many times each sound effect has played (names in audio/names.ts), muted or not. */
   sfx(): Record<string, number>;
+  /** The music track the Game scene asked for (M7-2), e.g. `assets/music/kespro_loop.wav`; null when none. */
+  music(): string | null;
 }
 
 /** A store worker as drawn (M5-7). */

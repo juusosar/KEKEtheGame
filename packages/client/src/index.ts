@@ -6,6 +6,7 @@ import { LobbyScene } from './scenes/Lobby';
 import { PlayScene } from './scenes/Play';
 import { ProfileScene } from './scenes/Profile';
 import { TitleScene } from './scenes/Title';
+import { mountAudioControl } from './ui/audioControl';
 import './ui/ui.css';
 
 // Client entry point (loaded by index.html).
@@ -28,3 +29,5 @@ new Phaser.Game({
   // Flow (§13.1): Title → Profile → Play → Lobby → Game.
   scene: [BootScene, TitleScene, ProfileScene, PlayScene, LobbyScene, GameScene],
 });
+// §12: the sound settings button stays in the bottom-left corner on every screen.
+mountAudioControl();

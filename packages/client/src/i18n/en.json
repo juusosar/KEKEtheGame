@@ -200,5 +200,11 @@
   "npc.butcher": "butcher",
   "npc.customer": "customer",
   "item.orderBox": "Order box",
-  "item.orderBox.desc": "Packed and ready. Carry it to the office across the street."
+  "item.orderBox.desc": "Packed and ready. Carry it to the office across the street.",
+  "audio.toggle": "Sound settings",
+  "audio.panel": "Sound",
+  "audio.master": "Master volume",
+  "audio.music": "Music",
+  "audio.sfx": "Sound effects",
+  "audio.mute": "Mute"
 }
