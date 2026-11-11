@@ -19,7 +19,10 @@ import { t, type MessageKey } from '../i18n';
 import { lobbyErrorKey, readLobby, type LobbyPlayerView, type LobbyView } from '../net/lobbyView';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
 import { stateMapId, themeFor } from '../game/mapTheme';
+import { browserStorage, loadProfile } from '../profile/storage';
 import { createMenuLayer, h, themeMenuLayer } from '../ui/dom';
+import { howToSeen, markHowToSeen } from '../ui/howToNav';
+import { HowToPlay } from '../ui/howToPlay';
 
 /** Scene that takes over when the host starts (or when we join a room that is already playing). */
 export const AFTER_LOBBY_SCENE = 'Game';
@@ -67,6 +70,8 @@ export class LobbyScene extends Phaser.Scene {
   private startButton!: HTMLButtonElement;
   private startNote!: HTMLParagraphElement;
   private status!: HTMLParagraphElement;
+  private howTo: HowToPlay | null = null;
+  private howToOverlay: HTMLDivElement | null = null;
 
   constructor() {
     super('Lobby');
@@ -89,8 +94,49 @@ export class LobbyScene extends Phaser.Scene {
 
     this.createPanel(current.code);
     this.listen();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.stopListening());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.stopListening();
+      this.closeHowTo();
+    });
     this.render();
+    // First time in a room: the How to play pages over the lobby, while the others gather. Closed once,
+    // they stay closed on later joins; the lobby's How to play button opens them again.
+    if (!this.leaving && !howToSeen(browserStorage())) this.openHowTo(true);
+  }
+
+  // --- how to play ---------------------------------------------------------------------------------
+
+  private openHowTo(firstTime: boolean): void {
+    if (this.howTo !== null) return;
+    const { profile } = loadProfile(browserStorage(), loadConfig().nicknameMaxLength);
+    const overlay = h('div', { class: 'howto-overlay', id: 'keke-lobby-howto' });
+    const howTo = new HowToPlay({
+      variant: 'tutorial',
+      heading: firstTime ? t('howto.welcome') : t('howto.heading'),
+      closeLabel: firstTime ? t('howto.skip') : t('howto.close'),
+      doneLabel: t('howto.letsPlay'),
+      look: { color: profile.color, hat: profile.hat },
+      onClose: () => {
+        markHowToSeen(browserStorage());
+        this.howTo = null;
+        this.closeHowTo();
+        if (!this.readyButton.disabled) this.readyButton.focus();
+      },
+    });
+    overlay.append(howTo.root);
+    this.layer.append(overlay);
+    this.howTo = howTo;
+    this.howToOverlay = overlay;
+    document.body.dataset['howto'] = 'open';
+    howTo.focus();
+  }
+
+  private closeHowTo(): void {
+    this.howTo?.destroy();
+    this.howTo = null;
+    this.howToOverlay?.remove();
+    this.howToOverlay = null;
+    delete document.body.dataset['howto'];
   }
 
   // --- room events --------------------------------------------------------------------------------
@@ -188,7 +234,9 @@ export class LobbyScene extends Phaser.Scene {
     this.startNote = h('p', { class: 'muted' });
     this.status = h('p', { class: 'status', role: 'status', 'aria-live': 'polite' });
     const leave = this.button(t('lobby.leave'), 'secondary', () => this.leave());
-    setup.append(this.startButton, this.startNote, this.status, h('div', { class: 'actions' }, leave));
+    const howTo = this.button(t('title.howTo'), 'secondary', () => this.openHowTo(false));
+    howTo.id = 'keke-lobby-howto-open';
+    setup.append(this.startButton, this.startNote, this.status, h('div', { class: 'actions' }, leave, howTo));
 
     layer.append(panel);
   }

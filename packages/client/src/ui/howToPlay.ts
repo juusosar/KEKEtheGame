@@ -44,6 +44,8 @@ export interface HowToPlayOptions {
   doneLabel: string;
   /** Called once when the player closes the pages (close button, Esc, pad B, or next on the last page). */
   onClose(): void;
+  /** Heading over the tabs (default "How to play"). */
+  heading?: string;
   /** The player's look, so the illustrations show their own character. */
   look?: { color: string; hat: string | null };
 }
@@ -85,7 +87,7 @@ export class HowToPlay {
 
   constructor(private readonly opts: HowToPlayOptions) {
     this.look = opts.look ?? { color: '#3FA9F5', hat: 'cap' };
-    const heading = h('h2', { id: 'keke-howto-heading' }, t('howto.heading'));
+    const heading = h('h2', { id: 'keke-howto-heading' }, opts.heading ?? t('howto.heading'));
     const tablist = h('div', { class: 'howto-tabs', role: 'tablist', 'aria-label': t('howto.tabs') });
     const body = h('div', { class: 'howto-body' });
     HOW_TO_PAGES.forEach((page, i) => {
@@ -138,7 +140,7 @@ export class HowToPlay {
       {
         class: 'howto',
         role: 'dialog',
-        'aria-labelledby': 'keke-howto-heading',
+        'aria-label': t('howto.heading'),
         'data-variant': opts.variant,
       },
       h('div', { class: 'howto-head' }, heading, this.close),

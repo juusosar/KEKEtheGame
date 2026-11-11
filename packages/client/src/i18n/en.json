@@ -337,5 +337,9 @@
   "howto.store2.customersText": "Shoppers get in the way and panic when a fight starts. Hitting one makes you Wanted.",
   "howto.store2.carts": "Shopping carts",
   "howto.store2.cartsText": "Walk into a cart to push it, hit it to shove it. Great for blocking a lane.",
-  "howto.store2.lot": "At {store} the vans park outside in the lot, and the office is across the road."
+  "howto.store2.lot": "At {store} the vans park outside in the lot, and the office is across the road.",
+  "howto.welcome": "New here? How KEKE works",
+  "howto.skip": "Skip",
+  "howto.close": "Close",
+  "howto.letsPlay": "Let's play"
 }

@@ -15,10 +15,26 @@ import type {
 // Shared steps for the menu, lobby and multiplayer specs: Title → Profile → Play, create or join a room,
 // ready up and start, then read the game through the `?debug=1` hook `window.__KEKE__`.
 
-/** Opens the game (optionally with a query such as `?debug=1`) and walks Title → Profile → Play. */
-export async function toPlay(page: Page, nickname: string, query = ''): Promise<void> {
+/**
+ * Opens the game (optionally with a query such as `?debug=1`) and walks Title → Profile → Play. The
+ * first-time How to play tutorial over the lobby is marked seen, so it never covers a spec's lobby;
+ * `{ tutorial: true }` leaves it to show (howToLobby.spec.ts).
+ */
+export async function toPlay(
+  page: Page,
+  nickname: string,
+  query = '',
+  { tutorial = false }: { tutorial?: boolean } = {},
+): Promise<void> {
   await page.goto(`/${query}`);
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'title', { timeout: 15_000 });
+  if (!tutorial) {
+    await page.evaluate(() =>
+      (
+        globalThis as unknown as { localStorage: { setItem(k: string, v: string): void } }
+      ).localStorage.setItem('keke.howToSeen', '1'),
+    );
+  }
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await page.getByLabel('Nickname').fill(nickname);
   await page.getByRole('button', { name: 'Continue' }).click();
