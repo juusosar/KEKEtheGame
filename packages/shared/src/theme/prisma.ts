@@ -22,6 +22,6 @@ export const prismaTheme = {
     map: 'prisma.tmj',
     tileset: 'prisma_tiles.png',
     itemCatalogue: 'items.prisma.json',
-    music: 'music/prisma_loop.ogg',
+    music: 'music/prisma_loop.wav',
   },
 } as const satisfies MapTheme;
