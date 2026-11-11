@@ -1,0 +1,324 @@
+{
+  "items": [
+    {
+      "id": "bananas",
+      "name": "Banaanit 1 kg",
+      "desc": "The smoothie bar opens at ten.",
+      "zone": "produce",
+      "sprite": "bananas",
+      "rarity": "normal"
+    },
+    {
+      "id": "cucumber",
+      "name": "Kotimainen kurkku",
+      "desc": "The salad bar's last one became a ride-on toy.",
+      "zone": "produce",
+      "sprite": "cucumber",
+      "rarity": "normal"
+    },
+    {
+      "id": "potatoes_puikula",
+      "name": "Puikula-peruna 2 kg",
+      "desc": "Mash for the meatballs. Twenty bags of it.",
+      "zone": "produce",
+      "sprite": "potatoes_puikula",
+      "rarity": "normal"
+    },
+    {
+      "id": "onions",
+      "name": "Keltasipuli 1 kg",
+      "desc": "Nobody wants to chop these. Somebody has to.",
+      "zone": "produce",
+      "sprite": "onions",
+      "rarity": "normal"
+    },
+    {
+      "id": "rye_bread_reissumies",
+      "name": "Fazer Reissumies 4 kpl",
+      "desc": "Sandwich line restock, consumer edition.",
+      "zone": "bakery",
+      "sprite": "rye_bread_reissumies",
+      "rarity": "normal"
+    },
+    {
+      "id": "karelian_pies",
+      "name": "Karjalanpiirakka 10 kpl",
+      "desc": "Egg butter not included.",
+      "zone": "bakery",
+      "sprite": "karelian_pies",
+      "rarity": "normal"
+    },
+    {
+      "id": "cinnamon_buns",
+      "name": "Korvapuusti 4 kpl",
+      "desc": "Coffee break is in five minutes.",
+      "zone": "bakery",
+      "sprite": "cinnamon_buns",
+      "rarity": "normal"
+    },
+    {
+      "id": "baguette_rainbow",
+      "name": "Rainbow patonki 400 g",
+      "desc": "Garlic bread. Also a decent club.",
+      "zone": "bakery",
+      "sprite": "baguette_rainbow",
+      "rarity": "normal"
+    },
+    {
+      "id": "milk_eko",
+      "name": "Valio luomumaito 1 l",
+      "desc": "The latte machine, one litre at a time.",
+      "zone": "dairy",
+      "sprite": "milk_eko",
+      "rarity": "normal"
+    },
+    {
+      "id": "oat_drink_oatly",
+      "name": "Oatly kaurajuoma 1 l",
+      "desc": "Half the lunch crowd went oat.",
+      "zone": "dairy",
+      "sprite": "oat_drink_oatly",
+      "rarity": "normal"
+    },
+    {
+      "id": "yogurt_plain",
+      "name": "Valio maustamaton jogurtti 1 kg",
+      "desc": "Tzatziki for the kebab plate.",
+      "zone": "dairy",
+      "sprite": "yogurt_plain",
+      "rarity": "normal"
+    },
+    {
+      "id": "quark_rahka",
+      "name": "Maitorahka 250 g",
+      "desc": "Someone in the kitchen is bulking.",
+      "zone": "dairy",
+      "sprite": "quark_rahka",
+      "rarity": "normal"
+    },
+    {
+      "id": "pizza_frozen",
+      "name": "Rainbow pakastepizza",
+      "desc": "The pizza oven broke. Nobody needs to know.",
+      "zone": "frozen",
+      "sprite": "pizza_frozen",
+      "rarity": "normal"
+    },
+    {
+      "id": "meatballs_frozen",
+      "name": "Pakastelihapullat 1 kg",
+      "desc": "Today's lunch special comes pre-rolled.",
+      "zone": "frozen",
+      "sprite": "meatballs_frozen",
+      "rarity": "normal"
+    },
+    {
+      "id": "peas_frozen",
+      "name": "Pakasteherneet 500 g",
+      "desc": "The side dish. All six bags.",
+      "zone": "frozen",
+      "sprite": "peas_frozen",
+      "rarity": "normal"
+    },
+    {
+      "id": "macaroni",
+      "name": "Makaroni 400 g",
+      "desc": "Makaronilaatikko is on the menu. Again.",
+      "zone": "pantry",
+      "sprite": "macaroni",
+      "rarity": "normal"
+    },
+    {
+      "id": "porridge_rice",
+      "name": "Risella puuroriisi 1 kg",
+      "desc": "Rice porridge for the Christmas buffet. In November.",
+      "zone": "pantry",
+      "sprite": "porridge_rice",
+      "rarity": "normal"
+    },
+    {
+      "id": "oats_elovena",
+      "name": "Elovena kaurahiutaleet 1 kg",
+      "desc": "Breakfast porridge for the early shift.",
+      "zone": "pantry",
+      "sprite": "oats_elovena",
+      "rarity": "normal"
+    },
+    {
+      "id": "tuna_cans",
+      "name": "Rainbow tonnikala 185 g",
+      "desc": "Tuna salad. Twelve cans should do.",
+      "zone": "pantry",
+      "sprite": "tuna_cans",
+      "rarity": "normal"
+    },
+    {
+      "id": "mustard_turun",
+      "name": "Turun sinappi 275 g",
+      "desc": "The sausage grill is out of mustard.",
+      "zone": "pantry",
+      "sprite": "mustard_turun",
+      "rarity": "normal"
+    },
+    {
+      "id": "orange_juice",
+      "name": "Rainbow appelsiinitäysmehu 1 l",
+      "desc": "Brunch without juice is just lunch.",
+      "zone": "drinks",
+      "sprite": "orange_juice",
+      "rarity": "normal"
+    },
+    {
+      "id": "vichy",
+      "name": "Vichy Original 0,5 l",
+      "desc": "The chef's hangover cure.",
+      "zone": "drinks",
+      "sprite": "vichy",
+      "rarity": "normal"
+    },
+    {
+      "id": "pepsi_max",
+      "name": "Pepsi Max 1,5 l",
+      "desc": "The staff fridge is empty. Mutiny looms.",
+      "zone": "drinks",
+      "sprite": "pepsi_max",
+      "rarity": "normal"
+    },
+    {
+      "id": "energy_drink",
+      "name": "Battery energiajuoma 0,33 l",
+      "desc": "The night shift runs on this.",
+      "zone": "drinks",
+      "sprite": "energy_drink",
+      "rarity": "normal"
+    },
+    {
+      "id": "salmiakki_tyrkisk",
+      "name": "Fazer Tyrkisk Peber 150 g",
+      "desc": "A bribe for the dishwasher.",
+      "zone": "candy",
+      "sprite": "salmiakki_tyrkisk",
+      "rarity": "normal"
+    },
+    {
+      "id": "mints_marianne",
+      "name": "Fazer Marianne 220 g",
+      "desc": "One on every bill folder.",
+      "zone": "candy",
+      "sprite": "mints_marianne",
+      "rarity": "normal"
+    },
+    {
+      "id": "pick_and_mix",
+      "name": "Irtokarkit 500 g",
+      "desc": "Kids' party favours. Mostly salmiakki.",
+      "zone": "candy",
+      "sprite": "pick_and_mix",
+      "rarity": "normal"
+    },
+    {
+      "id": "ham_slices",
+      "name": "HK Viljaporsas kinkku 300 g",
+      "desc": "Ham sandwiches, assembly-line style.",
+      "zone": "deli",
+      "sprite": "ham_slices",
+      "rarity": "normal"
+    },
+    {
+      "id": "smoked_salmon",
+      "name": "Kylmäsavulohi 200 g",
+      "desc": "Fancy toast for the fancy tables.",
+      "zone": "deli",
+      "sprite": "smoked_salmon",
+      "rarity": "normal"
+    },
+    {
+      "id": "rotisserie_chicken",
+      "name": "Grillattu broileri",
+      "desc": "Still warm. Someone already called a leg.",
+      "zone": "deli",
+      "sprite": "rotisserie_chicken",
+      "rarity": "normal"
+    },
+    {
+      "id": "toilet_paper",
+      "name": "Vessapaperi 48 rullaa",
+      "desc": "Not food. Absolutely essential.",
+      "zone": "any",
+      "sprite": "toilet_paper",
+      "rarity": "joke"
+    },
+    {
+      "id": "empties_bag",
+      "name": "Kassillinen tyhjiä pulloja",
+      "desc": "Forty cents each. The tip jar's retirement plan.",
+      "zone": "any",
+      "sprite": "empties_bag",
+      "rarity": "joke"
+    },
+    {
+      "id": "sled",
+      "name": "Liukurikko",
+      "desc": "Staff sledding day. Attendance is mandatory.",
+      "zone": "any",
+      "sprite": "sled",
+      "rarity": "joke"
+    },
+    {
+      "id": "trampoline",
+      "name": "Trampoliini 3 m",
+      "desc": "Team building, phase two.",
+      "zone": "any",
+      "sprite": "trampoline",
+      "rarity": "joke"
+    },
+    {
+      "id": "rowing_boat",
+      "name": "Soutuvene",
+      "desc": "Fish of the day: catch it yourself.",
+      "zone": "any",
+      "sprite": "rowing_boat",
+      "rarity": "joke"
+    },
+    {
+      "id": "gas_grill",
+      "name": "Kaasugrilli",
+      "desc": "The stove broke, so it's summer menu now.",
+      "zone": "any",
+      "sprite": "gas_grill",
+      "rarity": "joke"
+    },
+    {
+      "id": "big_tv",
+      "name": "Televisio 65\"",
+      "desc": "The regulars want the hockey on.",
+      "zone": "any",
+      "sprite": "big_tv",
+      "rarity": "joke"
+    },
+    {
+      "id": "ice_auger",
+      "name": "Pilkkikaira",
+      "desc": "The lake is frozen. The fish supplier isn't coming.",
+      "zone": "any",
+      "sprite": "ice_auger",
+      "rarity": "joke"
+    },
+    {
+      "id": "giant_teddy",
+      "name": "Jättinalle 150 cm",
+      "desc": "Employee of the month gets a hug.",
+      "zone": "any",
+      "sprite": "giant_teddy",
+      "rarity": "joke"
+    },
+    {
+      "id": "plastic_tree",
+      "name": "Muovikuusi 2 m",
+      "desc": "Goes with the November ham.",
+      "zone": "any",
+      "sprite": "plastic_tree",
+      "rarity": "joke"
+    }
+  ]
+}

@@ -93,6 +93,14 @@ const JOKE_ITEMS = [
   'snowblower',
   'garden_gnome',
 ];
+/** The phase 2 catalogue's sprites, read from its generated JSON (tools/items/items.prisma.md). */
+const prismaItems = (
+  JSON.parse(readFileSync(resolve(repoRoot, 'packages/shared/src/data/items.prisma.json'), 'utf8')) as {
+    items: { sprite: string; rarity: string }[];
+  }
+).items;
+const PRISMA_NORMAL_ITEMS = prismaItems.filter((i) => i.rarity === 'normal').map((i) => i.sprite);
+const PRISMA_JOKE_ITEMS = prismaItems.filter((i) => i.rarity === 'joke').map((i) => i.sprite);
 const FX = [
   'hit_spark',
   'ketchup_splat',
@@ -131,8 +139,15 @@ describe('placeholder art matches the §11.1 sprite spec', () => {
     expectFrames('weapons', sized(WEAPONS, 32, 32));
   });
 
-  it('items: 30 normal items at 24×24 and 10 joke items at 32×32', () => {
-    expectFrames('items', { ...sized(NORMAL_ITEMS, 24, 24), ...sized(JOKE_ITEMS, 32, 32) });
+  it('items: 30 + 30 normal items at 24×24 and 10 + 10 joke items at 32×32 (both catalogues)', () => {
+    expect(PRISMA_NORMAL_ITEMS).toHaveLength(30);
+    expect(PRISMA_JOKE_ITEMS).toHaveLength(10);
+    expectFrames('items', {
+      ...sized(NORMAL_ITEMS, 24, 24),
+      ...sized(JOKE_ITEMS, 32, 32),
+      ...sized(PRISMA_NORMAL_ITEMS, 24, 24),
+      ...sized(PRISMA_JOKE_ITEMS, 32, 32),
+    });
   });
 
   it('order box: 32×32', () => {

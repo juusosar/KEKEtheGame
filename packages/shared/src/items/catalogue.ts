@@ -3,11 +3,14 @@
 import { z } from 'zod';
 import { ConfigError, formatIssues } from '../config';
 import kesproItemsJson from '../data/items.kespro.json';
+import prismaItemsJson from '../data/items.prisma.json';
 import type { ThemeId } from '../theme/types';
 
-/** Map zones that normal items spawn in (§9.1). Ids match the Tiled `zones` and `item_spawns` layers. */
-export const ITEM_ZONES = ['dry_goods', 'beverages', 'cold_room', 'frozen', 'meat_fish'] as const;
-export type ItemZoneId = (typeof ITEM_ZONES)[number];
+/**
+ * A map zone that normal items spawn in (§9.1, §9.2). Each catalogue names its own zones (snake_case ids
+ * matching the Tiled `zones` and `item_spawns` layers of its map); `checkItemMap` checks them against a map.
+ */
+export type ItemZoneId = string;
 
 /** Joke items use this instead of a zone: they may spawn at any item spawn point (§10.1). */
 export const ANY_ZONE = 'any';
@@ -27,7 +30,8 @@ export const itemSchema = z
     name: text,
     /** English one-liner for the target card. */
     desc: text,
-    zone: z.enum([...ITEM_ZONES, ANY_ZONE]),
+    /** A snake_case map zone id for normal items, `any` for joke items. */
+    zone: z.string().regex(idPattern, 'must be a snake_case zone id'),
     /** Frame name in the `items` atlas (§11.1). */
     sprite: z.string().regex(idPattern, 'must be a snake_case frame name'),
     rarity: z.enum(ITEM_RARITIES),
@@ -85,7 +89,7 @@ export interface ItemCatalogue {
   readonly normal: readonly ItemDef[];
   /** Joke items (rarity `joke`), in file order. */
   readonly joke: readonly ItemDef[];
-  /** Zones that have at least one normal item, in `ITEM_ZONES` order. */
+  /** Zones that have at least one normal item, in order of first appearance in the file. */
   readonly zones: readonly ItemZoneId[];
   /** The item with this id, or undefined. */
   get(id: string): ItemDef | undefined;
@@ -109,10 +113,10 @@ export function loadItemCatalogue(raw: unknown, source = 'item catalogue'): Item
   const byId = new Map(items.map((item) => [item.id, item]));
   const normal = Object.freeze(items.filter((item) => item.rarity === 'normal'));
   const joke = Object.freeze(items.filter((item) => item.rarity === 'joke'));
+  const zones: readonly ItemZoneId[] = Object.freeze([...new Set(normal.map((item) => item.zone))]);
   const byZone = new Map<ItemZoneId, readonly ItemDef[]>(
-    ITEM_ZONES.map((zone) => [zone, Object.freeze(normal.filter((item) => item.zone === zone))]),
+    zones.map((zone) => [zone, Object.freeze(normal.filter((item) => item.zone === zone))]),
   );
-  const zones = Object.freeze(ITEM_ZONES.filter((zone) => (byZone.get(zone)?.length ?? 0) > 0));
 
   return Object.freeze({
     items,
@@ -129,9 +133,10 @@ export function loadItemCatalogue(raw: unknown, source = 'item catalogue'): Item
   });
 }
 
-/** Bundled catalogue data per theme. A theme without one (the phase 2 map until it is built) is missing here. */
+/** Bundled catalogue data per theme, generated from `tools/items/items.<theme>.md` by `npm run gen:items`. */
 const BUNDLED: Partial<Record<ThemeId, { raw: unknown; source: string }>> = {
   kespro: { raw: kesproItemsJson, source: 'items.kespro.json' },
+  prisma: { raw: prismaItemsJson, source: 'items.prisma.json' },
 };
 
 const cache = new Map<ThemeId, ItemCatalogue>();
@@ -145,6 +150,31 @@ export function getItemCatalogue(themeId: ThemeId): ItemCatalogue {
   const catalogue = loadItemCatalogue(bundled.raw, bundled.source);
   cache.set(themeId, catalogue);
   return catalogue;
+}
+
+/** The map side of `checkItemMap`: its item spawn points. */
+export interface ItemMap {
+  readonly itemSpawns: readonly { readonly zone: string }[];
+}
+
+/**
+ * Problems that stop `map` from hosting `catalogue` (empty when it can): every zone a normal item names
+ * needs at least one item spawn point on the map (§9.1). Joke items (`any`) use any spawn, so the map
+ * needs at least one spawn of any zone. The server refuses to start on a mismatch; map tests call it too.
+ */
+export function checkItemMap(catalogue: ItemCatalogue, map: ItemMap): string[] {
+  const issues: string[] = [];
+  const spawnZones = new Set(map.itemSpawns.map((spawn) => spawn.zone));
+  for (const zone of catalogue.zones) {
+    if (!spawnZones.has(zone)) {
+      const ids = catalogue.inZone(zone).map((item) => item.id);
+      issues.push(`zone "${zone}" has no item_spawns on the map (items: ${ids.join(', ')})`);
+    }
+  }
+  if (catalogue.joke.length > 0 && map.itemSpawns.length === 0) {
+    issues.push('joke items need at least one item spawn, the map has none');
+  }
+  return issues;
 }
 
 /** True if the item counts as a joke item (§10.1). */

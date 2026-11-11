@@ -1,20 +1,28 @@
 // The committed item catalogues must be exactly what tools/items-table-to-json.ts makes from the
 // Markdown tables, every item needs a sprite in the items atlas, and every item zone needs spawns.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { getItemCatalogue, getTheme, loadMap } from '../packages/shared/src';
-import { buildItemJson, itemJsonPath } from './items-table-to-json';
+import { checkItemMap, getItemCatalogue, getTheme, loadMap, themes } from '../packages/shared/src';
+import type { ThemeId } from '../packages/shared/src/theme/types';
+import { buildItemJson, itemJsonPath, itemTableThemes } from './items-table-to-json';
 import { ItemTableError, itemsToJson, parseItemTables } from './items/table';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path: string): string => readFileSync(resolve(repoRoot, path), 'utf8');
 
 describe('items-table-to-json', () => {
-  it('committed items.kespro.json matches the Markdown tables (run npm run gen:items)', () => {
-    expect(read(itemJsonPath('kespro'))).toBe(buildItemJson('kespro'));
+  it('finds an item table for every theme', () => {
+    expect(itemTableThemes()).toEqual(Object.keys(themes).sort());
   });
+
+  it.each(itemTableThemes())(
+    'committed items.%s.json matches the Markdown tables (run npm run gen:items)',
+    (theme) => {
+      expect(read(itemJsonPath(theme))).toBe(buildItemJson(theme));
+    },
+  );
 
   it('reads normal and joke tables, cleaning ticks and escapes', () => {
     const rows = parseItemTables(
@@ -74,25 +82,42 @@ describe('items-table-to-json', () => {
   });
 });
 
-describe('kespro catalogue against the assets and the map', () => {
-  const catalogue = getItemCatalogue('kespro');
+describe('item catalogues against the assets and the maps', () => {
+  const themeIds = Object.keys(themes) as ThemeId[];
+  const atlas = JSON.parse(read('packages/client/public/assets/items.json')) as {
+    frames: Record<string, { sourceSize: { w: number; h: number } }>;
+  };
 
-  it('has an items atlas frame for every sprite, 24×24 normal and 32×32 joke (§11.1)', () => {
-    const atlas = JSON.parse(read('packages/client/public/assets/items.json')) as {
-      frames: Record<string, { sourceSize: { w: number; h: number } }>;
-    };
-    for (const item of catalogue.items) {
-      const frame = atlas.frames[item.sprite];
-      expect(frame, item.sprite).toBeDefined();
-      const size = item.rarity === 'joke' ? 32 : 24;
-      expect(frame?.sourceSize, item.sprite).toEqual({ w: size, h: size });
-    }
-    expect(Object.keys(atlas.frames).sort()).toEqual(catalogue.items.map((item) => item.sprite).sort());
+  it.each(themeIds)(
+    '%s: an items atlas frame for every sprite, 24×24 normal and 32×32 joke (§11.1)',
+    (theme) => {
+      for (const item of getItemCatalogue(theme).items) {
+        const frame = atlas.frames[item.sprite];
+        expect(frame, item.sprite).toBeDefined();
+        const size = item.rarity === 'joke' ? 32 : 24;
+        expect(frame?.sourceSize, item.sprite).toEqual({ w: size, h: size });
+      }
+    },
+  );
+
+  it('the items atlas holds exactly the sprites of every catalogue', () => {
+    const sprites = themeIds.flatMap((theme) => getItemCatalogue(theme).items.map((item) => item.sprite));
+    expect(new Set(sprites).size).toBe(sprites.length);
+    expect(Object.keys(atlas.frames).sort()).toEqual(sprites.sort());
   });
 
-  it('has item spawn points on the map for every item zone', () => {
-    const map = loadMap(JSON.parse(read(`maps/${getTheme('kespro').assets.map}`)) as unknown);
-    const spawnZones = new Set(map.itemSpawns.map((spawn) => spawn.zone));
-    for (const zone of catalogue.zones) expect(spawnZones.has(zone), zone).toBe(true);
+  // A theme's map may not exist yet (the phase 2 map is built after its catalogue); the map's own
+  // tests take this check over once it does.
+  const mapped = themeIds.filter((theme) =>
+    existsSync(resolve(repoRoot, 'maps', getTheme(theme).assets.map)),
+  );
+
+  it('the first map exists', () => {
+    expect(mapped).toContain('kespro');
+  });
+
+  it.each(mapped)('%s: item spawn points on the map for every item zone', (theme) => {
+    const map = loadMap(JSON.parse(read(`maps/${getTheme(theme).assets.map}`)) as unknown);
+    expect(checkItemMap(getItemCatalogue(theme), map)).toEqual([]);
   });
 });
