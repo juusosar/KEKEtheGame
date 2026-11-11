@@ -48,11 +48,23 @@ test('customers crowd the second map and run when a punch lands among them', asy
   expect((await hook(page, (k) => k.minimap())).some((m) => m.id.includes('customer'))).toBe(false);
 
   // Walk up to a customer held still (debug holdNpc) and punch it: a few tries cover a swing aimed from
-  // a view one tick old.
+  // a view one tick old. Under load a stocker or guard can walk into the swing (it hit stocker_2 once), so
+  // every other worker is held where it stands and the customer farthest from them is the target.
   let victim = '';
   for (let attempt = 0; victim === ''; attempt++) {
     expect(attempt, 'punches needed to hit a held customer').toBeLessThan(5);
-    const target = (await customers(page)).find((n) => n.alive);
+    const workers = (await hook(page, (k): NpcView[] => k.npcs())).filter(
+      (n) => n.behaviour !== 'customer' && n.alive,
+    );
+    await page.evaluate(
+      (ids) => ids.forEach((id) => (globalThis as WithHook).__KEKE__?.holdNpc(id, 30)),
+      workers.map((n) => n.id),
+    );
+    const clearance = (c: NpcView): number =>
+      Math.min(Infinity, ...workers.map((w) => Math.hypot(w.x - c.x, w.y - c.y)));
+    const target = (await customers(page))
+      .filter((n) => n.alive)
+      .sort((a, b) => clearance(b) - clearance(a))[0];
     if (!target) throw new Error('no customer up');
     await page.evaluate((id) => (globalThis as WithHook).__KEKE__?.holdNpc(id, 20), target.id);
     await expect
@@ -81,7 +93,9 @@ test('customers crowd the second map and run when a punch lands among them', asy
     await page.waitForTimeout(60);
     await page.mouse.up();
     for (let wait = 0; wait < 10 && victim === ''; wait++) {
-      const hit = (await hook(page, (k) => k.combatEvents())).find((e) => e.type === 'npcHit');
+      const hit = (await hook(page, (k) => k.combatEvents())).find(
+        (e) => e.type === 'npcHit' && /^customer_/.test((e.payload as { npc: string }).npc),
+      );
       if (hit) victim = (hit.payload as { npc: string }).npc;
       else await page.waitForTimeout(150);
     }
