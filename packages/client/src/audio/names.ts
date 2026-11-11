@@ -31,6 +31,8 @@ export const SFX_NAMES = [
   'delivery',
   // Ambient loops placed on the map (P2-6). Played with AudioEngine.startLoop, not as one-shots.
   'bottleHum',
+  // Self-checkout gate till beep (P2-1).
+  'gateBeep',
 ] as const;
 
 export type SfxName = (typeof SFX_NAMES)[number];
