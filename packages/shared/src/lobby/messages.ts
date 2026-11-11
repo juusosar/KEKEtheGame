@@ -60,7 +60,18 @@ export const DebugMessage = {
    * butcher or forklift cannot join a scripted fight or knock a scripted walk off course (M7 review F4).
    */
   noNpcs: 'debugNoNpcs',
+  /**
+   * `{ npc, seconds }` an NPC id from the synced state and 0 < seconds <= 30: that store worker stands
+   * still (no walking, no swings) for that long, or until something hits it, so an e2e spec can walk up
+   * and punch it (M7 review F7). Phase 'playing'.
+   */
+  holdNpc: 'debugHoldNpc',
 } as const;
+
+export interface DebugHoldNpcMessage {
+  npc: string;
+  seconds: number;
+}
 
 export interface DebugVanPointsMessage {
   points: number;

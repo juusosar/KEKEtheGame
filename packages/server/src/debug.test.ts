@@ -144,6 +144,35 @@ describe('debug room messages with KEKE_DEBUG on', () => {
     expect(me.weapon).toBe(baguette.id);
   });
 
+  it('hold NPC: a worker stands still until the hold ends or it is hit; bad ids and phases are refused', async () => {
+    const { room, host, guest, errors } = await playing();
+    await waitFor(() => room.state.npcs.size > 0);
+    const stocker = [...room.state.npcs.values()].find((n) => n.behaviour === 'stocker');
+    if (!stocker) throw new Error('no stocker');
+    guest.send(DebugMessage.holdNpc, { npc: stocker.id, seconds: 5 });
+    await waitFor(() => errors.length === 1);
+    expect(errors[0]).toEqual({ code: 'wrong_phase', request: DebugMessage.holdNpc });
+
+    host.send(DebugMessage.endPhase);
+    await waitFor(() => room.state.phase === 'playing');
+    guest.send(DebugMessage.holdNpc, { npc: stocker.id, seconds: 5 });
+    await new Promise((r) => setTimeout(r, 200));
+    const at = { x: stocker.x, y: stocker.y };
+    // Stockers walk at 80 px/s: one second free would move it well over a few pixels.
+    await new Promise((r) => setTimeout(r, 1000));
+    expect([stocker.x, stocker.y, stocker.moving]).toEqual([at.x, at.y, false]);
+
+    guest.send(DebugMessage.holdNpc, { npc: 'no_such_npc', seconds: 5 });
+    guest.send(DebugMessage.holdNpc, { npc: stocker.id, seconds: 0 });
+    guest.send(DebugMessage.holdNpc, { npc: stocker.id, seconds: 31 });
+    await waitFor(() => errors.length === 4);
+    expect(errors.slice(1).map((e) => e.code)).toEqual([
+      'invalid_payload',
+      'invalid_payload',
+      'invalid_payload',
+    ]);
+  });
+
   it('no NPCs: host only: removes the store workers now and keeps them out of the next round (M7 review F4)', async () => {
     const { room, host, guest, errors } = await playing();
     await waitFor(() => room.state.npcs.size > 0);
@@ -177,7 +206,8 @@ describe('debug room messages with KEKE_DEBUG off (default)', () => {
     guest.send(DebugMessage.giveWeapon, { weapon: 'baguette' });
     guest.send(DebugMessage.vanPoints, { points: 5 });
     host.send(DebugMessage.noNpcs);
-    await waitFor(() => errors.length === 5);
+    guest.send(DebugMessage.holdNpc, { npc: 'stocker_1', seconds: 5 });
+    await waitFor(() => errors.length === 6);
     expect(errors).toEqual(
       expect.arrayContaining([
         { code: 'debug_off', request: DebugMessage.endPhase },
@@ -185,6 +215,7 @@ describe('debug room messages with KEKE_DEBUG off (default)', () => {
         { code: 'debug_off', request: DebugMessage.giveWeapon },
         { code: 'debug_off', request: DebugMessage.vanPoints },
         { code: 'debug_off', request: DebugMessage.noNpcs },
+        { code: 'debug_off', request: DebugMessage.holdNpc },
       ]),
     );
     expect(room.state.phase).toBe('countdown');
@@ -194,7 +225,7 @@ describe('debug room messages with KEKE_DEBUG off (default)', () => {
     }
     // Still served: a later request gets its normal answer.
     host.send(ClientMessage.ready, { ready: true });
-    await waitFor(() => errors.length === 6);
-    expect(errors[5]).toEqual({ code: 'wrong_phase', request: ClientMessage.ready });
+    await waitFor(() => errors.length === 7);
+    expect(errors[6]).toEqual({ code: 'wrong_phase', request: ClientMessage.ready });
   });
 });

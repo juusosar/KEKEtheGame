@@ -1262,6 +1262,11 @@ export class GameScene extends Phaser.Scene {
         this.room.send(DebugMessage.endPhase);
         return true;
       },
+      holdNpc: (npc, seconds) => {
+        if (this.room === null) return false;
+        this.room.send(DebugMessage.holdNpc, { npc, seconds });
+        return true;
+      },
       noNpcs: () => {
         if (this.room === null) return false;
         this.room.send(DebugMessage.noNpcs);

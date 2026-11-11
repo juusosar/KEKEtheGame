@@ -159,6 +159,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         ? this.handleDebugVanPoints(client, message)
         : this.refuse(client, DebugMessage.vanPoints, 'debug_off'),
     );
+    this.onMessage(DebugMessage.holdNpc, (client, message: unknown) =>
+      this.debug
+        ? this.handleDebugHoldNpc(client, message)
+        : this.refuse(client, DebugMessage.holdNpc, 'debug_off'),
+    );
     this.onMessage(DebugMessage.noNpcs, (client) =>
       this.debug ? this.handleDebugNoNpcs(client) : this.refuse(client, DebugMessage.noNpcs, 'debug_off'),
     );
@@ -393,6 +398,22 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     if (client.sessionId !== this.state.hostId) return this.refuse(client, DebugMessage.endPhase, 'not_host');
     if (this.state.phase === 'lobby') return this.refuse(client, DebugMessage.endPhase, 'wrong_phase');
     this.advancePhase();
+  }
+
+  /** Holds one store worker in place for a few seconds; npcsClient e2e punches it with one swing (F7). */
+  private handleDebugHoldNpc(client: Client, message: unknown): void {
+    if (this.state.phase !== 'playing') return this.refuse(client, DebugMessage.holdNpc, 'wrong_phase');
+    const { npc, seconds } = (message ?? {}) as { npc?: unknown; seconds?: unknown };
+    if (
+      typeof npc !== 'string' ||
+      typeof seconds !== 'number' ||
+      !Number.isFinite(seconds) ||
+      seconds <= 0 ||
+      seconds > 30 ||
+      !this.npcs.holdForTest(npc, seconds)
+    ) {
+      return this.refuse(client, DebugMessage.holdNpc, 'invalid_payload');
+    }
   }
 
   /** Host only: no store workers in this room from now on (e2e specs that are not about NPCs). */

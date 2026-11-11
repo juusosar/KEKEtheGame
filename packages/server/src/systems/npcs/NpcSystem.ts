@@ -74,6 +74,8 @@ const NO_CART_ZONES: readonly string[] = ['loading_dock'];
 interface Runtime extends Npc {
   vitals: NpcVitals;
   shove: Knockback | null;
+  /** Round time until which a debug hold keeps it standing still (`holdForTest`); 0 = not held. */
+  heldUntil: number;
   readonly walker: Walker;
   readonly module: NpcBehaviourModule;
 }
@@ -193,7 +195,7 @@ export class NpcSystem implements NpcTargets {
       if (npc.shove) {
         this.moveShoved(npc, dt);
         npc.state.moving = false;
-      } else if (npcStunned(npc.vitals, now)) {
+      } else if (npcStunned(npc.vitals, now) || now < npc.heldUntil) {
         npc.state.moving = false;
       } else {
         npc.state.moving = false;
@@ -234,6 +236,8 @@ export class NpcSystem implements NpcTargets {
     const result = hitNpc(npc.vitals, npc.id, hit, this.now, this.config);
     if (!result.landed) return false;
     npc.vitals = result.vitals;
+    // A debug hold ends at the first hit, so the worker reacts as usual (turns on the attacker).
+    npc.heldUntil = 0;
     const damage = Math.max(0, hit.damage);
     const weapon = hit.weapon ?? null;
     this.broadcast({
@@ -291,6 +295,7 @@ export class NpcSystem implements NpcTargets {
       half,
       vitals: freshNpcVitals(def.hp),
       shove: null,
+      heldUntil: 0,
       walker: new Walker(),
       module,
     };
@@ -519,6 +524,19 @@ export class NpcSystem implements NpcTargets {
   stopForTest(): void {
     this.reset();
     this.byBehaviour.clear();
+  }
+
+  /**
+   * Keeps an NPC that is up standing still for `seconds` (no walking or swings) or until it is hit
+   * (debug `holdNpc`, e2e specs; M7 review F7). False when there is no such NPC up this round.
+   */
+  holdForTest(npcId: string, seconds: number): boolean {
+    const npc = this.npcs.get(npcId);
+    if (!this.running || !npc || !npc.vitals.alive) return false;
+    npc.heldUntil = this.now + seconds;
+    npc.walker.clear();
+    npc.state.moving = false;
+    return true;
   }
 
   /** Parks a stock cart on `rect` for `seconds`, wherever that is (room tests; stockers use placeCart). */
