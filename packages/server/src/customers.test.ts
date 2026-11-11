@@ -93,13 +93,21 @@ describe('GameRoom customers (integration, P2-3)', () => {
   async function playingRoom(
     count: number,
     mapChoice: string,
+    roundsPerMap?: number,
   ): Promise<{ room: GameRoom; players: Player[] }> {
     const host = (await colyseus.sdk.create('game', { nickname: 'Host' })) as Conn;
     open.push(host);
     await host.waitForInitialState();
     const room = colyseus.getRoomById<GameRoom>(host.roomId);
-    host.send(ClientMessage.settings, { maps: mapChoice });
-    await waitFor(() => room.state.settings.maps === mapChoice);
+    host.send(ClientMessage.settings, {
+      maps: mapChoice,
+      ...(roundsPerMap === undefined ? {} : { roundsPerMap }),
+    });
+    await waitFor(
+      () =>
+        room.state.settings.maps === mapChoice &&
+        (roundsPerMap === undefined || room.state.settings.roundsPerMap === roundsPerMap),
+    );
     const conns = [host];
     for (let i = 1; i < count; i++) {
       const guest = (await colyseus.sdk.join('game', { code: room.state.code, nickname: `G${i}` })) as Conn;
@@ -155,6 +163,24 @@ describe('GameRoom customers (integration, P2-3)', () => {
     const first = await playingRoom(1, 'kespro');
     expect(customersOf(first.room)).toHaveLength(0);
     expect(first.room.npcSystem.solidBodies()).toEqual([]);
+  });
+
+  it('customers come with the second map in a Both session and leave with it (P3-1 map switch)', async () => {
+    const { room } = await playingRoom(1, 'both', 1);
+    expect(room.state.mapId).toBe('kespro');
+    expect(customersOf(room)).toHaveLength(0);
+    room.advancePhase(); // roundResults
+    room.advancePhase(); // countdown of round 2, on the second map
+    expect(room.state.mapId).toBe(SECOND);
+    expect(customersOf(room)).toHaveLength(7);
+    expect(room.npcSystem.solidBodies()).toHaveLength(7);
+    room.advancePhase(); // playing
+    room.advancePhase(); // roundResults
+    room.advancePhase(); // podium
+    room.advancePhase(); // lobby
+    expect(room.state.phase).toBe('lobby');
+    expect(customersOf(room)).toHaveLength(0);
+    expect(room.npcSystem.solidBodies()).toEqual([]);
   });
 
   it('a customer body stops a player walking into it', async () => {
