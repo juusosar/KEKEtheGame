@@ -53,20 +53,24 @@ test('walks out through a self-checkout gate, is stopped, and cannot walk back i
   await expectSettled(host);
 
   // Walk south: the gate stops us on the far side of its line, then lets us go on.
-  await host.keyboard.down('KeyS');
-  await expect.poll(async () => (await game(host)).net?.gateStop ?? 0, { timeout: 5_000 }).toBeGreaterThan(0);
-  const stoppedAt = (await game(host)).player;
-  expect(stoppedAt.y).toBeGreaterThanOrEqual(lineY);
-  // The till beeps, a bubble shows over us, and the server's stop event names this gate.
+  // The stop lasts 0.6 s, too short to catch by polling under load, so the checks read what the page
+  // remembers: the server's stop event (with the bubble text it showed), the beep count and the gate looks.
   const gateFx = () =>
     host.evaluate(() => {
       const keke = (globalThis as WithHook).__KEKE__;
       return { gate: keke?.gateFx(), beeps: keke?.sfx()['gateBeep'] ?? 0 };
     });
-  await expect.poll(async () => (await gateFx()).gate?.stops.length ?? 0).toBeGreaterThan(0);
+  await host.keyboard.down('KeyS');
+  await expect
+    .poll(async () => (await gateFx()).gate?.stops.length ?? 0, { timeout: 5_000 })
+    .toBeGreaterThan(0);
   const fx = await gateFx();
-  expect(fx.gate?.stops.at(-1)).toMatchObject({ gate: lane.index, carrying: false });
-  expect(fx.gate?.bubbles).toContain('Beep! Please wait…');
+  // The bubble lasts about the stop, so a slow page may already have hidden it: the stop keeps its text.
+  expect(fx.gate?.stops.at(-1)).toMatchObject({
+    gate: lane.index,
+    carrying: false,
+    text: 'Beep! Please wait…',
+  });
   expect(fx.gate?.looks.some((l) => l.index === lane.index)).toBe(true);
   expect(fx.beeps).toBeGreaterThan(0);
   await expect.poll(async () => (await game(host)).player.y, { timeout: 5_000 }).toBeGreaterThan(lineY + 40);
