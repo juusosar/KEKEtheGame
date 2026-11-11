@@ -212,6 +212,7 @@ export {
   inWantedZone,
   isWanted,
   markWanted,
+  clearWanted,
   removeWantedPlayer,
   updateWantedZones,
   wantedHitsFromCombat,

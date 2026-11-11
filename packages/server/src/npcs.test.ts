@@ -29,6 +29,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createGameServer } from './app';
 import { loadThemeMap, singleMapRegistry } from './maps';
 import type { GameRoom } from './rooms/GameRoom';
+import type { CombatSystem } from './systems/combat/CombatSystem';
 import type { GameState, PlayerState } from './schema/GameState';
 
 // Own port (M5-3): 2584.
@@ -207,6 +208,31 @@ describe('GameRoom NPCs and Wanted (integration)', () => {
       8000,
     );
     expect(p.me.hp).toBeLessThan(config.maxHp);
+  });
+
+  it('a KO ends Wanted, also one held by standing in staff_only (playtest 1)', async () => {
+    const { room, p } = await playingRoom();
+    const at = staffOnlySpot();
+    p.me.x = at.x;
+    p.me.y = at.y;
+    await waitFor(() => p.me.wanted);
+    const combat = (room as unknown as { combat: CombatSystem }).combat;
+    await waitFor(() =>
+      combat.externalHit({
+        source: { kind: 'hazard', id: 'test' },
+        target: p.conn.sessionId,
+        damage: 999,
+        delivery: 'melee',
+      }),
+    );
+    expect(p.me.alive).toBe(false);
+    await waitFor(() => !p.me.wanted);
+    expect(p.me.wantedIn).toBe(0);
+    await waitFor(() => p.events.some((e) => e.type === 'wantedEnded'));
+    // Respawned at the van: no new timer from having left the zone by KO.
+    await waitFor(() => p.me.alive, config.respawnSeconds * 1000 + 2000);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(p.me.wanted).toBe(false);
   });
 
   it('standing in staff_only makes a player Wanted; the lobby clears NPCs and Wanted', async () => {
