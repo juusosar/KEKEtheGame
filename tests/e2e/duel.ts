@@ -9,8 +9,11 @@ import { aimMouse, createRoom, joinRoom, noNpcs, players, toPlay, waitControllin
 
 type WithHook = { __KEKE__?: KekeHook };
 
-/** Open floor on the loading dock, between van bays 4 and 5 (maps/kespro.tmj columns 0 to 14 are open). */
-export const ARENA = { x: 80, y: 1104 } as const;
+/**
+ * Open floor on the loading dock's west edge, level with the middle dock gate (maps/kespro.tmj columns 0
+ * to 9 are open, and row 31 stays open through the gate at column 10), so 8 tiles east is still floor.
+ */
+export const ARENA = { x: 48, y: 1008 } as const;
 /** maps/kespro.tmj tile size. */
 export const TILE = 32;
 export const MAX_HP = 100;

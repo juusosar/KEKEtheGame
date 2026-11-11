@@ -205,8 +205,8 @@ suite('map switch between rounds (integration, P3-1)', PORT, loadMapRegistry(), 
     const { room, host, conns } = await h.lobby(4);
     await h.start(room, host, conns, { maps: 'both', roundsPerMap: 1, teams: true });
     const teamOf = new Map(players(room).map((p) => [p.sessionId, p.team]));
-    // On the first map the team vans are its first two slots.
-    for (const p of players(room)) expect(p.van).toBe(p.team - 1);
+    // On the first map (kespro) the team vans are its team slots 5 and 6 (0-based 4 and 5).
+    for (const p of players(room)) expect(p.van).toBe(p.team + 3);
     finishRound(room, [3, 0, 1, 0]);
     const totals = [...room.state.teams.values()].map((t) => [t.team, t.sessionPoints, t.sessionItemPoints]);
     expect(totals.some(([, points]) => (points ?? 0) > 0)).toBe(true);

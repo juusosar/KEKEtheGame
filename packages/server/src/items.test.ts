@@ -159,12 +159,13 @@ describe('GameRoom items and vans (integration)', () => {
     expect(first.conn.state.players.get(first.conn.sessionId)?.target).toBe(first.me.target);
   });
 
-  it('puts teammates in one shared van in the first slots, and keeps vans for the next round', async () => {
+  it("puts teammates in one shared van in the map's team slots, and keeps vans for the next round", async () => {
     const { room, players } = await playingRoom(4, true);
-    for (const p of players) expect(p.me.van).toBe(p.me.team - 1);
+    const [red, blue] = map.teamVanSlots;
+    for (const p of players) expect(p.me.van).toBe(map.teamVanSlots[p.me.team - 1]);
     expect([...room.state.vans.values()].map((v) => [v.van, v.team]).sort()).toEqual([
-      [0, 1],
-      [1, 2],
+      [red, 1],
+      [blue, 2],
     ]);
     const vans = players.map((p) => p.me.van);
     room.advancePhase(); // roundResults

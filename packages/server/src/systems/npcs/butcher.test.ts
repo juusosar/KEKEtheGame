@@ -48,7 +48,7 @@ describe('butcher', () => {
   it('guards the rectangle the e2e helpers copy (tests/e2e/helpers.ts BEHIND_COUNTER)', () => {
     const s = setup((i) => spot(i * 30));
     const zone = must(s.live.zones.find((z) => z.id === butcher.guardZone));
-    expect(zone.bounds).toEqual({ minX: 2048, minY: 1728, maxX: 2048 + 416, maxY: 1728 + 160 });
+    expect(zone.bounds).toEqual({ minX: 1600, minY: 1312, maxX: 1600 + 352, maxY: 1312 + 160 });
   });
 
   it('ignores players outside the counter, even when they hit it', () => {
@@ -56,7 +56,7 @@ describe('butcher', () => {
     const p = must(s.players[0]);
     const n = must(s.state.npcs.get(ID));
     // Right in front of the counter, but in meat_fish rather than behind_counter.
-    const front = { x: n.x, y: 1728 + 160 + 24 };
+    const front = { x: n.x, y: 1312 + 160 + 24 };
     expect(s.live.zoneAt(front.x, front.y)?.id).toBe(butcher.homeZone);
     p.x = front.x;
     p.y = front.y;
@@ -109,8 +109,8 @@ describe('butcher', () => {
     let s = setup(() => ({ x: 0, y: 0 }));
     const post = home(s);
     // p0 behind the counter next to it; p1 straight across the zone edge below (in meat_fish).
-    const inside = { x: post.x, y: 1728 + 160 - 12 };
-    const outside = { x: post.x, y: 1728 + 160 + 12 };
+    const inside = { x: post.x, y: 1312 + 160 - 12 };
+    const outside = { x: post.x, y: 1312 + 160 + 12 };
     s = setup((i) => (i === 0 ? inside : outside), 2);
     const [a, b] = [must(s.players[0]), must(s.players[1])];
     expect(s.live.zoneAt(b.x, b.y)?.id).toBe(butcher.homeZone);
