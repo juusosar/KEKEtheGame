@@ -76,5 +76,11 @@ test('Teams: team colour outlines on bodies and vans, a ring in the lobby', asyn
   };
   await Promise.all([forBoth(host, 'Punainen', 'Sininen'), forBoth(guest, 'Sininen', 'Punainen')]);
 
+  // Playtest 1 problem 7: the mini scoreboard's swatches are the team colours, not the player colours.
+  const [hr, hg, hb] = [1, 3, 5].map((i) => parseInt(teamColor(hostTeam).slice(i, i + 2), 16));
+  const hostRow = guest.locator('#keke-hud-scores li[data-player-id]').filter({ hasText: 'Punainen' });
+  await expect(hostRow).toHaveAttribute('data-team', String(hostTeam));
+  await expect(hostRow.locator('.swatch')).toHaveCSS('background-color', `rgb(${hr}, ${hg}, ${hb})`);
+
   expect(pageErrors).toEqual([]);
 });

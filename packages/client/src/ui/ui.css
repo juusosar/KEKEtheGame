@@ -449,6 +449,11 @@
   flex: none;
   border: 1px solid #000;
 }
+.keke-hud .hud-board td.team .swatch {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
 .keke-hud .hud-scores .name {
   flex: 1;
   overflow: hidden;
