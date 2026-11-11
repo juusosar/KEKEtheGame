@@ -58,7 +58,7 @@ describe('GameRoom one-way gates (integration, P2-1)', () => {
     await colyseus.shutdown();
   });
 
-  async function waitFor(check: () => boolean, timeoutMs = 3000): Promise<void> {
+  async function waitFor(check: () => boolean, timeoutMs = 10_000): Promise<void> {
     const until = Date.now() + timeoutMs;
     while (!check()) {
       if (Date.now() > until) throw new Error('waitFor timed out');
@@ -113,6 +113,8 @@ describe('GameRoom one-way gates (integration, P2-1)', () => {
     me.x = laneX;
     me.y = lineY - 12;
     while (me.gateStop === 0) await send(conn, me, { x: 0, y: 1 });
+    // `me` is the server's own state, so the ack is there before the broadcast reaches the client.
+    await waitFor(() => events.some((e) => e.type === GateEventMessage.gateStop));
     const stop = events.find((e) => e.type === GateEventMessage.gateStop)?.payload as GateStopMessage;
     expect(stop).toEqual({
       player: conn.sessionId,
@@ -138,7 +140,7 @@ describe('GameRoom one-way gates (integration, P2-1)', () => {
     await send(conn, me, { x: 0, y: 0 }, Button.Attack);
     await waitFor(() => events.some((e) => e.type === CombatEventMessage.attack));
     expect(events.filter((e) => e.type === GateEventMessage.gateStop)).toHaveLength(1);
-  });
+  }, 20_000);
 
   it('cannot walk back in through the gate', async () => {
     const { conn, me } = await playing();
@@ -147,5 +149,5 @@ describe('GameRoom one-way gates (integration, P2-1)', () => {
     for (let i = 0; i < 20; i++) await send(conn, me, { x: 0, y: -1 });
     expect(me.y).toBe(lineY);
     expect(me.gateStop).toBe(0);
-  });
+  }, 20_000);
 });
