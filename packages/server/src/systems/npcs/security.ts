@@ -13,6 +13,9 @@
 //    and walks back to the post afterwards. Players inside staff_only stay Wanted while inside, so the
 //    door guard keeps after anyone who goes in.
 //
+// A guard with `releaseZones` (npcs.json, per map) does not see players standing in them: on prisma a
+// Wanted player who makes it out of the store is let go, and the guard searches the door, then gives up.
+//
 // Being hit needs no special handling: the attacker becomes Wanted (npc_damage) through the wanted rules
 // and the guard sees them on its next tick. Synced `mode`: 'patrol' (walking to a waypoint), 'watch'
 // (pausing at a waypoint), 'post' (standing at its post), 'return' (walking back to the post), 'chase'
@@ -75,12 +78,21 @@ export function createSecurityBehaviour(): NpcBehaviourModule {
     return !npc.placement.post || dist(at, npc.placement.spawn) <= sightPx(ctx, def);
   }
 
+  /** A player in one of the guard's `releaseZones` (outside the store on prisma) is let go (P4-2). */
+  function released(ctx: NpcContext, def: NpcOf<'security'>, at: Vec2): boolean {
+    const zones = def.releaseZones;
+    if (!zones || zones.length === 0) return false;
+    const zone = ctx.map.zoneAt(at.x, at.y)?.id;
+    return zone !== undefined && zones.includes(zone);
+  }
+
   function sees(ctx: NpcContext, npc: Npc, def: NpcOf<'security'>, p: PlayerState): boolean {
     const from = { x: npc.state.x, y: npc.state.y };
     const at = { x: p.x, y: p.y };
     return (
       dist(from, at) <= sightPx(ctx, def) &&
       inLeash(ctx, npc, def, at) &&
+      !released(ctx, def, at) &&
       clearLine(ctx.map.collision, from, at) &&
       // Customers in the way block the view too (Phase 2 decision 8).
       !bodiesBlockLine(from, at, ctx.sightBlockers())

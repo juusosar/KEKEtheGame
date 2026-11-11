@@ -98,6 +98,18 @@ export const npcSchema = z.discriminatedUnion('behaviour', [
       chase: z
         .object({ speedPxPerSecond: positive, sightRangeTiles: positive, loseSightSeconds: nonNegative })
         .strict(),
+      /**
+       * Zone ids where a guard lets a Wanted player go (P4-2): it does not see them there, so it walks to
+       * where it last saw them and gives up. Default none: guards chase everywhere.
+       */
+      releaseZones: z.array(z.string().regex(idPattern)).optional(),
+      /** Per-map overrides, keyed by theme id: `{ "prisma": { "releaseZones": ["parking"] } }`. */
+      mapZones: z
+        .record(
+          z.string().regex(idPattern),
+          z.object({ releaseZones: z.array(z.string().regex(idPattern)).optional() }).strict(),
+        )
+        .optional(),
       attack: npcAttackSchema,
     })
     .strict(),
@@ -242,8 +254,16 @@ function buildCatalogue(npcs: readonly NpcDef[], source: string): NpcCatalogue {
   });
 }
 
-/** The butcher's per-map zone override for `mapId` (only the zones it sets), if any. */
-function mapZonesOf(n: NpcDef, mapId: string): { guardZone?: string; homeZone?: string } | undefined {
+/** The butcher's or a guard's per-map zone override for `mapId` (only the zones it sets), if any. */
+function mapZonesOf(
+  n: NpcDef,
+  mapId: string,
+): { guardZone?: string; homeZone?: string; releaseZones?: readonly string[] } | undefined {
+  if (n.behaviour === 'security') {
+    const zones = n.mapZones?.[mapId];
+    if (zones === undefined) return undefined;
+    return { ...(zones.releaseZones !== undefined && { releaseZones: zones.releaseZones }) };
+  }
   const zones = n.behaviour === 'butcher' ? n.mapZones?.[mapId] : undefined;
   if (zones === undefined) return undefined;
   return {
@@ -254,7 +274,7 @@ function mapZonesOf(n: NpcDef, mapId: string): { guardZone?: string; homeZone?: 
 
 /**
  * The catalogue as one map sees it: each type's `count` replaced by its `mapCounts[mapId]` override
- * and the butcher's zones by its `mapZones[mapId]` override when it has one. Everything else is
+ * and the butcher's and guards' zones by their `mapZones[mapId]` override when they have one. Everything else is
  * shared. The server builds one per loaded map (P1-1).
  */
 export function npcCatalogueForMap(catalogue: NpcCatalogue, mapId: string): NpcCatalogue {

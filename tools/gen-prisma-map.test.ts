@@ -50,6 +50,7 @@ const ZONE_IDS = [
   'self_checkout',
   'stockroom',
   'parking',
+  'sidewalk',
   'street',
   'office',
 ];

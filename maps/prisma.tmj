@@ -11,7 +11,7 @@
   "tilewidth": 32,
   "tileheight": 32,
   "nextlayerid": 15,
-  "nextobjectid": 137,
+  "nextobjectid": 138,
   "layers": [
     {
       "id": 1,
@@ -874,6 +874,42 @@
         },
         {
           "id": 17,
+          "name": "Sidewalk",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 2368,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "polygon": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 128,
+              "y": 0
+            },
+            {
+              "x": 128,
+              "y": 1408
+            },
+            {
+              "x": 0,
+              "y": 1408
+            }
+          ],
+          "properties": [
+            {
+              "name": "id",
+              "type": "string",
+              "value": "sidewalk"
+            }
+          ]
+        },
+        {
+          "id": 18,
           "name": "Street",
           "type": "",
           "rotation": 0,
@@ -909,7 +945,7 @@
           ]
         },
         {
-          "id": 18,
+          "id": 19,
           "name": "Office",
           "type": "",
           "rotation": 0,
@@ -957,7 +993,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 19,
+          "id": 20,
           "name": "van_1",
           "type": "",
           "rotation": 0,
@@ -981,7 +1017,7 @@
           ]
         },
         {
-          "id": 20,
+          "id": 21,
           "name": "van_2",
           "type": "",
           "rotation": 0,
@@ -1000,7 +1036,7 @@
           ]
         },
         {
-          "id": 21,
+          "id": 22,
           "name": "van_3",
           "type": "",
           "rotation": 0,
@@ -1019,7 +1055,7 @@
           ]
         },
         {
-          "id": 22,
+          "id": 23,
           "name": "van_4",
           "type": "",
           "rotation": 0,
@@ -1038,7 +1074,7 @@
           ]
         },
         {
-          "id": 23,
+          "id": 24,
           "name": "van_5",
           "type": "",
           "rotation": 0,
@@ -1057,7 +1093,7 @@
           ]
         },
         {
-          "id": 24,
+          "id": 25,
           "name": "van_6",
           "type": "",
           "rotation": 0,
@@ -1076,7 +1112,7 @@
           ]
         },
         {
-          "id": 25,
+          "id": 26,
           "name": "van_7",
           "type": "",
           "rotation": 0,
@@ -1095,7 +1131,7 @@
           ]
         },
         {
-          "id": 26,
+          "id": 27,
           "name": "van_8",
           "type": "",
           "rotation": 0,
@@ -1114,7 +1150,7 @@
           ]
         },
         {
-          "id": 27,
+          "id": 28,
           "name": "van_9",
           "type": "",
           "rotation": 0,
@@ -1133,7 +1169,7 @@
           ]
         },
         {
-          "id": 28,
+          "id": 29,
           "name": "van_10",
           "type": "",
           "rotation": 0,
@@ -1152,7 +1188,7 @@
           ]
         },
         {
-          "id": 29,
+          "id": 30,
           "name": "van_11",
           "type": "",
           "rotation": 0,
@@ -1171,7 +1207,7 @@
           ]
         },
         {
-          "id": 30,
+          "id": 31,
           "name": "van_12",
           "type": "",
           "rotation": 0,
@@ -1195,7 +1231,7 @@
           ]
         },
         {
-          "id": 31,
+          "id": 32,
           "name": "van_13",
           "type": "",
           "rotation": 0,
@@ -1214,7 +1250,7 @@
           ]
         },
         {
-          "id": 32,
+          "id": 33,
           "name": "van_14",
           "type": "",
           "rotation": 0,
@@ -1233,7 +1269,7 @@
           ]
         },
         {
-          "id": 33,
+          "id": 34,
           "name": "van_15",
           "type": "",
           "rotation": 0,
@@ -1252,7 +1288,7 @@
           ]
         },
         {
-          "id": 34,
+          "id": 35,
           "name": "van_16",
           "type": "",
           "rotation": 0,
@@ -1283,31 +1319,12 @@
       "visible": true,
       "objects": [
         {
-          "id": 35,
-          "name": "",
-          "type": "",
-          "rotation": 0,
-          "visible": true,
-          "x": 144,
-          "y": 848,
-          "width": 0,
-          "height": 0,
-          "point": true,
-          "properties": [
-            {
-              "name": "zone",
-              "type": "string",
-              "value": "produce"
-            }
-          ]
-        },
-        {
           "id": 36,
           "name": "",
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 368,
+          "x": 144,
           "y": 848,
           "width": 0,
           "height": 0,
@@ -1326,8 +1343,8 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 240,
-          "y": 976,
+          "x": 368,
+          "y": 848,
           "width": 0,
           "height": 0,
           "point": true,
@@ -1345,7 +1362,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 496,
+          "x": 240,
           "y": 976,
           "width": 0,
           "height": 0,
@@ -1364,8 +1381,8 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 144,
-          "y": 1104,
+          "x": 496,
+          "y": 976,
           "width": 0,
           "height": 0,
           "point": true,
@@ -1383,7 +1400,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 400,
+          "x": 144,
           "y": 1104,
           "width": 0,
           "height": 0,
@@ -1402,8 +1419,8 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 240,
-          "y": 496,
+          "x": 400,
+          "y": 1104,
           "width": 0,
           "height": 0,
           "point": true,
@@ -1411,7 +1428,7 @@
             {
               "name": "zone",
               "type": "string",
-              "value": "bakery"
+              "value": "produce"
             }
           ]
         },
@@ -1421,7 +1438,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 400,
+          "x": 240,
           "y": 496,
           "width": 0,
           "height": 0,
@@ -1440,8 +1457,8 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 336,
-          "y": 624,
+          "x": 400,
+          "y": 496,
           "width": 0,
           "height": 0,
           "point": true,
@@ -1459,7 +1476,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 496,
+          "x": 336,
           "y": 624,
           "width": 0,
           "height": 0,
@@ -1478,8 +1495,8 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 240,
-          "y": 752,
+          "x": 496,
+          "y": 624,
           "width": 0,
           "height": 0,
           "point": true,
@@ -1497,7 +1514,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 432,
+          "x": 240,
           "y": 752,
           "width": 0,
           "height": 0,
@@ -1516,8 +1533,8 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 176,
-          "y": 176,
+          "x": 432,
+          "y": 752,
           "width": 0,
           "height": 0,
           "point": true,
@@ -1525,7 +1542,7 @@
             {
               "name": "zone",
               "type": "string",
-              "value": "dairy"
+              "value": "bakery"
             }
           ]
         },
@@ -1535,7 +1552,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 400,
+          "x": 176,
           "y": 176,
           "width": 0,
           "height": 0,
@@ -1554,7 +1571,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 816,
+          "x": 400,
           "y": 176,
           "width": 0,
           "height": 0,
@@ -1573,7 +1590,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 1232,
+          "x": 816,
           "y": 176,
           "width": 0,
           "height": 0,
@@ -1592,6 +1609,25 @@
           "type": "",
           "rotation": 0,
           "visible": true,
+          "x": 1232,
+          "y": 176,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "zone",
+              "type": "string",
+              "value": "dairy"
+            }
+          ]
+        },
+        {
+          "id": 52,
+          "name": "",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
           "x": 336,
           "y": 272,
           "width": 0,
@@ -1606,7 +1642,7 @@
           ]
         },
         {
-          "id": 52,
+          "id": 53,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1625,7 +1661,7 @@
           ]
         },
         {
-          "id": 53,
+          "id": 54,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1644,7 +1680,7 @@
           ]
         },
         {
-          "id": 54,
+          "id": 55,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1663,7 +1699,7 @@
           ]
         },
         {
-          "id": 55,
+          "id": 56,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1682,7 +1718,7 @@
           ]
         },
         {
-          "id": 56,
+          "id": 57,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1701,7 +1737,7 @@
           ]
         },
         {
-          "id": 57,
+          "id": 58,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1720,7 +1756,7 @@
           ]
         },
         {
-          "id": 58,
+          "id": 59,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1739,7 +1775,7 @@
           ]
         },
         {
-          "id": 59,
+          "id": 60,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1758,7 +1794,7 @@
           ]
         },
         {
-          "id": 60,
+          "id": 61,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1777,7 +1813,7 @@
           ]
         },
         {
-          "id": 61,
+          "id": 62,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1796,7 +1832,7 @@
           ]
         },
         {
-          "id": 62,
+          "id": 63,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1815,7 +1851,7 @@
           ]
         },
         {
-          "id": 63,
+          "id": 64,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1834,7 +1870,7 @@
           ]
         },
         {
-          "id": 64,
+          "id": 65,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1853,7 +1889,7 @@
           ]
         },
         {
-          "id": 65,
+          "id": 66,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1872,7 +1908,7 @@
           ]
         },
         {
-          "id": 66,
+          "id": 67,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1891,7 +1927,7 @@
           ]
         },
         {
-          "id": 67,
+          "id": 68,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1910,7 +1946,7 @@
           ]
         },
         {
-          "id": 68,
+          "id": 69,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1929,7 +1965,7 @@
           ]
         },
         {
-          "id": 69,
+          "id": 70,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1948,7 +1984,7 @@
           ]
         },
         {
-          "id": 70,
+          "id": 71,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1967,7 +2003,7 @@
           ]
         },
         {
-          "id": 71,
+          "id": 72,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1986,7 +2022,7 @@
           ]
         },
         {
-          "id": 72,
+          "id": 73,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2005,7 +2041,7 @@
           ]
         },
         {
-          "id": 73,
+          "id": 74,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2024,7 +2060,7 @@
           ]
         },
         {
-          "id": 74,
+          "id": 75,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2043,7 +2079,7 @@
           ]
         },
         {
-          "id": 75,
+          "id": 76,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2062,7 +2098,7 @@
           ]
         },
         {
-          "id": 76,
+          "id": 77,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2081,7 +2117,7 @@
           ]
         },
         {
-          "id": 77,
+          "id": 78,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2105,7 +2141,7 @@
           ]
         },
         {
-          "id": 78,
+          "id": 79,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2129,7 +2165,7 @@
           ]
         },
         {
-          "id": 79,
+          "id": 80,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2148,7 +2184,7 @@
           ]
         },
         {
-          "id": 80,
+          "id": 81,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2167,7 +2203,7 @@
           ]
         },
         {
-          "id": 81,
+          "id": 82,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2186,7 +2222,7 @@
           ]
         },
         {
-          "id": 82,
+          "id": 83,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2205,7 +2241,7 @@
           ]
         },
         {
-          "id": 83,
+          "id": 84,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2224,7 +2260,7 @@
           ]
         },
         {
-          "id": 84,
+          "id": 85,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2243,7 +2279,7 @@
           ]
         },
         {
-          "id": 85,
+          "id": 86,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2262,7 +2298,7 @@
           ]
         },
         {
-          "id": 86,
+          "id": 87,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2281,7 +2317,7 @@
           ]
         },
         {
-          "id": 87,
+          "id": 88,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2300,7 +2336,7 @@
           ]
         },
         {
-          "id": 88,
+          "id": 89,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2331,7 +2367,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 89,
+          "id": 90,
           "name": "security",
           "type": "",
           "rotation": 0,
@@ -2355,7 +2391,7 @@
           ]
         },
         {
-          "id": 90,
+          "id": 91,
           "name": "security",
           "type": "",
           "rotation": 0,
@@ -2374,7 +2410,7 @@
           ]
         },
         {
-          "id": 91,
+          "id": 92,
           "name": "security",
           "type": "",
           "rotation": 0,
@@ -2393,7 +2429,7 @@
           ]
         },
         {
-          "id": 92,
+          "id": 93,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2412,7 +2448,7 @@
           ]
         },
         {
-          "id": 93,
+          "id": 94,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2431,7 +2467,7 @@
           ]
         },
         {
-          "id": 94,
+          "id": 95,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2450,7 +2486,7 @@
           ]
         },
         {
-          "id": 95,
+          "id": 96,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2469,7 +2505,7 @@
           ]
         },
         {
-          "id": 96,
+          "id": 97,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2488,7 +2524,7 @@
           ]
         },
         {
-          "id": 97,
+          "id": 98,
           "name": "butcher",
           "type": "",
           "rotation": 0,
@@ -2507,7 +2543,7 @@
           ]
         },
         {
-          "id": 98,
+          "id": 99,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2526,7 +2562,7 @@
           ]
         },
         {
-          "id": 99,
+          "id": 100,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2545,7 +2581,7 @@
           ]
         },
         {
-          "id": 100,
+          "id": 101,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2564,7 +2600,7 @@
           ]
         },
         {
-          "id": 101,
+          "id": 102,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2595,7 +2631,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 102,
+          "id": 103,
           "name": "wp_1",
           "type": "",
           "rotation": 0,
@@ -2607,7 +2643,7 @@
           "point": true
         },
         {
-          "id": 103,
+          "id": 104,
           "name": "wp_2",
           "type": "",
           "rotation": 0,
@@ -2619,7 +2655,7 @@
           "point": true
         },
         {
-          "id": 104,
+          "id": 105,
           "name": "wp_3",
           "type": "",
           "rotation": 0,
@@ -2631,7 +2667,7 @@
           "point": true
         },
         {
-          "id": 105,
+          "id": 106,
           "name": "wp_4",
           "type": "",
           "rotation": 0,
@@ -2643,7 +2679,7 @@
           "point": true
         },
         {
-          "id": 106,
+          "id": 107,
           "name": "wp_5",
           "type": "",
           "rotation": 0,
@@ -2655,7 +2691,7 @@
           "point": true
         },
         {
-          "id": 107,
+          "id": 108,
           "name": "wp_6",
           "type": "",
           "rotation": 0,
@@ -2667,7 +2703,7 @@
           "point": true
         },
         {
-          "id": 108,
+          "id": 109,
           "name": "wp_7",
           "type": "",
           "rotation": 0,
@@ -2679,7 +2715,7 @@
           "point": true
         },
         {
-          "id": 109,
+          "id": 110,
           "name": "wp_8",
           "type": "",
           "rotation": 0,
@@ -2691,7 +2727,7 @@
           "point": true
         },
         {
-          "id": 110,
+          "id": 111,
           "name": "wp_9",
           "type": "",
           "rotation": 0,
@@ -2703,7 +2739,7 @@
           "point": true
         },
         {
-          "id": 111,
+          "id": 112,
           "name": "wp_10",
           "type": "",
           "rotation": 0,
@@ -2715,7 +2751,7 @@
           "point": true
         },
         {
-          "id": 112,
+          "id": 113,
           "name": "wp_11",
           "type": "",
           "rotation": 0,
@@ -2727,7 +2763,7 @@
           "point": true
         },
         {
-          "id": 113,
+          "id": 114,
           "name": "wp_12",
           "type": "",
           "rotation": 0,
@@ -2739,7 +2775,7 @@
           "point": true
         },
         {
-          "id": 114,
+          "id": 115,
           "name": "wp_13",
           "type": "",
           "rotation": 0,
@@ -2751,7 +2787,7 @@
           "point": true
         },
         {
-          "id": 115,
+          "id": 116,
           "name": "wp_14",
           "type": "",
           "rotation": 0,
@@ -2763,7 +2799,7 @@
           "point": true
         },
         {
-          "id": 116,
+          "id": 117,
           "name": "wp_15",
           "type": "",
           "rotation": 0,
@@ -2775,7 +2811,7 @@
           "point": true
         },
         {
-          "id": 117,
+          "id": 118,
           "name": "wp_16",
           "type": "",
           "rotation": 0,
@@ -2799,7 +2835,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 118,
+          "id": 119,
           "name": "stockroom_loop",
           "type": "",
           "rotation": 0,
@@ -2840,7 +2876,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 127,
+          "id": 128,
           "name": "office_trigger",
           "type": "",
           "rotation": 0,
@@ -2948,7 +2984,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 128,
+          "id": 129,
           "name": "bottle_hum",
           "type": "",
           "rotation": 0,
@@ -2972,7 +3008,7 @@
           ]
         },
         {
-          "id": 136,
+          "id": 137,
           "name": "oven_crackle",
           "type": "",
           "rotation": 0,
@@ -3008,7 +3044,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 129,
+          "id": 130,
           "name": "checkout_1",
           "type": "",
           "rotation": 0,
@@ -3031,7 +3067,7 @@
           ]
         },
         {
-          "id": 130,
+          "id": 131,
           "name": "checkout_2",
           "type": "",
           "rotation": 0,
@@ -3054,7 +3090,7 @@
           ]
         },
         {
-          "id": 131,
+          "id": 132,
           "name": "checkout_3",
           "type": "",
           "rotation": 0,
@@ -3077,7 +3113,7 @@
           ]
         },
         {
-          "id": 132,
+          "id": 133,
           "name": "checkout_4",
           "type": "",
           "rotation": 0,
@@ -3100,7 +3136,7 @@
           ]
         },
         {
-          "id": 133,
+          "id": 134,
           "name": "checkout_5",
           "type": "",
           "rotation": 0,
@@ -3123,7 +3159,7 @@
           ]
         },
         {
-          "id": 134,
+          "id": 135,
           "name": "checkout_6",
           "type": "",
           "rotation": 0,
@@ -3146,7 +3182,7 @@
           ]
         },
         {
-          "id": 135,
+          "id": 136,
           "name": "door_7",
           "type": "",
           "rotation": 0,
@@ -3181,7 +3217,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 119,
+          "id": 120,
           "name": "cart_1",
           "type": "",
           "rotation": 0,
@@ -3200,7 +3236,7 @@
           ]
         },
         {
-          "id": 120,
+          "id": 121,
           "name": "cart_2",
           "type": "",
           "rotation": 0,
@@ -3219,7 +3255,7 @@
           ]
         },
         {
-          "id": 121,
+          "id": 122,
           "name": "cart_3",
           "type": "",
           "rotation": 0,
@@ -3238,7 +3274,7 @@
           ]
         },
         {
-          "id": 122,
+          "id": 123,
           "name": "cart_4",
           "type": "",
           "rotation": 0,
@@ -3257,7 +3293,7 @@
           ]
         },
         {
-          "id": 123,
+          "id": 124,
           "name": "cart_5",
           "type": "",
           "rotation": 0,
@@ -3276,7 +3312,7 @@
           ]
         },
         {
-          "id": 124,
+          "id": 125,
           "name": "cart_6",
           "type": "",
           "rotation": 0,
@@ -3295,7 +3331,7 @@
           ]
         },
         {
-          "id": 125,
+          "id": 126,
           "name": "cart_7",
           "type": "",
           "rotation": 0,
@@ -3314,7 +3350,7 @@
           ]
         },
         {
-          "id": 126,
+          "id": 127,
           "name": "cart_8",
           "type": "",
           "rotation": 0,

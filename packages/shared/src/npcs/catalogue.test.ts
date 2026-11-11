@@ -181,6 +181,13 @@ describe('per-map counts (Phase 2)', () => {
     expect(npcCatalogueForMap(catalogue, 'kespro')).toBe(catalogue);
   });
 
+  it('gives the guards their release zones on a map with a mapZones entry (P4-2)', () => {
+    const guard = npcCatalogueForMap(getNpcCatalogue(), 'prisma').require('security');
+    expect(guard).toMatchObject({ releaseZones: expect.arrayContaining(['parking', 'street']) });
+    const plain = npcCatalogueForMap(getNpcCatalogue(), 'kespro').require('security');
+    expect(plain).not.toHaveProperty('releaseZones');
+  });
+
   it('swaps the butcher zones on a map with a mapZones entry', () => {
     const catalogue = getNpcCatalogue();
     const butcher = npcCatalogueForMap(catalogue, 'prisma').require('butcher');

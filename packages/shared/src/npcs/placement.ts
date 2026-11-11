@@ -164,6 +164,11 @@ export function checkNpcMap(catalogue: NpcCatalogue, map: NpcMap): string[] {
     if (walks && map.npcWaypoints.length < 2) {
       issues.push(`${def.id}: walks between npc_waypoints but the map has ${map.npcWaypoints.length}`);
     }
+    if (def.behaviour === 'security') {
+      for (const zone of def.releaseZones ?? []) {
+        if (!zoneIds.has(zone)) issues.push(`${def.id}: zone "${zone}" is not in the map's zones layer`);
+      }
+    }
     if (def.behaviour === 'butcher') {
       for (const zone of [def.guardZone, def.homeZone]) {
         if (!zoneIds.has(zone)) issues.push(`${def.id}: zone "${zone}" is not in the map's zones layer`);
