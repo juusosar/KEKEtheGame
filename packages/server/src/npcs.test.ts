@@ -1,12 +1,15 @@
 // Store workers and Wanted through a real room (M5-3): NPCs in the synced state, a punch on a stocker
 // (npcHit broadcast, Wanted for npc_damage, the stocker swinging back), the staff-only zone, and the
-// lobby clearing it all.
+// lobby clearing it all. M5 review F4/F5: a fight witnessed by a guard (and hidden by a wall or a cart),
+// and a forklift running over a carrier through the real item drop.
 import { ColyseusTestServer } from '@colyseus/testing';
 import type { Room as ClientRoom } from '@colyseus/sdk';
 import {
   Button,
   ClientMessage,
+  clearLine,
   CombatEventMessage,
+  ItemEventMessage,
   NpcEventMessage,
   aabbOverlapsSolid,
   defaultThemeId,
@@ -15,6 +18,7 @@ import {
   loadConfig,
   playerHalfSize,
   vanSpawn,
+  type DropMessage,
   type HitMessage,
   type InputFrame,
   type NpcHitMessage,
@@ -105,23 +109,37 @@ describe('GameRoom NPCs and Wanted (integration)', () => {
     }
   }
 
-  async function playingRoom(): Promise<{ room: GameRoom; p: Player }> {
-    const conn = (await colyseus.sdk.create('game', { nickname: 'Host' })) as Conn;
-    open.push(conn);
-    await conn.waitForInitialState();
-    conn.reconnection.enabled = false;
-    const room = colyseus.getRoomById<GameRoom>(conn.roomId);
-    const me = room.state.players.get(conn.sessionId);
-    if (!me) throw new Error('no player');
-    const p: Player = { conn, me, seq: 0, events: [] };
-    for (const type of [...Object.values(CombatEventMessage), ...Object.values(NpcEventMessage)]) {
-      conn.onMessage(type, (payload: unknown) => p.events.push({ type, payload }));
+  async function playingRoom(count = 1): Promise<{ room: GameRoom; p: Player; players: Player[] }> {
+    const host = (await colyseus.sdk.create('game', { nickname: 'Host' })) as Conn;
+    open.push(host);
+    await host.waitForInitialState();
+    const room = colyseus.getRoomById<GameRoom>(host.roomId);
+    const conns = [host];
+    for (let i = 1; i < count; i++) {
+      const guest = (await colyseus.sdk.join('game', { code: room.state.code, nickname: `G${i}` })) as Conn;
+      open.push(guest);
+      await guest.waitForInitialState();
+      conns.push(guest);
     }
-    conn.send(ClientMessage.ready, { ready: true });
-    await waitFor(() => me.ready);
-    conn.send(ClientMessage.start);
+    const players = conns.map((conn): Player => {
+      conn.reconnection.enabled = false;
+      const me = room.state.players.get(conn.sessionId);
+      if (!me) throw new Error('no player');
+      const p: Player = { conn, me, seq: 0, events: [] };
+      for (const type of [
+        ...Object.values(CombatEventMessage),
+        ...Object.values(NpcEventMessage),
+        ...Object.values(ItemEventMessage),
+      ]) {
+        conn.onMessage(type, (payload: unknown) => p.events.push({ type, payload }));
+      }
+      return p;
+    });
+    for (const c of conns) c.send(ClientMessage.ready, { ready: true });
+    await waitFor(() => [...room.state.players.values()].every((pl) => pl.ready));
+    host.send(ClientMessage.start);
     await waitFor(() => room.state.phase === 'playing');
-    return { room, p };
+    return { room, p: players[0] as Player, players };
   }
 
   async function press(p: Player, buttons = 0, aim = 0): Promise<void> {
@@ -207,5 +225,137 @@ describe('GameRoom NPCs and Wanted (integration)', () => {
     expect(room.state.npcs.size).toBe(0);
     expect(room.state.stockCarts.size).toBe(0);
     expect(p.me.wanted).toBe(false);
+  });
+
+  describe('witnessed fights and forklifts (M5 review F4, F5)', () => {
+    const ts = map.tileSize;
+    const open = (tx: number, ty: number): boolean =>
+      !map.collision.isSolid(tx, ty) && !inWantedZone(map.zones, (tx + 0.5) * ts, (ty + 0.5) * ts);
+
+    /** Leftmost tile of a run of 6 open tiles (outside wanted zones) over 3 rows. */
+    function openRun(): { tx: number; ty: number } {
+      for (let ty = 2; ty < map.collision.height - 2; ty++) {
+        for (let tx = 1; tx < map.collision.width - 7; tx++) {
+          if ([-1, 0, 1].every((dy) => [0, 1, 2, 3, 4, 5].every((dx) => open(tx + dx, ty + dy)))) {
+            return { tx, ty };
+          }
+        }
+      }
+      throw new Error('no open run on the map');
+    }
+
+    /** Left edge (px) and row of a one-tile wall with 3 open tiles each side, over 3 rows. */
+    function thinWall(): { tx: number; ty: number } {
+      for (let ty = 2; ty < map.collision.height - 2; ty++) {
+        for (let tx = 4; tx < map.collision.width - 4; tx++) {
+          const ok = [-1, 0, 1].every(
+            (dy) =>
+              map.collision.isSolid(tx, ty + dy) &&
+              [1, 2, 3].every((dx) => open(tx - dx, ty + dy) && open(tx + dx, ty + dy)),
+          );
+          if (ok) return { tx, ty };
+        }
+      }
+      throw new Error('no thin wall on the map');
+    }
+
+    const centre = (tx: number, ty: number): Vec2 => ({ x: (tx + 0.5) * ts, y: (ty + 0.5) * ts });
+
+    /** Every guard stands at `guard`; `a` (at `at`) punches `b` just right of them. */
+    async function fight(room: GameRoom, a: Player, b: Player, guard: Vec2, at: Vec2): Promise<void> {
+      const guards = [...room.state.npcs.values()].filter((n) => n.behaviour === 'security');
+      expect(guards.length).toBeGreaterThanOrEqual(1);
+      for (const g of guards) {
+        const npc = room.npcSystem.npc(g.id);
+        if (!npc) throw new Error(`no ${g.id}`);
+        npc.state.x = guard.x;
+        npc.state.y = guard.y;
+      }
+      a.me.x = at.x;
+      a.me.y = at.y;
+      b.me.x = at.x + 24;
+      b.me.y = at.y;
+      await press(a, Button.Attack, 0);
+      await waitFor(() => b.me.hp < config.maxHp);
+      // The wanted rules run at the end of the tick that landed the hit; give it a few more.
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    const witnessed = (p: Player): WantedMessage[] =>
+      p.events
+        .filter((e) => e.type === 'wanted')
+        .map((e) => e.payload as WantedMessage)
+        .filter((w) => w.reason === 'witnessed');
+
+    it('a guard who sees a punch makes the attacker Wanted (witnessed), not the victim', async () => {
+      const { room, players } = await playingRoom(2);
+      const [a, b] = players as [Player, Player];
+      const run = openRun();
+      const guard = centre(run.tx, run.ty);
+      const at = centre(run.tx + 3, run.ty);
+      expect(clearLine(map.collision, guard, at)).toBe(true);
+      await fight(room, a, b, guard, at);
+      await waitFor(() => a.me.wanted);
+      await waitFor(() => witnessed(a).length > 0);
+      expect(witnessed(a)[0]).toMatchObject({ player: a.conn.sessionId, refreshed: false });
+      expect(b.me.wanted).toBe(false);
+    });
+
+    it('a wall between the guard and the fight: nobody becomes Wanted', async () => {
+      const { room, players } = await playingRoom(2);
+      const [a, b] = players as [Player, Player];
+      const wall = thinWall();
+      const guard = centre(wall.tx - 2, wall.ty);
+      const at = centre(wall.tx + 1, wall.ty);
+      await fight(room, a, b, guard, at);
+      expect(witnessed(a)).toEqual([]);
+      expect(b.me.wanted).toBe(false);
+    });
+
+    it('a parked stock cart between the guard and the fight hides it like a wall (F5)', async () => {
+      const { room, players } = await playingRoom(2);
+      const [a, b] = players as [Player, Player];
+      const run = openRun();
+      room.npcSystem.parkCartForTest('stocker_1', { tx: run.tx + 1, ty: run.ty - 1, w: 1, h: 3 }, 30);
+      const guard = centre(run.tx, run.ty);
+      const at = centre(run.tx + 3, run.ty);
+      await fight(room, a, b, guard, at);
+      expect(witnessed(a)).toEqual([]);
+      expect(a.me.wanted).toBe(false);
+    });
+
+    it('a moving forklift runs over a carrier: 25 damage, knocked down, item dropped (forklift)', async () => {
+      const { room, p } = await playingRoom();
+      const target = room.state.items.get(String(p.me.target));
+      if (!target) throw new Error('no target');
+      p.me.x = target.x;
+      p.me.y = target.y;
+      await press(p, Button.Interact);
+      await waitFor(() => p.me.carrying !== 0);
+      const carried = p.me.carrying;
+      const forklift = [...room.state.npcs.values()].find((n) => n.behaviour === 'forklift');
+      if (!forklift) throw new Error('no forklift');
+      const ranOver = (): boolean =>
+        p.events.some((e) => e.type === 'hit' && (e.payload as HitMessage).source.kind === 'hazard');
+      // Stand just ahead of it while it drives (it stops at corners, so try again until it hits).
+      const until = Date.now() + 8000;
+      while (!ranOver() && Date.now() < until) {
+        if (forklift.mode === 'drive') {
+          p.me.x = forklift.x + Math.cos(forklift.aim) * 20;
+          p.me.y = forklift.y + Math.sin(forklift.aim) * 20;
+        }
+        await new Promise((r) => setTimeout(r, 60));
+      }
+      expect(ranOver()).toBe(true);
+      const hit = p.events.find((e) => e.type === 'hit' && (e.payload as HitMessage).source.kind === 'hazard')
+        ?.payload as HitMessage;
+      expect(hit).toMatchObject({ source: { id: forklift.id }, target: p.conn.sessionId, damage: 25 });
+      expect(p.me.hp).toBe(config.maxHp - 25);
+      await waitFor(() => p.events.some((e) => e.type === 'drop'));
+      const drop = p.events.find((e) => e.type === 'drop')?.payload as DropMessage;
+      expect(drop).toMatchObject({ player: p.conn.sessionId, reason: 'forklift', item: { id: carried } });
+      expect(p.me.carrying).toBe(0);
+      expect(room.state.items.get(String(carried))?.state).toBe('loose');
+    }, 15000);
   });
 });

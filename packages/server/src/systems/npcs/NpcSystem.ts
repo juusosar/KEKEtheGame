@@ -511,17 +511,26 @@ export class NpcSystem implements NpcTargets {
       this.rng,
     );
     if (!rect) return null;
-    const cart: Cart = { id: this.nextCartId++, npc: npc.id, rect, until: this.now + seconds };
+    this.addCart(npc.id, rect, seconds);
+    return rect;
+  }
+
+  /** Parks a stock cart on `rect` for `seconds`, wherever that is (room tests; stockers use placeCart). */
+  parkCartForTest(npcId: string, rect: TileRect, seconds: number): void {
+    this.addCart(npcId, rect, seconds);
+  }
+
+  private addCart(npcId: string, rect: TileRect, seconds: number): void {
+    const cart: Cart = { id: this.nextCartId++, npc: npcId, rect, until: this.now + seconds };
     this.carts.set(cart.id, cart);
     const s = new StockCartState();
     s.id = cart.id;
-    s.npc = npc.id;
+    s.npc = npcId;
     s.tx = rect.tx;
     s.ty = rect.ty;
     s.w = rect.w;
     s.h = rect.h;
     this.state.stockCarts.set(String(cart.id), s);
     this.cartsVersion++;
-    return rect;
   }
 }
