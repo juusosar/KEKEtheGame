@@ -7,14 +7,27 @@
 //                                           data-winner (session id, '' at the time cap)
 //     .results-teams tr[data-team]          (Teams on) place, items, points, total, members
 //     .results-players tr[data-player-id]   cells .place .player .team .items .round-points .session
+//                                           .standing; data-session-place. Items = own deposits, or in
+//                                           a Race without Teams the items the van controls (M7-1)
 //     #keke-results-next                    data-seconds until the next round (or the podium)
-//   #keke-podium         Session podium, phase 'podium': li[data-side-id][data-place], then the lobby
+//   #keke-podium         Session podium, phase 'podium' (M7-1), then the lobby
+//     .podium-winner                        "X wins the session!" (data-shared when places tie)
+//     .podium-stage .podium-step[data-step=1|2|3]  steps; DOM order 1, 2, 3, drawn 2-1-3
+//     li[data-side-id][data-place][data-points][data-items]   every side, best first (steps, then
+//                                           .podium-rest); .tie-break when item points decided it
 //
 // Each is a role dialog named by its heading. The Game scene owns one and renders it on every patch.
 import { getTheme, defaultThemeId } from '@keke/shared';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
-import type { PodiumRow, RaceOutcome, ResultRow, ResultTeamRow, RoundScreenModel } from './roundScreens';
+import {
+  podiumSteps,
+  type PodiumRow,
+  type RaceOutcome,
+  type ResultRow,
+  type ResultTeamRow,
+  type RoundScreenModel,
+} from './roundScreens';
 
 const modeLabel = (mode: string): string => t(`lobby.mode.${mode}` as MessageKey);
 const teamName = (team: number): string => t('hud.score.team', { team });
@@ -32,8 +45,12 @@ export class RoundScreen {
 
   /** Every state patch; rebuilds only when something shown changed. */
   render(model: RoundScreenModel): void {
-    const key = JSON.stringify(model);
-    if (key === this.key) return;
+    // The podium animates in, so a clock tick only updates its countdown line instead of rebuilding it.
+    const key = JSON.stringify(model.kind === 'podium' ? { ...model, seconds: -1 } : model);
+    if (key === this.key) {
+      if (model.kind === 'podium') this.podiumSeconds(model.seconds);
+      return;
+    }
     this.key = key;
     switch (model.kind) {
       case 'none':
@@ -49,6 +66,13 @@ export class RoundScreen {
         this.root.replaceChildren(this.podium(model));
         break;
     }
+  }
+
+  private podiumSeconds(seconds: number): void {
+    const next = this.root.querySelector<HTMLElement>('#keke-podium-next');
+    if (!next || next.dataset['seconds'] === String(seconds)) return;
+    next.dataset['seconds'] = String(seconds);
+    next.textContent = t('round.podium.next', { seconds });
   }
 
   destroy(): void {
@@ -110,7 +134,7 @@ export class RoundScreen {
       h('h2', { id: 'keke-results-title' }, title),
       model.race ? raceBanner(model.race) : null,
       model.teams && model.teamRows.length > 0 ? this.teamTable(model.teamRows) : null,
-      this.playerTable(model.rows, model.teams),
+      this.playerTable(model.rows, model.teams, model.items),
       next,
     );
   }
@@ -130,6 +154,7 @@ export class RoundScreen {
           h('th', { scope: 'col' }, t('hud.board.items')),
           h('th', { scope: 'col' }, t('round.results.earned')),
           h('th', { scope: 'col' }, t('round.results.total')),
+          h('th', { scope: 'col' }, t('round.results.standing')),
         ),
       ),
       h(
@@ -142,6 +167,7 @@ export class RoundScreen {
               class: `team team-${r.team}${r.mine ? ' me' : ''}`,
               'data-team': r.team,
               'data-place': r.place,
+              'data-session-place': r.sessionPlace,
             },
             h('td', { class: 'place' }, placeText(r.place)),
             h(
@@ -153,20 +179,26 @@ export class RoundScreen {
             h('td', { class: 'items' }, String(r.itemPoints)),
             h('td', { class: 'round-points' }, `+${r.roundPoints}`),
             h('td', { class: 'session' }, String(r.sessionPoints)),
+            h('td', { class: 'standing' }, placeText(r.sessionPlace)),
           ),
         ),
       ),
     );
   }
 
-  private playerTable(rows: readonly ResultRow[], teams: boolean): HTMLTableElement {
+  private playerTable(
+    rows: readonly ResultRow[],
+    teams: boolean,
+    items: 'deposited' | 'controlled',
+  ): HTMLTableElement {
     const head = [
       h('th', { scope: 'col' }, t('hud.board.place')),
       h('th', { scope: 'col' }, t('hud.board.player')),
       teams ? h('th', { scope: 'col' }, t('hud.board.team')) : null,
-      h('th', { scope: 'col' }, t('hud.board.items')),
+      h('th', { scope: 'col' }, t(items === 'controlled' ? 'round.results.controlled' : 'hud.board.items')),
       h('th', { scope: 'col' }, t('round.results.earned')),
       h('th', { scope: 'col' }, t('round.results.total')),
+      h('th', { scope: 'col' }, t('round.results.standing')),
     ];
     return h(
       'table',
@@ -180,13 +212,19 @@ export class RoundScreen {
           swatch.style.setProperty('background', r.color || '#888');
           return h(
             'tr',
-            { class: r.isMe ? 'me' : '', 'data-player-id': r.id, 'data-place': r.place },
+            {
+              class: r.isMe ? 'me' : '',
+              'data-player-id': r.id,
+              'data-place': r.place,
+              'data-session-place': r.sessionPlace,
+            },
             h('td', { class: 'place' }, placeText(r.place)),
             h('td', { class: 'player' }, swatch, r.nickname),
             teams ? h('td', { class: 'team' }, r.team > 0 ? String(r.team) : '–') : null,
-            h('td', { class: 'items' }, String(r.deposited)),
+            h('td', { class: 'items' }, String(r.items)),
             h('td', { class: 'round-points' }, `+${r.roundPoints}`),
             h('td', { class: 'session' }, String(r.sessionPoints)),
+            h('td', { class: 'standing' }, placeText(r.sessionPlace)),
           );
         }),
       ),
@@ -196,6 +234,24 @@ export class RoundScreen {
   // --- Session podium -------------------------------------------------------------------------------
 
   private podium(model: Extract<RoundScreenModel, { kind: 'podium' }>): HTMLElement {
+    const { steps, rest } = podiumSteps(model.rows);
+    const winners = steps[0] ?? [];
+    const stage = h(
+      'div',
+      { class: 'podium-stage' },
+      ...steps.map((sides, i) =>
+        h(
+          'div',
+          { class: `podium-step step-${i + 1}${sides.length === 0 ? ' empty' : ''}`, 'data-step': i + 1 },
+          h(
+            'ul',
+            { class: 'podium-sides', 'aria-label': ordinalLabel(i + 1) },
+            ...sides.map((r) => podiumItem(r)),
+          ),
+          h('div', { class: 'podium-block', 'aria-hidden': true }, String(i + 1)),
+        ),
+      ),
+    );
     return h(
       'section',
       {
@@ -205,11 +261,24 @@ export class RoundScreen {
         'aria-labelledby': 'keke-podium-title',
       },
       h('h2', { id: 'keke-podium-title' }, t('round.podium.title')),
-      h(
-        'ol',
-        { class: 'podium-list', 'aria-label': t('round.podium.title') },
-        ...model.rows.map((r) => podiumItem(r)),
-      ),
+      model.totalRounds > 0
+        ? h(
+            'p',
+            { class: 'podium-rounds' },
+            model.totalRounds === 1
+              ? t('round.podium.oneRound')
+              : t('round.podium.rounds', { rounds: model.totalRounds }),
+          )
+        : null,
+      winners.length > 0 ? winnerLine(winners) : null,
+      stage,
+      rest.length > 0
+        ? h(
+            'ol',
+            { class: 'podium-rest', 'aria-label': t('round.podium.others'), start: rest[0]?.place || 4 },
+            ...rest.map((r) => podiumItem(r)),
+          )
+        : null,
       h(
         'p',
         { id: 'keke-podium-next', class: 'round-next', 'data-seconds': model.seconds },
@@ -241,18 +310,49 @@ function placeText(place: number): string {
   return place > 0 ? String(place) : '–';
 }
 
+const sideName = (r: PodiumRow): string => (r.team > 0 ? teamName(r.team) : r.name);
+
+function ordinalLabel(place: number): string {
+  return t('round.podium.step', { place });
+}
+
+function winnerLine(winners: readonly PodiumRow[]): HTMLElement {
+  const shared = winners.length > 1;
+  const text = shared
+    ? t('round.podium.sharedWin', { names: winners.map(sideName).join(', ') })
+    : winners[0]?.mine
+      ? t('round.podium.youWin')
+      : t('round.podium.winner', { name: winners[0] ? sideName(winners[0]) : '' });
+  return h('p', { class: 'podium-winner', 'data-shared': shared }, text);
+}
+
 function podiumItem(r: PodiumRow): HTMLLIElement {
-  const name = r.team > 0 ? teamName(r.team) : r.name;
+  const token = h('i', { class: 'token', 'aria-hidden': true });
+  token.style.setProperty('--side-color', r.color || '#888');
   return h(
     'li',
     {
-      class: `place-${Math.min(r.place, 4)}${r.mine ? ' me' : ''}`,
+      class: `side place-${Math.min(Math.max(r.place, 1), 4)}${r.team > 0 ? ` team team-${r.team}` : ''}${
+        r.mine ? ' me' : ''
+      }${r.tieBroken ? ' tie-break' : ''}`,
       'data-side-id': r.id,
       'data-place': r.place,
       'data-points': r.points,
+      'data-items': r.itemPoints,
     },
+    token,
     h('span', { class: 'place' }, placeText(r.place)),
-    h('span', { class: 'name' }, name),
+    h(
+      'span',
+      { class: 'name' },
+      sideName(r),
+      r.members.length > 0 ? h('span', { class: 'members' }, r.members.join(', ')) : null,
+    ),
     h('span', { class: 'points' }, t('round.podium.points', { points: r.points })),
+    h(
+      'span',
+      r.tieBroken ? { class: 'items', title: t('round.podium.tieBreak') } : { class: 'items' },
+      r.itemPoints === 1 ? t('round.podium.oneItem') : t('round.podium.items', { items: r.itemPoints }),
+    ),
   );
 }

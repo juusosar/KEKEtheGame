@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readRoundScreen } from './roundScreens';
+import { podiumSteps, readRoundScreen } from './roundScreens';
 
 type P = Record<string, unknown>;
 const player = (id: string, joinOrder: number, extra: P = {}): P => ({
@@ -72,6 +72,8 @@ describe('readRoundScreen', () => {
     ]);
     expect(model.teamRows).toEqual([]);
 
+    expect(model.items).toBe('deposited');
+
     const last = readRoundScreen(state('roundResults', [player('a', 0)], { round: 2 }), 'a');
     expect(last.kind === 'results' && last.final).toBe(true);
   });
@@ -103,10 +105,20 @@ describe('readRoundScreen', () => {
         itemPoints: 8,
         roundPoints: 10,
         sessionPoints: 10,
+        sessionPlace: 0,
         members: ['B', 'C'],
         mine: false,
       },
-      { team: 1, place: 2, itemPoints: 4, roundPoints: 7, sessionPoints: 7, members: ['A'], mine: true },
+      {
+        team: 1,
+        place: 2,
+        itemPoints: 4,
+        roundPoints: 7,
+        sessionPoints: 7,
+        sessionPlace: 0,
+        members: ['A'],
+        mine: true,
+      },
     ]);
   });
 
@@ -148,6 +160,123 @@ describe('readRoundScreen', () => {
       ['team:1', 2, true],
       ['z', 3, false],
     ]);
+  });
+});
+
+describe('sessions (M7-1)', () => {
+  it('shows the running total and the session standing after each round', () => {
+    const model = readRoundScreen(
+      state(
+        'roundResults',
+        [
+          player('a', 0, { place: 1, roundPoints: 10, sessionPoints: 17, sessionPlace: 2 }),
+          player('b', 1, { place: 2, roundPoints: 7, sessionPoints: 17, sessionPlace: 1 }),
+        ],
+        { round: 2 },
+      ),
+      'a',
+    );
+    if (model.kind !== 'results') throw new Error(model.kind);
+    expect(model.rows.map((r) => [r.id, r.sessionPoints, r.sessionPlace])).toEqual([
+      ['a', 17, 2],
+      ['b', 17, 1],
+    ]);
+  });
+
+  it('shows items controlled in a Race without Teams, own deposits otherwise', () => {
+    const raceState = (teams: boolean): P => ({
+      ...state(
+        'roundResults',
+        [
+          player('a', 0, { place: 2, van: 0, deposited: 4 }),
+          player('b', 1, { place: 1, van: 1, deposited: 1 }),
+        ],
+        { vans: { '0': { van: 0, points: 4, controlled: 4 }, '1': { van: 1, points: 0, controlled: 7 } } },
+        teams,
+      ),
+      settings: { mode: 'race', roundsPerMap: 1, teams },
+    });
+    const ffa = readRoundScreen(raceState(false), 'a');
+    if (ffa.kind !== 'results') throw new Error(ffa.kind);
+    expect(ffa.items).toBe('controlled');
+    expect(ffa.rows.map((r) => [r.id, r.items, r.deposited])).toEqual([
+      ['b', 7, 1],
+      ['a', 4, 4],
+    ]);
+    // With Teams on the team row carries the items controlled; player rows stay own deposits.
+    const teams = readRoundScreen(raceState(true), 'a');
+    if (teams.kind !== 'results') throw new Error(teams.kind);
+    expect(teams.items).toBe('deposited');
+    expect(teams.rows.map((r) => r.items)).toEqual([1, 4]);
+  });
+
+  it('marks podium sides whose place the item points decided, and gives colours and members', () => {
+    const model = readRoundScreen(
+      state('podium', [
+        player('a', 0, { sessionPlace: 1, sessionPoints: 23, sessionItemPoints: 5, color: '#111111' }),
+        player('b', 1, { sessionPlace: 3, sessionPoints: 22, sessionItemPoints: 4 }),
+        player('c', 2, { sessionPlace: 3, sessionPoints: 22, sessionItemPoints: 4 }),
+        player('d', 3, { sessionPlace: 2, sessionPoints: 23, sessionItemPoints: 4 }),
+        player('e', 4, { sessionPlace: 5, sessionPoints: 10, sessionItemPoints: 1 }),
+      ]),
+      'e',
+    );
+    if (model.kind !== 'podium') throw new Error(model.kind);
+    expect(model.totalRounds).toBe(2);
+    expect(model.rows.map((r) => [r.id, r.place, r.tieBroken])).toEqual([
+      ['a', 1, true],
+      ['d', 2, true],
+      ['b', 3, false],
+      ['c', 3, false],
+      ['e', 5, false],
+    ]);
+    expect(model.rows[0]?.color).toBe('#111111');
+    const { steps, rest } = podiumSteps(model.rows);
+    expect(steps.map((s) => s.map((r) => r.id))).toEqual([['a'], ['d'], ['b', 'c']]);
+    expect(rest.map((r) => [r.id, r.mine])).toEqual([['e', true]]);
+
+    const teams = readRoundScreen(
+      state(
+        'podium',
+        [player('a', 0, { team: 1 }), player('b', 1, { team: 1 })],
+        { teams: { '1': { team: 1, sessionPlace: 1, sessionPoints: 10, sessionItemPoints: 2 } } },
+        true,
+      ),
+      'a',
+    );
+    if (teams.kind !== 'podium') throw new Error(teams.kind);
+    expect(teams.rows).toMatchObject([{ id: 'team:1', color: '#E53935', members: ['A', 'B'], mine: true }]);
+  });
+
+  it('puts unranked sides and places past 3rd below the steps; empty steps stay empty', () => {
+    const { steps, rest } = podiumSteps([
+      {
+        id: 'x',
+        name: 'X',
+        team: 0,
+        color: '',
+        members: [],
+        place: 1,
+        points: 1,
+        itemPoints: 0,
+        tieBroken: false,
+        mine: false,
+      },
+      {
+        id: 'y',
+        name: 'Y',
+        team: 0,
+        color: '',
+        members: [],
+        place: 0,
+        points: 0,
+        itemPoints: 0,
+        tieBroken: false,
+        mine: false,
+      },
+    ]);
+    expect(steps.map((s) => s.length)).toEqual([1, 0, 0]);
+    expect(rest.map((r) => r.id)).toEqual(['y']);
   });
 });
 
