@@ -114,6 +114,7 @@
   "hud.feed.boxPackedYou": "Your order box is packed: take it to the office!",
   "hud.feed.boxGrabStolen": "{name} snatched {owner}’s order box!",
   "hud.feed.delivery": "{name} delivered the order box!",
+  "hud.feed.teamMoved": "Teams were rebalanced: you moved to Team {team}",
   "hud.feed.deliveryStolen": "{name} delivered {owner}’s stolen order box!",
   "hud.feed.ko": "{attacker} knocked out {victim}",
   "hud.feed.koWith": "{attacker} knocked out {victim} with {weapon}",

@@ -11,7 +11,7 @@
 //   #keke-hud-scores     mini scoreboard (top 5 + you): li[data-player-id][data-place][data-points]
 //   #keke-hud-board      full scoreboard while Tab / pad View is held: tr[data-player-id]
 //   #keke-hud-feed       event feed, role log (li[data-kind] steal|joke|deposit|slip|runover|hit|ko|wanted|
-//                        box|packed|delivery)
+//                        box|packed|delivery|team)
 //   #keke-hud-combat     bottom-centre: HP bar and weapon slot (M4-7)
 //   #keke-hud-hp         role meter "Health", data-hp, data-max, data-level ok|warn|low
 //   #keke-hud-weapon     region "Weapon", data-weapon (id), data-uses (number, or 'inf'), class .new after a roll

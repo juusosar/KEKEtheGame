@@ -162,8 +162,13 @@ describe('Quota + Race on the server (integration)', () => {
     expect(van()?.points).toBe(0);
     expect(van()?.controlled).toBe(box?.points);
     expect(p.me.target).toBe(0); // a carrier gets no new target
-    await waitFor(() => p.packed.length === 1);
-    expect(p.packed[0]).toMatchObject({ player: p.conn.sessionId, van: p.me.van, points: box?.points });
+    // Broadcast to everyone: find our own packing among them.
+    await waitFor(() => p.packed.some((m) => m.player === p.conn.sessionId));
+    expect(p.packed.find((m) => m.player === p.conn.sessionId)).toMatchObject({
+      player: p.conn.sessionId,
+      van: p.me.van,
+      points: box?.points,
+    });
     return p.me.carrying;
   }
 
@@ -331,5 +336,27 @@ describe('Quota + Race on the server (integration)', () => {
     expect(room.state.raceWinner).toBe('');
     expect(room.state.items.get(String(boxId))?.state).toBe('loose');
     expect(a.delivered).toEqual([]);
+  });
+
+  it('two carriers in the office in the same tick: the room RNG picks the deliverer, not join order (M6 review F8)', async () => {
+    const { room, a, b } = await racing();
+    await packBox(room, a);
+    await packBox(room, b);
+    (room as unknown as { simulation?: { pause(): void } }).simulation?.pause();
+    // The RNG picks from the carriers in join order [a, b]; make it pick the last one, the later joiner.
+    const picked: string[][] = [];
+    (room as unknown as { rng: { pick<T>(xs: readonly T[]): T } }).rng = {
+      pick: <T>(xs: readonly T[]): T => {
+        picked.push(xs.map((x) => (x as unknown as PlayerState).sessionId));
+        return xs[xs.length - 1] as T;
+      },
+    };
+    moveTo(a, office);
+    moveTo(b, { x: office.x, y: office.y + 40 });
+    room.tick();
+    expect(picked).toEqual([[a.conn.sessionId, b.conn.sessionId]]);
+    expect(room.state.phase).toBe('roundResults');
+    expect(room.state.raceWinner).toBe(b.conn.sessionId);
+    expect(room.state.raceStolen).toBe(false);
   });
 });

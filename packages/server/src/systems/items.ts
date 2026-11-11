@@ -64,6 +64,11 @@ export class ItemSystem {
   private readonly catalogue: ItemCatalogue;
   /** True from a round's countdown until the lobby: item actions and despawns run only then. */
   private running = false;
+  /**
+   * Item points deposited at each van this round (sum of `deposit` events), kept when a member leaves and
+   * not reset by race packing: the Race team tie-break total (M6 review F9).
+   */
+  private readonly depositsByVan = new Map<number, number>();
   /** Set by the room: CombatSystem rolls a weapon on every pickup (§7) except an order box's (M6-2). */
   onPickup: PickupListener | null = null;
 
@@ -82,6 +87,11 @@ export class ItemSystem {
   /** The current round's world (read-only view for tests and later systems, e.g. M3-5 ranking). */
   get itemWorld(): ItemWorld {
     return this.world;
+  }
+
+  /** Item points deposited at `van` this round, by anyone, including players who have left since. */
+  depositedAt(van: number): number {
+    return this.depositsByVan.get(van) ?? 0;
   }
 
   /** True while the round's items are live (from the countdown until the lobby or the next countdown). */
@@ -115,6 +125,7 @@ export class ItemSystem {
   reset(): void {
     this.world = createItemWorld();
     this.running = false;
+    this.depositsByVan.clear();
     this.state.items.clear();
     this.state.vans.clear();
     this.state.players.forEach((p) => {
@@ -243,6 +254,9 @@ export class ItemSystem {
         continue;
       }
       this.broadcast(itemEventToWire(event));
+      if (event.type === 'deposit') {
+        this.depositsByVan.set(event.van, this.depositedAt(event.van) + event.points);
+      }
       if (event.type === 'pickup') this.onPickup?.(event.player, event.kind);
     }
   }

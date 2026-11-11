@@ -338,6 +338,11 @@ export const GameState = schema(
     raceWinner: t.string().default(''),
     /** Race: the winning box was packed by another van (stolen and delivered). */
     raceStolen: t.boolean().default(false),
+    /**
+     * The server's `raceQuota` (M6 review F5), set once at room creation, so the client's quota meter
+     * follows a `KEKE_CONFIG` override instead of its bundled config. 0 = unknown (client falls back).
+     */
+    raceQuota: t.uint8().default(0),
   },
   'GameState',
 );
