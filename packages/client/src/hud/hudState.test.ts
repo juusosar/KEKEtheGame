@@ -285,6 +285,12 @@ describe('readHud in race mode (M6-3)', () => {
     expect(readHud(race([player('a', 0, { van: 0 })], {}, vans), 'a', raceCtx).race?.quota).toBe(6);
   });
 
+  it('takes our van’s own quota over the room quota (team van, playtest 1)', () => {
+    const vans = { '0': { van: 0, points: 2, team: 1, controlled: 2, quota: 12 } };
+    const synced = { ...race([player('a', 0, { van: 0 })], {}, vans), raceQuota: 6 };
+    expect(readHud(synced, 'a', raceCtx).race?.quota).toBe(12);
+  });
+
   it('points the arrow at the office while carrying a box and names it in the carry slot', () => {
     const hud = readHud(
       race([player('a', 0, { van: 0, carrying: 5 })], box('a', 0), {

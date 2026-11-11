@@ -21,6 +21,7 @@
   "timedRoundSeconds": 180,
   "raceRoundSeconds": 240,
   "raceQuota": 6,
+  "raceTeamQuotaPerMember": 3,
   "placementPoints": [10, 7, 5, 3],
   "placementPointsOther": 1,
   "wantedSeconds": 20,

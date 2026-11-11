@@ -111,6 +111,7 @@ export {
   itemsControlled,
   orderBoxes,
   quotaProgress,
+  raceQuotaFor,
   raceDeposit,
   rankRaceRound,
   type RaceConfig,

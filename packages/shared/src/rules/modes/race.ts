@@ -42,6 +42,18 @@ export const ORDER_BOX_ITEM_ID = 'order_box';
 
 export type RaceConfig = Pick<GameConfig, 'raceQuota' | 'jokeItemValue'>;
 
+/**
+ * The quota of a van shared by `sideSize` round players (playtest 1): `raceQuota`, or
+ * `raceTeamQuotaPerMember` per player when that is more, so a team of 4 pooling one van needs 12, not 6
+ * (Race + Teams was over in 70 to 110 s). Free-for-all (one player a van) keeps `raceQuota`. At most 255.
+ */
+export function raceQuotaFor(
+  config: Pick<GameConfig, 'raceQuota' | 'raceTeamQuotaPerMember'>,
+  sideSize: number,
+): number {
+  return Math.min(255, Math.max(config.raceQuota, config.raceTeamQuotaPerMember * Math.max(1, sideSize)));
+}
+
 /** The delivery that won the round. The server keeps the first one and ends 'playing' (§4.2). */
 export interface RaceDelivery {
   /** The player who carried the box into the office: they (their team) win. */

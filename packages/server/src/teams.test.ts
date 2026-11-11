@@ -183,6 +183,36 @@ describe('Teams option on the server (integration)', () => {
     }
   });
 
+  it('race: a team van of 3 needs raceTeamQuotaPerMember × 3, a team of 2 keeps raceQuota (playtest 1)', async () => {
+    const { room, red, blue } = await playing(5, 'race');
+    const sizes = new Map([red, blue].map((team) => [team[0]?.me.van ?? -1, team.length]));
+    expect([...sizes.values()].sort()).toEqual([2, 3]);
+    for (const [van, size] of sizes) {
+      expect(room.state.vans.get(String(van))?.quota).toBe(
+        Math.max(config.raceQuota, config.raceTeamQuotaPerMember * size),
+      );
+    }
+    // The bigger team packs only at its own quota.
+    const big = red.length === 3 ? red : blue;
+    const [setter, depositor] = big;
+    if (!setter || !depositor) throw new Error('team of 3 expected');
+    const van = () => room.state.vans.get(String(setter.me.van));
+    const quota = van()?.quota ?? 0;
+    expect(quota).toBeGreaterThan(config.raceQuota);
+    setter.conn.send(DebugMessage.vanPoints, { points: config.raceQuota - 1 });
+    await waitFor(() => van()?.points === config.raceQuota - 1);
+    const target = room.state.items.get(String(depositor.me.target));
+    if (!target) throw new Error('no target');
+    moveTo(depositor, target);
+    await press(depositor, Button.Interact);
+    await press(depositor);
+    moveTo(depositor, vanSpawn(map, depositor.me.van, playerHalfSize(config)));
+    await press(depositor);
+    expect(depositor.me.carrying).toBe(0);
+    expect(van()?.points).toBeGreaterThanOrEqual(config.raceQuota);
+    expect(van()?.points).toBeLessThan(quota);
+  });
+
   it('race: teammates share the quota and the box, and a teammate who did not pack it can deliver it', async () => {
     const { room, red, blue } = await playing(4, 'race');
     const [r1, r2] = red;

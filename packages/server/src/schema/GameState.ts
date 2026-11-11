@@ -140,6 +140,11 @@ export const VanState = schema(
      * players carries. Equals `points` in Timed. The race scoreboard sorts by it.
      */
     controlled: t.uint16().default(0),
+    /**
+     * Race (playtest 1): this van's quota for the round, `raceQuotaFor(config, players at the van)` at the
+     * countdown, so a team van needs more than a solo one. 0 outside a round; clients then use `raceQuota`.
+     */
+    quota: t.uint8().default(0),
   },
   'VanState',
 );

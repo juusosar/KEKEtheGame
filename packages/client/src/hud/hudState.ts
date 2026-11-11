@@ -205,6 +205,7 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
       team: num(bag, 'team'),
       points,
       controlled: Math.max(0, num(bag, 'controlled', points)),
+      quota: Math.max(0, num(bag, 'quota')),
     };
   });
   const vanOf = (id: string): (typeof vanBags)[number] | undefined => {
@@ -277,8 +278,14 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
     const van = lobby.me ? vanOf(lobby.me.id) : undefined;
     raceHud = {
       points: van?.points ?? 0,
-      // The room's synced quota wins over the bundled config (M6 review F5).
-      quota: num(s, 'raceQuota') > 0 ? num(s, 'raceQuota') : (ctx.raceQuota ?? DEFAULT_RACE_QUOTA),
+      // Our van's own quota (bigger for a team van, playtest 1), else the room's synced quota, which wins
+      // over the bundled config (M6 review F5).
+      quota:
+        (van?.quota ?? 0) > 0
+          ? (van?.quota ?? 0)
+          : num(s, 'raceQuota') > 0
+            ? num(s, 'raceQuota')
+            : (ctx.raceQuota ?? DEFAULT_RACE_QUOTA),
       controlled: van?.controlled ?? 0,
       carryingBox: carried?.box != null,
       stolen: carried?.box != null && carried.box.packedVan !== num(meBag, 'van', -1),

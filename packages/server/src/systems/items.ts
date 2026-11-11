@@ -23,6 +23,7 @@ import {
   nearestInReach,
   pickup,
   raceDeposit,
+  raceQuotaFor,
   raceEventToWire,
   removeCarryPlayer,
   scatterMoves,
@@ -68,6 +69,8 @@ export class ItemSystem {
    * not reset by race packing: the Race team tie-break total (M6 review F9).
    */
   private readonly depositsByVan = new Map<number, number>();
+  /** Race quota of each van this round (`raceQuotaFor` its round players at the countdown; playtest 1). */
+  private readonly quotaByVan = new Map<number, number>();
   /** Set by the room: CombatSystem rolls a weapon on every pickup (§7) except an order box's (M6-2). */
   onPickup: PickupListener | null = null;
 
@@ -114,12 +117,16 @@ export class ItemSystem {
     let world = createItemWorld();
     for (const p of players) world = addCarryPlayer(world, p.sessionId, Math.max(0, p.van));
     this.running = true;
+    const sideSizes = new Map<number, number>();
+    for (const p of players) sideSizes.set(Math.max(0, p.van), (sideSizes.get(Math.max(0, p.van)) ?? 0) + 1);
+    for (const [van, size] of sideSizes) this.quotaByVan.set(van, raceQuotaFor(this.config, size));
     for (const p of players) {
       const key = String(Math.max(0, p.van));
       if (this.state.vans.has(key)) continue;
       const van = new VanState();
       van.van = Math.max(0, p.van);
       van.team = this.state.settings.teams ? p.team : 0;
+      van.quota = this.quotaFor(van.van);
       this.state.vans.set(key, van);
     }
     this.commit({ world, events: [] });
@@ -131,6 +138,7 @@ export class ItemSystem {
     this.world = createItemWorld();
     this.running = false;
     this.depositsByVan.clear();
+    this.quotaByVan.clear();
     this.state.items.clear();
     this.state.vans.clear();
     this.state.players.forEach((p) => {
@@ -169,7 +177,10 @@ export class ItemSystem {
         // A box carrier at their van is refused with box_not_depositable every frame; commit ignores it.
         this.commit(
           this.race
-            ? raceDeposit(this.world, player.sessionId, pos, this.config)
+            ? raceDeposit(this.world, player.sessionId, pos, {
+                ...this.config,
+                raceQuota: this.quotaFor(Math.max(0, player.van)),
+              })
             : deposit(this.world, player.sessionId, this.config),
         );
       }
@@ -179,6 +190,11 @@ export class ItemSystem {
   /** True while the room's mode is Quota + Race (the host setting, fixed from Start to the lobby). */
   private get race(): boolean {
     return this.state.settings.mode === 'race';
+  }
+
+  /** The race quota of `van` this round (`raceQuota` for a van nobody started the round at). */
+  quotaFor(van: number): number {
+    return this.quotaByVan.get(van) ?? this.config.raceQuota;
   }
 
   /** True when `player` carries an order box (race mode). */
@@ -297,6 +313,7 @@ export class ItemSystem {
       if (!van) {
         van = new VanState();
         van.van = Number(key);
+        van.quota = this.quotaFor(van.van);
         this.state.vans.set(key, van);
       }
       van.points = points;
