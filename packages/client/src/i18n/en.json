@@ -245,5 +245,12 @@
   "controls.interact": "Pick up",
   "controls.drop": "Drop item",
   "controls.scoreboard": "Scoreboard",
-  "controls.menu": "Menu"
+  "controls.menu": "Menu",
+  "hud.prompts": "Button prompts",
+  "prompt.move": "Move",
+  "prompt.scoreboard": "Scores",
+  "prompt.menu": "Menu",
+  "prompt.pickup": "Pick up",
+  "prompt.drop": "Drop",
+  "prompt.block": "Block"
 }

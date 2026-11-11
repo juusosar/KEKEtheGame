@@ -270,3 +270,51 @@ export async function teleportNear(page: Page, at: { x: number; y: number }, rea
     })
     .toBeLessThan(2);
 }
+
+/**
+ * Replaces navigator.getGamepads with one standard-mapping pad (Phaser polls it every frame) that the
+ * spec drives through `tapPad` / `setPadAxis`. Call before `page.goto`.
+ */
+export async function installFakePad(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const buttons = Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
+    const axes = [0, 0, 0, 0];
+    // Phaser ignores a pad whose timestamp is older than the moment it first saw it.
+    const pad = {
+      id: 'e2e pad',
+      index: 0,
+      connected: true,
+      mapping: 'standard',
+      timestamp: 0,
+      axes,
+      buttons,
+    };
+    const nav = (globalThis as unknown as { navigator: object }).navigator;
+    Object.defineProperty(nav, 'getGamepads', { value: () => [pad, null, null, null] });
+    (globalThis as unknown as { __pad: unknown }).__pad = {
+      set(i: number, down: boolean): void {
+        buttons[i] = { pressed: down, touched: down, value: down ? 1 : 0 };
+        pad.timestamp = performance.now();
+      },
+      axis(i: number, value: number): void {
+        axes[i] = value;
+        pad.timestamp = performance.now();
+      },
+    };
+  });
+}
+
+type FakePad = { __pad?: { set(i: number, down: boolean): void; axis(i: number, value: number): void } };
+
+/** Presses and releases one button of the fake pad, holding each long enough for a frame to see it. */
+export async function tapPad(page: Page, button: number): Promise<void> {
+  await page.evaluate((i) => (globalThis as FakePad).__pad?.set(i, true), button);
+  await page.waitForTimeout(150);
+  await page.evaluate((i) => (globalThis as FakePad).__pad?.set(i, false), button);
+  await page.waitForTimeout(150);
+}
+
+/** Sets one stick axis (standard mapping: 0/1 left stick, 2/3 right stick) of the fake pad. */
+export async function setPadAxis(page: Page, axis: number, value: number): Promise<void> {
+  await page.evaluate(([i, v]) => (globalThis as FakePad).__pad?.axis(i ?? 0, v ?? 0), [axis, value]);
+}

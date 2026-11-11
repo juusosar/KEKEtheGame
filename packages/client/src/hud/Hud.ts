@@ -18,6 +18,8 @@
 //   #keke-hud-weapon     region "Weapon", data-weapon (id), data-uses (number, or 'inf'), class .new after a roll
 //   #keke-hud-ko         KO overlay, role status, data-respawn-in (whole seconds)
 //   #keke-hud-wanted     Wanted indicator (M5-7), role status, data-seconds; hidden when not wanted
+//   #keke-hud-prompts    button prompts (F6), top of #keke-hud-combat, list "Button prompts", data-device;
+//                        li[data-action] with kbd (key or button name) and the action
 //
 // Layout: target + carry top-left, timer top-centre, scores and feed top-right, HP and weapon
 // bottom-centre, KO overlay in the middle, minimap (M3-8) owns the bottom-right corner. The Game scene owns one Hud and feeds it from state patches and item events.
@@ -28,6 +30,8 @@ import { h } from '../ui/dom';
 import { placeArrow, type ScreenRect } from './edgeArrow';
 import type { CombatHudModel } from './combatHud';
 import type { FeedLine } from './feed';
+import { promptsKey, type Prompt } from './prompts';
+import type { InputDevice } from '../input/device';
 import {
   formatClock,
   miniRows,
@@ -98,6 +102,8 @@ export class Hud {
   private readonly boardHead: HTMLTableRowElement;
   private readonly feed: HTMLOListElement;
   private readonly combat: HTMLElement;
+  private readonly prompts: HTMLOListElement;
+  private promptKey = '';
   private readonly hp: HTMLElement;
   private readonly hpFill: HTMLElement;
   private readonly hpText: HTMLElement;
@@ -218,9 +224,16 @@ export class Hud {
       'aria-label': t('hud.wanted'),
       hidden: true,
     });
+    this.prompts = h('ol', {
+      id: 'keke-hud-prompts',
+      class: 'hud-prompts',
+      'aria-label': t('hud.prompts'),
+      hidden: true,
+    });
     this.combat = h(
       'div',
       { id: 'keke-hud-combat', class: 'hud-combat', hidden: true },
+      this.prompts,
       this.wanted,
       this.status,
       this.hp,
@@ -441,6 +454,20 @@ export class Hud {
     // Restart the CSS animation.
     void this.weapon.offsetWidth;
     this.weapon.classList.add('new');
+  }
+
+  /** Button prompts for the last-used device (§13.3, F6); rebuilt only when they change. */
+  renderPrompts(prompts: readonly Prompt[], device: InputDevice): void {
+    const key = `${device}/${promptsKey(prompts)}`;
+    if (key === this.promptKey) return;
+    this.promptKey = key;
+    this.prompts.dataset['device'] = device;
+    this.prompts.replaceChildren(
+      ...prompts.map((p) =>
+        h('li', { 'data-action': p.action }, h('kbd', {}, p.button), h('span', {}, t(p.label))),
+      ),
+    );
+    this.prompts.hidden = prompts.length === 0;
   }
 
   destroy(): void {

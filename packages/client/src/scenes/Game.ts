@@ -75,6 +75,7 @@ import {
   type RaceNames,
 } from '../hud/feed';
 import { readHud, type HudContext } from '../hud/hudState';
+import { anyInReach, pickPrompts, type PromptState } from '../hud/prompts';
 import { RoundScreen } from '../hud/RoundScreen';
 import { GameMenu } from '../ui/gameMenu';
 import { readRoundScreen } from '../hud/roundScreens';
@@ -889,10 +890,30 @@ export class GameScene extends Phaser.Scene {
   private updateHud(hud: Hud): void {
     hud.tick(performance.now());
     hud.setBoardOpen(this.menu?.isOpen !== true && this.inputManager.scoreboardHeld());
+    const device = this.inputManager.device;
+    hud.renderPrompts(pickPrompts(this.promptState(), device), device);
     hud.updateArrow((world) => this.worldToClient(world), {
       width: hud.root.clientWidth,
       height: hud.root.clientHeight,
     });
+  }
+
+  /** What the button prompts (F6) need from this frame. */
+  private promptState(): PromptState {
+    const me = this.view?.me ?? null;
+    const combat = me === null ? DEFAULT_COMBAT : (this.combat.get(me.id) ?? DEFAULT_COMBAT);
+    const carrying = me !== null && (this.worldView?.players.get(me.id)?.carrying ?? 0) !== 0;
+    const lying = (this.worldView?.items ?? []).filter((item) => item.state !== 'carried');
+    return {
+      phase: this.view?.phase ?? 'lobby',
+      playing: me !== null && !me.spectator,
+      alive: combat.alive,
+      controlling: this.controlling,
+      carrying,
+      itemInReach: !carrying && anyInReach(this.predictor.state, lying, this.config),
+      canBlock: getWeaponCatalogue().get(combat.weapon)?.block !== undefined,
+      menuOpen: this.menu?.isOpen === true,
+    };
   }
 
   /** World pixels to CSS pixels in the viewport (HUD arrow, debug hook). */

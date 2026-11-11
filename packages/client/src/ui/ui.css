@@ -1304,3 +1304,22 @@ body[data-phase='podium'] .keke-minimap {
     background: rgba(160, 20, 20, 0.75);
   }
 }
+
+/* Button prompts (M7 review F6): on top of the HP and weapon column, clear of the round intro panel. */
+.keke-hud .hud-prompts {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 4px 10px;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+}
+.keke-hud .hud-prompts li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
