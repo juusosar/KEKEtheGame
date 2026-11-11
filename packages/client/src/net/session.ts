@@ -2,6 +2,14 @@
 // It also remembers the room's reconnection token for this tab, so a reload inside the server's
 // reconnect window (§15.3, 30 s) puts the player back in the same slot with the same team.
 import type { Client, Room } from '@colyseus/sdk';
+import { ItemEventMessage } from '@keke/shared';
+
+/**
+ * Item events the client has no use for (the synced state already shows a new target and a despawned
+ * item). They are registered for the room's whole life, with no-op handlers: Colyseus logs a warning for
+ * every message of an unregistered type, about 150 per session (playtest 1 idea 12).
+ */
+export const IGNORED_ITEM_MESSAGES = [ItemEventMessage.targetAssigned, ItemEventMessage.despawn] as const;
 
 export interface CurrentRoom {
   room: Room;
@@ -53,6 +61,8 @@ export function markRoom(
   registry: { set(key: string, value: unknown): unknown },
   { room, code }: CurrentRoom,
 ): void {
+  // From the moment we are in: `targetAssigned` arrives at the countdown, before the Game scene listens.
+  for (const type of IGNORED_ITEM_MESSAGES) room.onMessage(type, () => undefined);
   registry.set(ROOM_CODE_REGISTRY_KEY, code);
   document.body.dataset['room'] = code;
   document.body.dataset['session'] = room.sessionId;

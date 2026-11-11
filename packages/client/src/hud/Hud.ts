@@ -53,6 +53,7 @@ interface FeedEntry {
   el: HTMLLIElement;
   expires: number;
   merge?: FeedLine['merge'];
+  mine: boolean;
 }
 
 /**
@@ -363,10 +364,23 @@ export class Hud {
         return;
       }
     }
+    // The same line twice in a row ("Aino is hauling a …" for a pickup, a drop and a pickup again) shows
+    // once, kept on screen a little longer (playtest 1 problem 8).
+    const last = this.feedEntries[this.feedEntries.length - 1];
+    if (last !== undefined && !line.merge && last.el.textContent === line.text) {
+      last.expires = expires;
+      return;
+    }
     const el = h('li', { class: `feed-${line.kind}`, 'data-kind': line.kind }, line.text);
+    if (line.mine) el.classList.add('mine');
     this.feed.append(el);
-    this.feedEntries.push({ el, expires, merge: line.merge });
-    while (this.feedEntries.length > renderConfig.hudFeedLines) this.feedEntries.shift()?.el.remove();
+    this.feedEntries.push({ el, expires, merge: line.merge, mine: line.mine === true });
+    // Full: the oldest line about someone else makes room first, so lines about us stay up.
+    while (this.feedEntries.length > renderConfig.hudFeedLines) {
+      const i = this.feedEntries.findIndex((e) => !e.mine);
+      const [gone] = this.feedEntries.splice(i >= 0 ? i : 0, 1);
+      gone?.el.remove();
+    }
   }
 
   /** Our Wanted status (§8, §13.2 "Wanted indicator"): seconds left, or null when not wanted. */
