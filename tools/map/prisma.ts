@@ -394,6 +394,8 @@ function zoneSpecs(): ZoneSpec[] {
     { id: 'self_checkout', name: 'Self-checkout', polygon: rectPolygon([11, 36, 34, 42]) },
     { id: 'parking', name: 'Parking lot', polygon: rectPolygon([0, 44, 77, 69]) },
     { id: 'cart_corral', name: 'Cart corral', polygon: rectPolygon(CORRAL) },
+    // The strip east of the store, down to the lot (P4-2): outside, so guards let Wanted players go here.
+    { id: 'sidewalk', name: 'Sidewalk', polygon: rectPolygon([74, 0, 77, 43]) },
     { id: 'street', name: 'Street', polygon: rectPolygon([78, 0, 84, MAP_HEIGHT - 1]) },
     { id: 'office', name: 'Office', polygon: rectPolygon([85, 24, 99, 43]) },
   ];

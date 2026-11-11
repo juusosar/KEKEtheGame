@@ -4,6 +4,7 @@
 import {
   gridWithBlocked,
   type MapModel,
+  type NpcCatalogue,
   type NpcEventWire,
   type NpcSpawn,
   type Vec2,
@@ -33,6 +34,8 @@ export function npcSetup(
     hooks?: Partial<NpcHooks>;
     /** Extra `npc_spawns` on the map (e.g. customer groups, which the first map has none of). */
     spawns?: NpcSpawn[];
+    /** Another NPC catalogue (default: the bundled one). */
+    catalogue?: NpcCatalogue;
   } = {},
 ): NpcSetup {
   const base = combatSetup(players, at);
@@ -60,6 +63,7 @@ export function npcSetup(
     },
     options.seed ?? 7,
     options.modules,
+    options.catalogue,
   );
   holder.npcs = npcs;
   base.combat.npcTargets = npcs;

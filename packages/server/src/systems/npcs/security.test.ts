@@ -3,6 +3,8 @@
 import {
   aabbOverlapsSolid,
   getNpcCatalogue,
+  loadNpcCatalogue,
+  npcCatalogueForMap,
   npcCount,
   playerHalfSize,
   type CombatEventWire,
@@ -102,6 +104,32 @@ describe('security guard', () => {
     expect(s.npcEvents.some((e) => e.type === 'npcAttack')).toBe(true);
     // One swing per cooldown, not one per tick.
     expect(hits.length).toBeLessThanOrEqual(Math.ceil(2 / guard.attack.cooldownSeconds) + 1);
+  });
+
+  it('lets a Wanted player go in a release zone, searches where it last saw them, then gives up (P4-2)', () => {
+    const plain = guards(1);
+    const zone = must(
+      plain.live.zoneAt(must(plain.players[0]).x, must(plain.players[0]).y),
+      'zone at the van',
+    ).id;
+    const raw = JSON.parse(JSON.stringify({ npcs: getNpcCatalogue().npcs })) as {
+      npcs: { behaviour: string; mapZones?: unknown }[];
+    };
+    for (const n of raw.npcs)
+      if (n.behaviour === 'security') n.mapZones = { kespro: { releaseZones: [zone] } };
+    const catalogue = npcCatalogueForMap(loadNpcCatalogue(raw, 'test'), 'kespro');
+    const s = npcSetup(1, undefined, { modules: [createSecurityBehaviour()], catalogue });
+    const a = must(s.players[0]);
+    const id = must([...s.state.npcs.keys()].find((k) => k !== postedGuard(s)));
+    putNpc(s, id, floorNear(s, a, 120));
+    const npc = must(s.state.npcs.get(id));
+
+    s.wanted.push(a.sessionId);
+    npcIdle(s, 2);
+    expect(npc.mode).not.toBe('chase');
+    expect(hitsOn(s.events, a.sessionId)).toHaveLength(0);
+    npcIdle(s, guard.chase.loseSightSeconds + 0.5);
+    expect(npc.target).toBe('');
   });
 
   it('the stun lands: the Wanted player is stunned right after the swing', () => {
