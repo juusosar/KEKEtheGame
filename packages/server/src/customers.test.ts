@@ -1,6 +1,7 @@
 // Customers through a real room on the second store map (Phase 2 decision 8, P2-3): the crowd in the
 // synced state (6 + players, in groups), none on the first map, a player stopped by a customer's body,
 // and a fight between players that makes nearby customers panic (and not far ones) until they shop again.
+// The oven's burns are not a fight: they never scare the crowd (P2 review F1).
 import { ColyseusTestServer } from '@colyseus/testing';
 import type { Room as ClientRoom } from '@colyseus/sdk';
 import {
@@ -239,6 +240,36 @@ describe('GameRoom customers (integration, P2-3)', () => {
     // 4 s later it is back to shopping.
     await waitFor(() => near.mode === 'walk' || near.mode === 'browse', panic.seconds * 1000 + 1500);
     expect(far.mode).not.toBe('panic');
+  });
+
+  it('a player burning on the oven does not scare customers next to the bakery (P2 review F1)', async () => {
+    const { room, players } = await playingRoom(1, SECOND);
+    const [a] = players as [Player];
+    const oven = must(
+      prisma.zones.find((z) => z.id === 'oven'),
+      'oven',
+    );
+    const hot = {
+      x: (oven.bounds.minX + oven.bounds.maxX) / 2,
+      y: (oven.bounds.minY + oven.bounds.maxY) / 2,
+    };
+    const crowd = customersOf(room);
+    const near = must(crowd[0]);
+    const nearAt = floorRun({ x: oven.bounds.maxX + 3 * TILE, y: hot.y }, 1)[0] as Vec2;
+    expect(dist(nearAt, hot)).toBeLessThanOrEqual(panic.radiusTiles * TILE);
+    const farAt = must(
+      crowd.map((c) => ({ x: c.x, y: c.y })).find((c) => dist(c, hot) > (panic.radiusTiles + 2) * TILE),
+    );
+    for (const c of crowd) if (c.id !== near.id) park(room, c.id, farAt);
+    park(room, near.id, nearAt);
+    a.me.x = hot.x;
+    a.me.y = hot.y;
+    // Three burns land (one every hazardTickSeconds); the customer keeps shopping.
+    const burn = must(oven.damagePerSecond, 'oven damage') * config.hazardTickSeconds;
+    const hpBefore = a.me.hp;
+    await waitFor(() => a.me.hp <= hpBefore - 3 * burn + 0.01, 5000);
+    expect(near.mode).not.toBe('panic');
+    expect(crowd.every((c) => c.mode !== 'panic')).toBe(true);
   });
 });
 

@@ -1,11 +1,13 @@
 // One-way gates in a room (phase 2 P2-1, decision 9): the stop event, no pick-up or attack while
-// stopped, and no way back in. Runs on the real prisma map.
+// stopped, no way back in, and no way through without the stop on a pallet jack (P2 review F2). Runs on
+// the real prisma map.
 import { ColyseusTestServer } from '@colyseus/testing';
 import type { Room as ClientRoom } from '@colyseus/sdk';
 import {
   Button,
   ClientMessage,
   CombatEventMessage,
+  DebugMessage,
   GateEventMessage,
   ItemEventMessage,
   gateStopFrames,
@@ -46,6 +48,7 @@ describe('GameRoom one-way gates (integration, P2-1)', () => {
       config,
       maps: singleMapRegistry(map, getTheme('prisma')),
       npcs: false,
+      debug: true,
     });
     await server.listen(PORT);
     colyseus = new ColyseusTestServer(server);
@@ -149,5 +152,24 @@ describe('GameRoom one-way gates (integration, P2-1)', () => {
     for (let i = 0; i < 20; i++) await send(conn, me, { x: 0, y: -1 });
     expect(me.y).toBe(lineY);
     expect(me.gateStop).toBe(0);
+  }, 20_000);
+
+  it('a pallet jack dash ends short of the line: the carrier walks through and still gets the stop (P2 review F2)', async () => {
+    const { conn, me, events } = await playing();
+    conn.send(DebugMessage.giveWeapon, { weapon: 'pallet_jack' });
+    await waitFor(() => me.weapon === 'pallet_jack');
+    me.x = laneX;
+    me.y = lineY - 40;
+    // Aim is south (send() aims PI / 2): the dash would carry the body well past the line.
+    await send(conn, me, { x: 0, y: 0 }, Button.Attack);
+    await waitFor(() => me.charging);
+    await waitFor(() => !me.charging);
+    expect(me.y).toBeLessThan(lineY);
+    expect(me.y).toBeGreaterThan(lineY - 1);
+    expect(me.gateStop).toBe(0);
+    // One step on: the stop the dash would have skipped.
+    while (me.gateStop === 0) await send(conn, me, { x: 0, y: 1 });
+    await waitFor(() => events.some((e) => e.type === GateEventMessage.gateStop));
+    expect(me.gateLast).toBe(lane.index);
   }, 20_000);
 });

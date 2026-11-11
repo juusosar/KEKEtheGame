@@ -51,7 +51,8 @@ export function createChargeBehaviour(): BehaviourModule {
     const from = { x: p.x, y: p.y };
     const half = playerHalfSize(ctx.config);
     const slid = moveAabb(ctx.map.collision, from, half, { x: dash.dir.x * want, y: dash.dir.y * want });
-    // A dash never takes a player through a one-way gate the wrong way (phase 2 decision 9).
+    // A dash never takes a player through a one-way gate the wrong way, and ends just short of a checkout
+    // line crossed the right way, so the player walks through and gets the stop (decision 9, P2 review F2).
     const moved = holdAtGates(ctx.map.gates, from, slid, half);
     p.x = moved.x;
     p.y = moved.y;

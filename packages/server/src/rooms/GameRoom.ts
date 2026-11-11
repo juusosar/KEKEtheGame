@@ -506,7 +506,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
           if (event.type !== 'hit') return;
           this.tickCombatEvents.push(event);
           // Violence where the victim stands: customers nearby panic (Phase 2 decision 8). Hits on
-          // NPCs reach the NpcSystem directly and it raises them itself.
+          // NPCs reach the NpcSystem directly and it raises them itself. A floor burn is not a fight
+          // (P2 review F1): stepping on the oven never scares the crowd. A forklift run-over (a hazard
+          // source named after the NPC, not a hazard zone) still does.
+          if (event.source.kind === 'hazard' && this.hazards.isZone(event.source.id)) return;
           const victim = this.state.players.get(event.target);
           if (victim) this.npcs.violence({ x: victim.x, y: victim.y });
         },
