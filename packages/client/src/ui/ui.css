@@ -1328,3 +1328,7 @@ body[data-phase='podium'] .keke-minimap {
   align-items: center;
   gap: 6px;
 }
+/* Feed lines about us (playtest 1 problem 8): kept when the feed is full, and a little bolder. */
+.keke-hud .hud-feed li.mine {
+  font-weight: 600;
+}

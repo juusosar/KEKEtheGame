@@ -49,6 +49,8 @@ export interface RenderConfig {
   readonly hudFeedLines: number;
   /** Seconds an event feed line stays. */
   readonly hudFeedSeconds: number;
+  /** Other players' Wanted lines show only within this distance of us, world px (playtest 1 problem 8). */
+  readonly hudFeedNearPx: number;
   /** The round timer turns to its warning style at or below this many seconds. */
   readonly hudTimerWarnSeconds: number;
   /** Target arrow distance from the screen edge, CSS px. */
@@ -147,6 +149,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const hudMiniRows = num('hudMiniRows', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
   const hudFeedLines = num('hudFeedLines', (n) => Number.isInteger(n) && n >= 1, 'an integer >= 1');
   const hudFeedSeconds = num('hudFeedSeconds', (n) => n > 0, 'positive');
+  const hudFeedNearPx = num('hudFeedNearPx', (n) => n >= 0, '>= 0');
   const hudTimerWarnSeconds = num('hudTimerWarnSeconds', (n) => n >= 0, '>= 0');
   const hudArrowMarginPx = num('hudArrowMarginPx', (n) => n >= 0, '>= 0');
   const hudArrowHoverPx = num('hudArrowHoverPx', (n) => n >= 0, '>= 0');
@@ -205,6 +208,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     hudMiniRows,
     hudFeedLines,
     hudFeedSeconds,
+    hudFeedNearPx,
     hudTimerWarnSeconds,
     hudArrowMarginPx,
     hudArrowHoverPx,

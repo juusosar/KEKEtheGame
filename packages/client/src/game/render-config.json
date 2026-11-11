@@ -24,6 +24,7 @@
   "hudMiniRows": 5,
   "hudFeedLines": 5,
   "hudFeedSeconds": 6,
+  "hudFeedNearPx": 400,
   "hudTimerWarnSeconds": 10,
   "hudArrowMarginPx": 40,
   "hudArrowHoverPx": 36,

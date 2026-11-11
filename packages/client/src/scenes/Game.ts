@@ -748,7 +748,13 @@ export class GameScene extends Phaser.Scene {
       );
     }
     const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
-    const ctx = { weapons: getWeaponCatalogue(), me, nameOf, npcName: (id: string) => this.npcName(id) };
+    const ctx = {
+      weapons: getWeaponCatalogue(),
+      me,
+      nameOf,
+      npcName: (id: string) => this.npcName(id),
+      near: (id: string) => this.isNearUs(id),
+    };
     for (const type of NPC_FEED_MESSAGES) {
       this.unsubscribe.push(
         room.onMessage(type, (message: unknown) => {
@@ -757,6 +763,14 @@ export class GameScene extends Phaser.Scene {
         }),
       );
     }
+  }
+
+  /** Whether a player is drawn within `hudFeedNearPx` of us (Wanted feed lines, playtest 1 problem 8). */
+  private isNearUs(sessionId: string): boolean {
+    const them = this.drawnPosition(sessionId);
+    if (them === undefined) return false;
+    const us = this.predictor.state;
+    return Math.hypot(them.x - us.x, them.y - us.y) <= renderConfig.hudFeedNearPx;
   }
 
   /** Plays sound cues (§12): ours at full volume, other players' fading with distance from us. */
