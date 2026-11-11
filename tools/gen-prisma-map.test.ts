@@ -11,11 +11,13 @@ import { serializeMap } from './map/kespro';
 import {
   ABOVE_TILES,
   buildPrismaMap,
+  CART_SPAWN_TILES,
   CORRAL,
   ENTRANCE_DOORS,
   EXIT_DOORS,
   GATE_LANES,
   SOLID_TILES,
+  STRAY_CART_TILES,
 } from './map/prisma';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -171,9 +173,9 @@ describe('maps/prisma.tmj', () => {
     expect(at('behind_counter').length).toBeGreaterThanOrEqual(2);
     expect(at('behind_counter').every((s) => s.zone === 'deli')).toBe(true);
     expect(at('bottle_return').map((s) => s.zone)).toEqual(['drinks', 'drinks']);
-    expect(map.itemSpawns.some((s) => ['oven', 'stockroom'].includes(map.zoneAt(s.x, s.y)?.id ?? ''))).toBe(
-      false,
-    );
+    // One bakery spawn sits on the hot floor as a lure (P4-2); none in the stockroom.
+    expect(at('oven').map((s) => s.zone)).toEqual(['bakery']);
+    expect(at('stockroom')).toHaveLength(0);
   });
 
   it('makes the two bottle-return spawns the odd spots for joke items (decision 11, P2-6)', () => {
@@ -260,12 +262,14 @@ describe('maps/prisma.tmj', () => {
     expect(isReachable((x0 + 2.5) * map.tileSize, (y0 + 2.5) * map.tileSize)).toBe(true);
   });
 
-  it('starts 8 carts inside the corral, each pushable out of the open west side (P2-5)', () => {
+  it('starts 5 carts inside the corral, each pushable out of the open west side (P2-5)', () => {
     const [x0, y0, x1, y1] = CORRAL;
     const ts = map.tileSize;
-    expect(map.cartSpawns).toHaveLength(8);
+    expect(map.cartSpawns).toHaveLength(CART_SPAWN_TILES.length + STRAY_CART_TILES.length);
+    const corral = map.cartSpawns.slice(0, CART_SPAWN_TILES.length);
+    expect(corral).toHaveLength(5);
     const occupied = new Set(map.cartSpawns.map((c) => `${Math.floor(c.x / ts)},${Math.floor(c.y / ts)}`));
-    for (const cart of map.cartSpawns) {
+    for (const cart of corral) {
       const tx = Math.floor(cart.x / ts);
       const ty = Math.floor(cart.y / ts);
       expect(tx > x0 && tx < x1 && ty > y0 && ty < y1, `cart at ${tx},${ty}`).toBe(true);
@@ -278,6 +282,21 @@ describe('maps/prisma.tmj', () => {
       expect(isReachable((tx + 1.5) * ts, (ty + 0.5) * ts)).toBe(true);
       // Nothing west of it up to the open side.
       for (let x = x0; x < tx; x++) expect(map.collision.isSolid(x, ty), `west of ${tx},${ty}`).toBe(false);
+    }
+  });
+
+  it('leaves 3 stray carts in the parking lot, on open floor with room around them (P4-2)', () => {
+    const ts = map.tileSize;
+    const strays = map.cartSpawns.slice(CART_SPAWN_TILES.length);
+    expect(strays).toHaveLength(3);
+    for (const cart of strays) {
+      const tx = Math.floor(cart.x / ts);
+      const ty = Math.floor(cart.y / ts);
+      expect(zoneAtTile(tx, ty), `cart at ${tx},${ty}`).toBe('parking');
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++)
+          expect(map.collision.isSolid(tx + dx, ty + dy), `around cart at ${tx},${ty}`).toBe(false);
+      expect(isReachable((tx + 1.5) * ts, (ty + 0.5) * ts)).toBe(true);
     }
   });
 

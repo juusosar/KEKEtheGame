@@ -22,7 +22,7 @@ import { crossesGateWrongWay } from '../packages/shared/src/rules/gates';
 import { advanceAlongPath, findPath, findTilePath, tileOf } from '../packages/shared/src/rules/pathfinding';
 import { eligibleSpawns, spawnsForItem } from '../packages/shared/src/rules/targets';
 import type { Vec2 } from '../packages/shared/src/types';
-import { ENTRANCE_DOORS, GATE_LANES } from './map/prisma';
+import { ENTRANCE_DOORS, GATE_LANES, STAFF_EXIT_DOOR } from './map/prisma';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const map = loadMap(
@@ -235,12 +235,21 @@ describe('one-way gates on the prisma map (P2-1, decision 9)', () => {
       checkout.every((g) => g.dir === 's' && g.width === map.tileSize && g.height === map.tileSize),
     ).toBe(true);
     const doors = map.gates.filter((g) => g.kind === 'door');
-    expect(doors).toHaveLength(1);
+    expect(doors).toHaveLength(2);
     expect(doors[0]).toMatchObject({
       dir: 'n',
       x: ENTRANCE_DOORS[0] * 32,
       width: (ENTRANCE_DOORS[1] - ENTRANCE_DOORS[0] + 1) * 32,
     });
+    // The stockroom's staff exit (P4-2): one way out, east.
+    expect(doors[1]).toMatchObject({
+      dir: 'e',
+      y: STAFF_EXIT_DOOR[0] * 32,
+      height: (STAFF_EXIT_DOOR[1] - STAFF_EXIT_DOOR[0] + 1) * 32,
+    });
+    const staff = must(doors[1]);
+    expect(map.zoneAt(staff.x - 16, staff.y + 16)?.id).toBe('stockroom');
+    expect(map.zoneAt(staff.x + 48, staff.y + 16)?.id).toBe('sidewalk');
     for (const g of map.gates) {
       expect(
         aabbOverlapsSolid(grid, { x: g.x + g.width / 2, y: g.y + g.height / 2 }, half),
@@ -257,15 +266,20 @@ describe('one-way gates on the prisma map (P2-1, decision 9)', () => {
         expect(findPath(grid, s, v, { radius: half.hw, refuses }), where).not.toBeNull();
       }
     }
-  });
+  }, 30_000);
 
-  it('the only way in is the entrance and the only way out is the checkout', () => {
+  it('the only way in is the entrance; the ways out are the checkout and the stockroom staff exit', () => {
     const doors = gateTiles('door');
     const checkout = gateTiles('checkout');
+    const both = new Set([...checkout, ...doors]);
     const blockedBy = (tiles: Set<string>) => (tx: number, ty: number) => tiles.has(`${tx},${ty}`);
     expect(findPath(grid, van, dairy, { radius: half.hw, refuses })).not.toBeNull();
     expect(findPath(grid, van, dairy, { radius: half.hw, refuses, blocked: blockedBy(doors) })).toBeNull();
-    expect(findPath(grid, dairy, van, { radius: half.hw, refuses, blocked: blockedBy(checkout) })).toBeNull();
+    // Without the checkout, the only way out is through the stockroom (Wanted on entry).
+    const viaStaff = findPath(grid, dairy, van, { radius: half.hw, refuses, blocked: blockedBy(checkout) });
+    expect(viaStaff).not.toBeNull();
+    expect(must(viaStaff).some((p) => map.zoneAt(p.x, p.y)?.id === 'stockroom')).toBe(true);
+    expect(findPath(grid, dairy, van, { radius: half.hw, refuses, blocked: blockedBy(both) })).toBeNull();
   });
 });
 
@@ -327,7 +341,7 @@ describe('team vans on the prisma map (P1 review F3)', () => {
 
   it('names its own two team slots, not the first two', () => {
     expect(map.teamVanSlots).not.toEqual([0, 1]);
-    expect(map.teamVanSlots.map((i) => map.vanSlots[i]?.index)).toEqual([1, 12]);
+    expect(map.teamVanSlots.map((i) => map.vanSlots[i]?.index)).toEqual([7, 9]);
   });
 
   it('keeps the two team vans at least 8 tiles apart, like the first map', () => {

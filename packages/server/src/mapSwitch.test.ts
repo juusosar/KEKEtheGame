@@ -215,8 +215,8 @@ suite('map switch between rounds (integration, P3-1)', PORT, loadMapRegistry(), 
     expect(room.state.mapId).toBe('prisma');
     for (const p of players(room)) {
       expect(p.team).toBe(teamOf.get(p.sessionId));
-      // Teams share one van each (§4.3), at the new map's team slots: index 1 and 12 there (P1 review F3).
-      expect(p.van).toBe([0, 11][p.team - 1]);
+      // Teams share one van each (§4.3), at the new map's team slots: index 7 and 9 there (P1 review F3, P4-2).
+      expect(p.van).toBe([6, 8][p.team - 1]);
       expect({ x: p.x, y: p.y }).toEqual(vanSpawn(room.currentMap.map, p.van, playerHalfSize(config)));
     }
     expect([...room.state.teams.values()].map((t) => [t.team, t.sessionPoints, t.sessionItemPoints])).toEqual(
