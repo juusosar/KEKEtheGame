@@ -38,6 +38,7 @@ import {
   wantedPlayers,
   wantedSecondsLeft,
   teamPointsFromVans,
+  distinctColor,
   sanitizeProfile,
   settingsUpdateSchema,
   shuffleTeams,
@@ -200,7 +201,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     const player = new PlayerState();
     player.sessionId = client.sessionId;
     player.nickname = profile.nickname;
-    player.color = profile.color;
+    player.color = distinctColor(profile.color, this.colorsTakenBy(client.sessionId));
     player.hat = profile.hat;
     player.joinOrder = this.joinCounter++;
     player.spectator = spectator;
@@ -327,7 +328,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     const current = { nickname: player.nickname, color: player.color, hat: player.hat };
     const profile = sanitizeProfile({ ...current, ...message }, this.config.nicknameMaxLength);
     player.nickname = profile.nickname;
-    player.color = profile.color;
+    player.color = distinctColor(profile.color, this.colorsTakenBy(client.sessionId));
     player.hat = profile.hat;
     if (this.state.hostId === client.sessionId) this.publishMetadata();
   }
@@ -897,6 +898,15 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       return false;
     }
     return true;
+  }
+
+  /** Colours worn by everyone in the room except `sessionId` (spectators and dropped players too). */
+  private colorsTakenBy(sessionId: string): string[] {
+    const taken: string[] = [];
+    this.state.players.forEach((p) => {
+      if (p.sessionId !== sessionId) taken.push(p.color);
+    });
+    return taken;
   }
 
   private refuse(client: Client, request: string, code: LobbyErrorCode): void {

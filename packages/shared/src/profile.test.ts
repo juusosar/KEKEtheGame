@@ -6,9 +6,11 @@ import {
   HAT_IDS,
   PLAYER_COLORS,
   TEAM_COLORS,
+  distinctColor,
   sanitizeNickname,
   sanitizeProfile,
   teamColor,
+  type PlayerColor,
 } from './profile';
 
 describe('teamColor', () => {
@@ -84,5 +86,29 @@ describe('sanitizeNickname', () => {
   it('keeps the zero width joiner inside emoji sequences', () => {
     const family = '👩\u200d👩\u200d👧';
     expect(sanitizeNickname(family, 16)).toBe(family);
+  });
+});
+
+describe('distinctColor (playtest 1)', () => {
+  it('keeps a free colour', () => {
+    expect(distinctColor(PLAYER_COLORS[2], [PLAYER_COLORS[0]])).toBe(PLAYER_COLORS[2]);
+  });
+
+  it('moves a taken colour to the next free one, ignoring case and wrapping round', () => {
+    expect(distinctColor(PLAYER_COLORS[0], [PLAYER_COLORS[0].toLowerCase(), PLAYER_COLORS[1]])).toBe(
+      PLAYER_COLORS[2],
+    );
+    const last = PLAYER_COLORS[PLAYER_COLORS.length - 1] as PlayerColor;
+    expect(distinctColor(last, [last])).toBe(PLAYER_COLORS[0]);
+  });
+
+  it('gives eight default joiners eight different colours', () => {
+    const taken: string[] = [];
+    for (let i = 0; i < 8; i++) taken.push(distinctColor(DEFAULT_COLOR, taken));
+    expect(new Set(taken).size).toBe(8);
+  });
+
+  it('keeps the wanted colour when the whole palette is taken', () => {
+    expect(distinctColor(PLAYER_COLORS[4], PLAYER_COLORS)).toBe(PLAYER_COLORS[4]);
   });
 });
