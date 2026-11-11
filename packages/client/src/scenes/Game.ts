@@ -27,6 +27,7 @@ import {
   type Vec2,
 } from '@keke/shared';
 import Phaser from 'phaser';
+import { audioEngine } from '../audio/engine';
 import { Sfx } from '../audio/sfx';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
 import { Avatar } from '../game/avatar';
@@ -157,7 +158,7 @@ export class GameScene extends Phaser.Scene {
   private weaponIcons = new Map<string, string | null>();
   /** Store workers and stock carts (M5-7); online only. */
   private npcs: NpcRenderer | undefined;
-  /** Placeholder sounds (wanted alarm, forklift beep); online only. */
+  /** Sound effects (§12); online only. */
   private sfx: Sfx | undefined;
 
   private debug = false;
@@ -205,6 +206,8 @@ export class GameScene extends Phaser.Scene {
     this.clock = new FixedStepClock(inputStepSeconds(this.config));
 
     if (this.debug) this.createDebug();
+    // §12: the map's music loops while the Game scene runs (intro, round, results and podium).
+    audioEngine().startMusic(`assets/${this.theme.assets.music}`);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown());
     document.body.dataset['scene'] = 'game';
 
@@ -943,8 +946,8 @@ export class GameScene extends Phaser.Scene {
     this.peels = undefined;
     this.npcs?.destroy();
     this.npcs = undefined;
-    this.sfx?.destroy();
     this.sfx = undefined;
+    audioEngine().stopMusic();
     this.teardownDebug();
     delete document.body.dataset['scene'];
     delete document.body.dataset['phase'];
@@ -1092,8 +1095,8 @@ export class GameScene extends Phaser.Scene {
     this.readout.id = 'keke-debug';
     Object.assign(this.readout.style, {
       position: 'fixed',
-      // Bottom-left: the HUD scoreboard sits top-right and the minimap bottom-right.
-      bottom: '8px',
+      // Bottom-left (above the sound button): the HUD scoreboard sits top-right and the minimap bottom-right.
+      bottom: '50px',
       left: '8px',
       margin: '0',
       padding: '4px 8px',
@@ -1179,6 +1182,7 @@ export class GameScene extends Phaser.Scene {
         return out;
       },
       sfx: () => ({ ...(this.sfx?.played() ?? {}) }),
+      music: () => audioEngine().musicTrack(),
       held: () => this.combatFx?.heldSnapshots() ?? [],
       swings: () => this.combatFx?.swingSnapshot() ?? { predicted: 0, last: null },
       fx: () => this.combatFx?.fxSnapshots() ?? [],

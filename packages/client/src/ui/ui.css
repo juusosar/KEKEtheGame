@@ -1073,3 +1073,59 @@ body[data-phase='podium'] .keke-hud {
 .keke-round .results-race[data-outcome='timeUp'] {
   color: #d6d6d6;
 }
+
+/* Sound settings (ui/audioControl.ts, §12): bottom-left on every screen, over the menus and the HUD. */
+.keke-audio {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: system-ui, sans-serif;
+  color: #f2f2f2;
+}
+.keke-audio [hidden] {
+  display: none !important;
+}
+.keke-audio .audio-toggle {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #1a1a1a;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.keke-audio .audio-toggle:hover,
+.keke-audio .audio-toggle:focus-visible {
+  outline: 2px solid #ff6a13;
+}
+.keke-audio .audio-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  min-width: 200px;
+  font-size: 13px;
+  background: rgba(20, 20, 20, 0.92);
+  border-top: 3px solid #ff6a13;
+}
+.keke-audio .audio-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.keke-audio .audio-panel label.audio-mute {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.keke-audio input[type='range'] {
+  accent-color: #ff6a13;
+}
