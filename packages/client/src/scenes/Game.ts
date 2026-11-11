@@ -32,6 +32,7 @@ import {
   combatCues,
   itemCues,
   npcCues,
+  cueVolume,
   roundCues,
   type RoundClock,
   type SoundCue,
@@ -789,7 +790,7 @@ export class GameScene extends Phaser.Scene {
         const at = src.kind === 'player' ? this.drawnPosition(src.id) : src;
         volume = at ? hearingVolume(at, listener, renderConfig.sfxHearingPx) : 0;
       }
-      sfx.play(cue.name, volume);
+      sfx.play(cue.name, cueVolume(cue.name, src.kind, volume));
     }
   }
 
@@ -1346,6 +1347,7 @@ export class GameScene extends Phaser.Scene {
         return out;
       },
       sfx: () => ({ ...(this.sfx?.played() ?? {}) }),
+      musicDucks: () => this.sfx?.ducks() ?? 0,
       music: () => audioEngine().musicTrack(),
       held: () => this.combatFx?.heldSnapshots() ?? [],
       swings: () => this.combatFx?.swingSnapshot() ?? { predicted: 0, last: null },

@@ -182,3 +182,38 @@ export class CueGate {
     return true;
   }
 }
+
+/**
+ * Combat sounds made by other players (playtest 1: swings and hits were 60% of all sounds and covered the
+ * ones about us). Theirs play at this share of their distance volume; ours stay at full volume.
+ */
+export const OTHERS_COMBAT_VOLUME = 0.5;
+
+const COMBAT_SOUNDS: ReadonlySet<SfxName> = new Set<SfxName>([
+  'swing',
+  'hit',
+  'throw',
+  'splat',
+  'pop',
+  'spray',
+  'block',
+]);
+
+/** A cue's play volume from its source kind and its distance volume (1 for sounds about us). */
+export function cueVolume(name: SfxName, source: CueSource['kind'], distanceVolume: number): number {
+  if (source === 'me' || source === 'global') return distanceVolume;
+  return COMBAT_SOUNDS.has(name) ? distanceVolume * OTHERS_COMBAT_VOLUME : distanceVolume;
+}
+
+/**
+ * Sounds that duck the music for a moment when they are about us (played at full volume): our KO, our
+ * deposit, our packed box and the winning delivery (playtest 1 idea 10).
+ */
+export const DUCK_SOUNDS: ReadonlySet<SfxName> = new Set<SfxName>(['ko', 'deposit', 'boxPacked', 'delivery']);
+
+/** Plays at or above this volume count as "about us" for ducking. */
+export const DUCK_MIN_VOLUME = 0.95;
+
+export function ducksMusic(name: SfxName, volume: number): boolean {
+  return volume >= DUCK_MIN_VOLUME && DUCK_SOUNDS.has(name);
+}

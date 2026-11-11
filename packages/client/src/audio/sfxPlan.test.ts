@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { SFX_NAMES } from './names';
-import { ATTACK_SOUNDS, CueGate, HIT_SOUNDS, combatCues, itemCues, npcCues, roundCues } from './sfxPlan';
+import {
+  ATTACK_SOUNDS,
+  CueGate,
+  HIT_SOUNDS,
+  OTHERS_COMBAT_VOLUME,
+  combatCues,
+  cueVolume,
+  ducksMusic,
+  itemCues,
+  npcCues,
+  roundCues,
+} from './sfxPlan';
 
 const ctx = { me: 'me', blocking: (id: string) => id === 'panner' };
 
@@ -105,5 +116,24 @@ describe('cue gate', () => {
     const hit = { name: 'hit', source: { kind: 'me' } } as const;
     expect(gate.allow(hit, 2)).toBe(true);
     expect(gate.allow(hit, 2.1)).toBe(true);
+  });
+});
+
+describe('mix (playtest 1 audio pass)', () => {
+  it('plays other players’ combat sounds at half their distance volume, ours in full', () => {
+    expect(cueVolume('swing', 'me', 1)).toBe(1);
+    expect(cueVolume('swing', 'player', 0.8)).toBeCloseTo(0.8 * OTHERS_COMBAT_VOLUME);
+    expect(cueVolume('hit', 'point', 1)).toBeCloseTo(OTHERS_COMBAT_VOLUME);
+    // Not combat: only the distance counts.
+    expect(cueVolume('deposit', 'player', 0.6)).toBe(0.6);
+    expect(cueVolume('countdown', 'global', 1)).toBe(1);
+  });
+
+  it('ducks the music only for key sounds about us', () => {
+    expect(ducksMusic('ko', 1)).toBe(true);
+    expect(ducksMusic('deposit', 1)).toBe(true);
+    expect(ducksMusic('delivery', 1)).toBe(true);
+    expect(ducksMusic('deposit', 0.4)).toBe(false);
+    expect(ducksMusic('swing', 1)).toBe(false);
   });
 });

@@ -64,6 +64,10 @@ describe('music', () => {
     }
   });
 
+  it('loops are long enough not to wear thin (playtest 1: a 15 s loop was heard 40 times a session)', () => {
+    for (const spec of Object.values(MUSIC)) expect(loopSeconds(spec)).toBeGreaterThanOrEqual(40);
+  });
+
   it('melodies fill whole bars', () => {
     for (const spec of Object.values(MUSIC)) {
       const sixteenths = spec.melody.reduce((sum, [, len]) => sum + len, 0);

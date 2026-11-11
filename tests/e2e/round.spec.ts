@@ -106,6 +106,10 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
   await teleportNear(host, { x: van.x, y: van.y }, before.tile);
   await expect.poll(async () => (await game(host)).net?.deposited ?? 0).toBeGreaterThan(0);
   const deposited = (await game(host)).net?.deposited ?? 0;
+  // Our deposit ducks the music for a moment (playtest 1 audio pass).
+  await expect
+    .poll(() => host.evaluate(() => (globalThis as WithHook).__KEKE__?.musicDucks() ?? 0))
+    .toBeGreaterThanOrEqual(1);
   expect((await game(host)).net?.carrying).toBe(0);
 
   // Both scoreboards and feeds show it.
