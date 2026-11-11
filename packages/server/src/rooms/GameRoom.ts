@@ -473,7 +473,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       ),
     };
     this.liveMap = liveMap;
-    this.carts = new CartSystem(this.state, config, liveMap);
+    this.carts = new CartSystem(this.state, config, liveMap, {
+      // Customers stop carts; a rolling cart that hits one scares the crowd (P2-3 x P2-5).
+      solids: () => this.npcs.solidBodies(),
+      bump: (at) => this.npcs.violence(at),
+    });
     this.movement = new MovementSystem(config, liveMap);
     this.items = new ItemSystem(
       this.state,

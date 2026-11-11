@@ -137,7 +137,12 @@ export class Predictor {
     const next = applyInput(state, frame, this.map, this.config, this.stepModifiers());
     if (this.cartConfig === null || carts.length === 0) return next;
     return pushCarts(state, next, {
-      world: { grid: this.cartGrid ?? this.map.collision, carts, obstacles: this.cartObstacles },
+      world: {
+        grid: this.cartGrid ?? this.map.collision,
+        carts,
+        // Customers stop carts like on the server (P2-3 x P2-5).
+        obstacles: [...this.cartObstacles, ...this.solids.map((b) => ({ x: b.x, y: b.y, hw: b.r, hh: b.r }))],
+      },
       half: playerHalfSize(this.config),
       dt: 1 / this.config.inputHz,
       now: 0,
