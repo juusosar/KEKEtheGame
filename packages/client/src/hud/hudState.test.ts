@@ -249,6 +249,12 @@ describe('readHud in race mode (M6-3)', () => {
     expect(hud.race).toMatchObject({ carryingBox: true, stolen: false });
   });
 
+  it("draws the box from the room map's order box sheet (P1-5)", () => {
+    const state = race([player('a', 0, { van: 0, carrying: 5 })], box('a', 0), {});
+    const hud = readHud(state, 'a', { ...raceCtx, orderBoxAtlas: 'order_box_prisma' });
+    expect(hud.carried).toMatchObject({ atlas: 'order_box_prisma', sprite: 'order_box' });
+  });
+
   it('flags a stolen box', () => {
     const hud = readHud(race([player('a', 0, { van: 0, carrying: 5 })], box('a', 1), {}), 'a', raceCtx);
     expect(hud.race).toMatchObject({ carryingBox: true, stolen: true });
