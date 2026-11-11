@@ -36,7 +36,7 @@ export interface ThemeAssets {
   tileset: string;
   /** Item catalogue under `packages/shared/src/data/`. */
   itemCatalogue: string;
-  /** Looping music track under `client/public/assets/` (placeholder until M7-2). */
+  /** Looping music track under `client/public/assets/`, a WAV made by `npm run gen:sfx` (§12). */
   music: string;
 }
 

@@ -22,6 +22,6 @@ export const kesproTheme = {
     map: 'kespro.tmj',
     tileset: 'kespro_tiles.png',
     itemCatalogue: 'items.kespro.json',
-    music: 'music/kespro_loop.ogg',
+    music: 'music/kespro_loop.wav',
   },
 } as const satisfies MapTheme;
