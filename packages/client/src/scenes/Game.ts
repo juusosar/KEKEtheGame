@@ -997,6 +997,7 @@ export class GameScene extends Phaser.Scene {
     const hud = new Hud({
       iconFor: (sprite, atlas) => this.itemIcon(sprite, atlas),
       weaponIconFor: (sprite) => this.weaponIcon(sprite),
+      theme: this.theme,
     });
     this.hud = hud;
     const nameOf = (id: string): string => this.view?.players.find((p) => p.id === id)?.nickname ?? id;
@@ -1124,6 +1125,7 @@ export class GameScene extends Phaser.Scene {
       banner.id = 'keke-spectate';
       banner.setAttribute('role', 'status');
       banner.className = 'spectate-banner';
+      banner.style.setProperty('--keke-accent', this.theme.colors.primary);
       const title = document.createElement('strong');
       const hint = document.createElement('span');
       hint.textContent = t('game.spectateHint');
@@ -1152,6 +1154,7 @@ export class GameScene extends Phaser.Scene {
       onLeave: () => this.leaveGame(),
       device: this.inputManager.device,
       onDeviceChange: (listener) => this.inputManager.onDeviceChange(listener),
+      theme: this.theme,
     });
   }
 

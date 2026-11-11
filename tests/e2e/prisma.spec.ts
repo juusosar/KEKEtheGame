@@ -7,6 +7,8 @@ import {
   noNpcs,
   players,
   requireDebugServer,
+  roundAccents,
+  THEME_PRIMARY,
   teleportNear,
   test,
   toPlay,
@@ -121,6 +123,8 @@ test('a Timed round on the second map: its own map, music, pickup, deposit and r
     const { map, music } = await hook(page);
     expect(map).toMatchObject({ theme: 'prisma', widthPx: MAP_PX.width, heightPx: MAP_PX.height });
     expect(music).toBe('assets/music/prisma_loop.wav');
+    // The HUD and in-game menu wear this store's colour, like the round screens (P1 review F2).
+    expect(await roundAccents(page)).toEqual([THEME_PRIMARY.prisma, THEME_PRIMARY.prisma]);
   }
 
   await pickUpTarget(host);

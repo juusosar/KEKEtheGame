@@ -16,6 +16,7 @@
 //
 // Keys: Esc opens and goes back one step; Tab / arrows move focus (the game captures Tab). Pad: Start
 // opens and goes back, B back, A presses, D-pad up/down moves focus, left/right moves a slider by 5.
+import { defaultThemeId, getTheme, type MapTheme } from '@keke/shared';
 import { CONTROL_ACTIONS, buttonName } from '../input/controls';
 import type { InputDevice } from '../input/device';
 import { t, type MessageKey } from '../i18n';
@@ -37,6 +38,8 @@ export interface GameMenuOptions {
   device: InputDevice;
   /** Subscribes to device changes; returns an unsubscribe function. */
   onDeviceChange(listener: (device: InputDevice) => void): () => void;
+  /** The room's map (P1 review F2): its primary colour is the menu accent. Default: the first map. */
+  theme?: MapTheme;
 }
 
 export class GameMenu {
@@ -110,6 +113,7 @@ export class GameMenu {
       this.confirm,
     );
     this.root = h('div', { id: 'keke-game-menu', class: 'keke-game-menu', hidden: true }, panel);
+    this.root.style.setProperty('--keke-accent', (opts.theme ?? getTheme(defaultThemeId)).colors.primary);
     // A click on the dimmed backdrop (not the panel) resumes.
     this.root.addEventListener('pointerdown', (e) => {
       if (e.target === this.root) this.close();

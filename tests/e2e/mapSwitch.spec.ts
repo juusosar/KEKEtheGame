@@ -7,6 +7,8 @@ import {
   noNpcs,
   players,
   requireDebugServer,
+  roundAccents,
+  THEME_PRIMARY,
   test,
   toPlay,
   waitControlling,
@@ -72,6 +74,7 @@ test('a session on both maps switches the map between rounds without leaving the
   const before = await hook(host);
   expect(before.map.widthPx).toBe(KESPRO_PX.width);
   expect(before.music).toMatch(/kespro_loop\.wav$/);
+  expect(await roundAccents(host)).toEqual([THEME_PRIMARY.kespro, THEME_PRIMARY.kespro]);
 
   // Results of round 1 name the first map.
   expect(await endPhase(host)).toBe(true);
@@ -96,6 +99,8 @@ test('a session on both maps switches the map between rounds without leaving the
     const after = await hook(page);
     expect({ width: after.map.widthPx, height: after.map.heightPx }).toEqual(PRISMA_PX);
     expect(after.music).toMatch(/prisma_loop\.wav$/);
+    // The rebuilt HUD and menu follow the new map's colour (P1 review F2).
+    expect(await roundAccents(page)).toEqual([THEME_PRIMARY.prisma, THEME_PRIMARY.prisma]);
     // Everyone starts at their van, which stands in the parking lot on this map (south of y 44 tiles).
     const { player } = await game(page);
     expect(player.y).toBeGreaterThan(44 * after.map.tileSize);

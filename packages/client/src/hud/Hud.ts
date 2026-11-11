@@ -23,7 +23,7 @@
 //
 // Layout: target + carry top-left, timer top-centre, scores and feed top-right, HP and weapon
 // bottom-centre, KO overlay in the middle, minimap (M3-8) owns the bottom-right corner. The Game scene owns one Hud and feeds it from state patches and item events.
-import { teamColor, type Vec2 } from '@keke/shared';
+import { defaultThemeId, getTheme, teamColor, type MapTheme, type Vec2 } from '@keke/shared';
 import { renderConfig } from '../game/renderConfig';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
@@ -47,6 +47,8 @@ export interface HudDeps {
   iconFor(sprite: string, atlas: string): string | null;
   /** Image URL for a `weapons` atlas frame, or null when it cannot be drawn. */
   weaponIconFor(sprite: string): string | null;
+  /** The room's map (P1 review F2): its primary colour is the HUD accent. Default: the first map. */
+  theme?: MapTheme;
 }
 
 interface FeedEntry {
@@ -268,6 +270,7 @@ export class Hud {
       this.board,
       this.arrow,
     );
+    this.root.style.setProperty('--keke-accent', (deps.theme ?? getTheme(defaultThemeId)).colors.primary);
     document.body.appendChild(this.root);
   }
 

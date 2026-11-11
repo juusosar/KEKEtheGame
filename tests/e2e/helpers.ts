@@ -318,3 +318,24 @@ export async function tapPad(page: Page, button: number): Promise<void> {
 export async function setPadAxis(page: Page, axis: number, value: number): Promise<void> {
   await page.evaluate(([i, v]) => (globalThis as FakePad).__pad?.axis(i ?? 0, v ?? 0), [axis, value]);
 }
+
+/**
+ * Theme primary colours (packages/shared/src/theme/; Playwright cannot import @keke/shared), lower case.
+ * The in-round layers (HUD, in-game menu, spectator banner) take their accent from the room's map (P1 review F2).
+ */
+export const THEME_PRIMARY = { kespro: '#ff6a13', prisma: '#00a651' } as const;
+
+type StyleWindow = {
+  document: { querySelector(selector: string): unknown };
+  getComputedStyle(el: unknown): { getPropertyValue(name: string): string };
+};
+
+/** The computed `--keke-accent` of the in-round HUD and in-game menu, lower case. */
+export const roundAccents = (page: Page) =>
+  page.evaluate(() => {
+    const w = globalThis as unknown as StyleWindow;
+    return ['#keke-hud', '#keke-game-menu'].map((selector) => {
+      const el = w.document.querySelector(selector);
+      return el ? w.getComputedStyle(el).getPropertyValue('--keke-accent').trim().toLowerCase() : null;
+    });
+  });
