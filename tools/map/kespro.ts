@@ -1,21 +1,22 @@
 // The kespro blockout map (§9.1, §15.4), built from code so the layout stays reviewable and
 // reproducible. `npm run gen:map` writes maps/kespro.tmj; tools/gen-kespro-map.test.ts checks it.
 //
-// Layout (tile coordinates, 120 × 80):
-//   x 0–14    loading dock: 16 van slots in two columns, dock gates into the store
-//   x 15–89   the store (walled). Staff-only room in the north-west corner is the shortcut from
+// Layout (tile coordinates, 96 × 64; it was 120 × 80 until Juhi asked for a tighter map, 2026-11-11):
+//   x 0–9     loading dock: 16 van slots in two columns around the middle of the west edge, dock
+//             gates into the store
+//   x 10–69   the store (walled). Staff-only room in the north-west corner is the shortcut from
 //             the dock to the back of the store. Dry goods (rack aisles) north, beverage pallets
 //             south-west, cold room (walled, curtain doors) in the middle, freezer aisles and the
 //             meat & fish counter south, entrance + checkout lanes along the east side.
-//   x 90–104  parking lot with parked cars
-//   x 105–109 the street
-//   x 110–119 the office building with the race-mode office trigger
+//   x 70–80   parking lot with parked cars
+//   x 81–85   the street
+//   x 87–95   the office building with the race-mode office trigger
 // Tree lines along the top and bottom edges stop players walking around the store, so the dock
 // and the office are only connected through the store (or the staff-only shortcut).
 import { TILE, TILES, tileIndex, type TileName } from '../art/tiles';
 
-export const MAP_WIDTH = 120;
-export const MAP_HEIGHT = 80;
+export const MAP_WIDTH = 96;
+export const MAP_HEIGHT = 64;
 
 /** Inclusive tile rectangle. */
 type Rect = readonly [x0: number, y0: number, x1: number, y1: number];
@@ -52,156 +53,165 @@ class TileLayer {
 
 // ── Areas ──────────────────────────────────────────────────────────────────────────────────────
 
-const STORE: Rect = [15, 3, 89, 76];
-const STAFF_ROOM: Rect = [15, 3, 28, 14]; // walls included
-const COLD_ROOM: Rect = [46, 31, 76, 53]; // walls included
-const OFFICE_BUILDING: Rect = [112, 32, 118, 47]; // walls included
-const STREET_X: readonly [number, number] = [105, 109];
+const STORE: Rect = [10, 3, 69, 60];
+const STAFF_ROOM: Rect = [10, 3, 21, 12]; // walls included
+const COLD_ROOM: Rect = [36, 23, 60, 40]; // walls included
+const OFFICE_BUILDING: Rect = [88, 24, 94, 39]; // walls included
+const STREET_X: readonly [number, number] = [81, 85];
 
-/** Dock gates in the store's west wall (rows). */
+/** Dock gates in the store's west wall (rows), facing the vans in the middle of the dock. */
 const DOCK_GATES: readonly (readonly [number, number])[] = [
-  [22, 25],
-  [36, 43],
-  [50, 55],
+  [19, 22],
+  [29, 34],
+  [41, 44],
 ];
-const STAFF_DOCK_DOOR: readonly [number, number] = [7, 8]; // rows in x = 15
-const STAFF_STORE_DOOR: readonly [number, number] = [9, 10]; // rows in x = 28
-const ENTRANCE_DOOR: readonly [number, number] = [36, 43]; // rows in x = 89
-const OFFICE_DOOR: readonly [number, number] = [38, 41]; // rows in x = 112
+const STAFF_DOCK_DOOR: readonly [number, number] = [6, 7]; // rows in x = 10
+const STAFF_STORE_DOOR: readonly [number, number] = [8, 9]; // rows in x = 21
+const ENTRANCE_DOOR: readonly [number, number] = [28, 35]; // rows in x = 69
+const OFFICE_DOOR: readonly [number, number] = [30, 33]; // rows in x = 88
 
 /** Cold-room curtain doorways: wall tiles that become openings with a curtain overhead. */
 const CURTAIN_DOORS: readonly Rect[] = [
-  [58, 31, 60, 31], // north, from dry goods
-  [46, 40, 46, 42], // west, from beverages
-  [52, 53, 54, 53], // south, to the freezer aisles
-  [76, 44, 76, 45], // east, to the entrance
+  [47, 23, 49, 23], // north, from dry goods
+  [36, 30, 36, 32], // west, from beverages
+  [42, 40, 44, 40], // south, to the freezer aisles
+  [60, 33, 60, 34], // east, to the entrance
 ];
 
-/** Dry-goods pallet racks: double rows with cross aisles at x 29–30, 49–52 and 73–76. */
-const RACK_ROWS = [7, 12, 17, 22];
+/** Dry-goods pallet racks: double rows with cross aisles at x 22–24, 39–41 and 57–60. */
+const RACK_ROWS = [7, 12, 17];
 const RACK_SPANS: readonly (readonly [number, number])[] = [
-  [31, 48],
-  [53, 72],
+  [25, 38],
+  [42, 56],
 ];
 
 /** Beverage hall pallet stacks (2 × 2), top-left tiles; a few left out for open lanes. */
-const PALLET_XS = [21, 27, 33, 39];
-const PALLET_YS = [35, 41, 47, 53, 59, 65, 71];
-const PALLET_GAPS = new Set(['21,53', '27,53', '33,41', '27,65']);
+const PALLET_XS = [14, 20, 26, 32];
+const PALLET_YS = [26, 32, 38, 44, 50, 56];
+const PALLET_GAPS = new Set(['14,44', '20,44', '26,32', '20,50']);
 
 /** Cold-room fridge rows: [y, x0, x1]. */
 const FRIDGE_ROWS: readonly (readonly [number, number, number])[] = [
-  [32, 48, 56],
-  [32, 62, 74],
-  [37, 50, 58],
-  [37, 62, 72],
-  [47, 50, 58],
-  [47, 62, 72],
+  [24, 38, 46],
+  [24, 51, 58],
+  [28, 39, 46],
+  [28, 51, 58],
+  [35, 39, 46],
+  [35, 51, 58],
 ];
 
-/** Freezer cabinet columns (2 wide), rows 57–72 with a cross gap at 64–65. */
-const FREEZER_XS = [50, 55, 60];
+/** Freezer cabinet columns (2 wide), rows 43–49 and 52–57 with a cross gap at 50–51. */
+const FREEZER_XS = [38, 42, 46];
 
 /** Meat & fish: counter row with an opening at its east end; behind it is the butcher's area. */
-const COUNTER_ROW = 59;
-const COUNTER_X: readonly [number, number] = [63, 73];
+const COUNTER_ROW = 46;
+const COUNTER_X: readonly [number, number] = [49, 57];
 
-/** Checkout line at x = 81 between these rows; lanes are the gaps. */
-const CHECKOUT_X = 81;
-const CHECKOUT_LANES = new Set([20, 21, 26, 27, 32, 33, 38, 39, 40, 41, 46, 47, 52, 53, 58, 59]);
+/** Checkout line at x = 64 between these rows; lanes are the gaps. */
+const CHECKOUT_X = 64;
+const CHECKOUT_LANES = new Set([18, 19, 24, 25, 30, 31, 32, 33, 38, 39, 44, 45]);
 
 /** Parked cars (1 × 2), top tiles. */
 const CARS: readonly TilePoint[] = [
-  [93, 6],
-  [93, 10],
-  [93, 18],
-  [93, 26],
-  [93, 50],
-  [93, 58],
-  [93, 66],
-  [97, 8],
-  [97, 14],
-  [97, 22],
-  [97, 54],
-  [97, 62],
-  [97, 70],
-  [101, 6],
-  [101, 18],
-  [101, 30],
-  [101, 48],
-  [101, 60],
-  [101, 72],
+  [73, 6],
+  [73, 10],
+  [73, 18],
+  [73, 40],
+  [73, 48],
+  [73, 54],
+  [77, 8],
+  [77, 14],
+  [77, 22],
+  [77, 44],
+  [77, 52],
+  [77, 57],
 ];
-const PARKING_LINE_XS = [92, 96, 100];
+const PARKING_LINE_XS = [72, 76];
 
 // ── Objects ────────────────────────────────────────────────────────────────────────────────────
 
-/** Van slot centres in tiles (vans are 2 × 3 tiles). Slots 1–8 west column, 9–16 east column. */
-export const VAN_SLOT_TILES: readonly TilePoint[] = [3, 8].flatMap((x) =>
-  Array.from({ length: 8 }, (_, i): TilePoint => [x, 6 + 8 * i + 1.5]),
-);
+/**
+ * Van slot centres in tiles (vans are 2 × 3 tiles): two columns of eight around the middle of the
+ * west edge (Juhi, 2026-11-11: the vans start in the middle of the map on the left side). Slots fill
+ * from the middle outwards, east column (nearer the store) first in each pair of rows, so a small
+ * room parks in the middle of the dock.
+ */
+const VAN_COLUMNS = [7, 3];
+const VAN_ROW_ORDER: readonly number[] = [29.5, 33.5, 25.5, 37.5, 21.5, 41.5, 17.5, 45.5];
+export const VAN_SLOT_TILES: readonly TilePoint[] = [];
+for (let pair = 0; pair < VAN_ROW_ORDER.length; pair += 2) {
+  for (const x of VAN_COLUMNS) {
+    for (const y of VAN_ROW_ORDER.slice(pair, pair + 2)) (VAN_SLOT_TILES as TilePoint[]).push([x, y]);
+  }
+}
+/**
+ * Van slot `index` of team 1's and team 2's van with Teams on (P1 review F3). Slots 1 and 2 are 4
+ * tiles apart in the middle of the dock, so Teams rounds use slots 5 and 6: the same east column,
+ * 12 tiles apart, either side of the middle dock gate (tools/kespro-race.test.ts checks the walks).
+ */
+export const TEAM_VAN_SLOTS: readonly [number, number] = [5, 6];
 
 /** Item spawn tiles per item zone. Positions are tile centres. */
 export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = {
   dry_goods: [
-    [22, 18],
-    [35, 5],
-    [60, 5],
-    [33, 10],
-    [45, 10],
-    [58, 10],
-    [70, 10],
-    [40, 15],
-    [65, 15],
-    [36, 20],
+    [17, 17],
+    [30, 5],
+    [48, 5],
+    [28, 10],
+    [36, 10],
+    [47, 10],
+    [55, 10],
+    [33, 15],
+    [50, 15],
+    [30, 20],
+    [45, 20],
     [56, 20],
-    [71, 20],
-    [44, 25],
+    [38, 22],
   ],
   beverages: [
-    [19, 33],
-    [44, 33],
-    [24, 37],
-    [30, 44],
-    [36, 50],
-    [42, 56],
-    [25, 57],
-    [19, 62],
-    [30, 69],
-    [36, 74],
+    [17, 24],
+    [30, 24],
+    [23, 29],
+    [18, 36],
+    [29, 41],
+    [24, 47],
+    [16, 53],
+    [30, 53],
+    [23, 58],
+    [35, 58],
   ],
   cold_room: [
-    [48, 35],
-    [55, 34],
-    [66, 35],
-    [74, 40],
-    [52, 42],
-    [60, 44],
-    [70, 45],
-    [49, 50],
-    [58, 51],
-    [72, 51],
+    [38, 26],
+    [44, 26],
+    [55, 26],
+    [59, 30],
+    [42, 31],
+    [49, 32],
+    [56, 32],
+    [38, 38],
+    [48, 38],
+    [57, 37],
   ],
   frozen: [
-    [57, 55],
-    [48, 58],
-    [53, 60],
-    [58, 62],
-    [62, 68],
-    [48, 70],
-    [53, 72],
-    [58, 74],
+    [40, 42],
+    [48, 44],
+    [41, 46],
+    [45, 48],
+    [44, 51],
+    [40, 56],
+    [48, 57],
+    [45, 58],
   ],
   // The first three sit behind the counter, inside the butcher's behind_counter zone (risk!).
   meat_fish: [
-    [66, 56],
-    [70, 57],
-    [73, 55],
-    [65, 62],
-    [70, 63],
-    [75, 61],
-    [74, 70],
-    [67, 72],
+    [52, 42],
+    [56, 43],
+    [59, 41],
+    [51, 49],
+    [56, 48],
+    [60, 50],
+    [59, 56],
+    [52, 57],
   ],
 };
 
@@ -210,40 +220,40 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
  * one is free. Each must be a tile in ITEM_SPAWN_TILES (the spawns themselves do not move).
  */
 export const ODD_SPOT_TILES: readonly TilePoint[] = [
-  [71, 20], // the far end of a dry-goods rack aisle
-  [73, 55], // behind the butcher's counter, in the corner
-  [36, 74], // behind the last beverage pallet stacks
+  [56, 20], // the far end of a dry-goods rack aisle
+  [59, 41], // behind the butcher's counter, in the corner
+  [35, 58], // behind the last beverage pallet stacks
 ];
 
 /** [type, x, y, post]: `post` makes the NPC stand guard there instead of patrolling (§8). */
 const NPC_SPAWN_TILES: readonly (readonly [string, number, number, boolean?])[] = [
-  ['security', 30, 9, true], // post at the staff-only door
-  ['security', 85, 40], // entrance
-  ['security', 76, 28],
-  ['stocker', 40, 10],
-  ['stocker', 62, 15],
-  ['stocker', 30, 45],
-  ['stocker', 43, 62],
-  ['butcher', 69, 56],
+  ['security', 23, 8, true], // post at the staff-only door
+  ['security', 66, 32], // entrance
+  ['security', 59, 21],
+  ['stocker', 32, 10],
+  ['stocker', 48, 15],
+  ['stocker', 17, 35],
+  ['stocker', 35, 47],
+  ['butcher', 54, 43],
 ];
 
 const NPC_WAYPOINT_TILES: readonly TilePoint[] = [
-  [30, 5],
-  [50, 5],
-  [75, 5],
-  [30, 15],
-  [50, 15],
-  [75, 15],
-  [30, 25],
-  [50, 25],
-  [75, 25],
-  [18, 33],
-  [44, 38],
-  [24, 50],
-  [44, 68],
-  [18, 74],
-  [52, 64],
-  [62, 64],
+  [23, 5],
+  [40, 5],
+  [58, 5],
+  [23, 15],
+  [40, 15],
+  [58, 15],
+  [23, 21],
+  [40, 21],
+  [58, 21],
+  [12, 25],
+  [34, 29],
+  [17, 42],
+  [35, 55],
+  [12, 58],
+  [41, 50],
+  [48, 50],
 ];
 
 /** Forklift loops (tile centres); the forklift drives back from the last point to the first. */
@@ -251,19 +261,19 @@ const FORKLIFT_ROUTES: readonly (readonly [string, readonly TilePoint[]])[] = [
   [
     'dry_goods_loop',
     [
-      [50, 5],
-      [50, 25],
-      [74, 25],
-      [74, 5],
+      [40, 5],
+      [40, 21],
+      [58, 21],
+      [58, 5],
     ],
   ],
   [
     'beverages_loop',
     [
-      [24, 38],
-      [42, 38],
-      [42, 68],
-      [24, 68],
+      [17, 29],
+      [30, 29],
+      [30, 54],
+      [17, 54],
     ],
   ],
 ];
@@ -287,40 +297,40 @@ const rectPolygon = ([x0, y0, x1, y1]: Rect): TilePoint[] => [
 
 function zoneSpecs(config: MapConfigInput): ZoneSpec[] {
   return [
-    { id: 'loading_dock', name: 'Loading dock', polygon: rectPolygon([0, 3, 14, 76]) },
-    { id: 'entrance', name: 'Entrance & checkout', polygon: rectPolygon([77, 4, 88, 75]) },
+    { id: 'loading_dock', name: 'Loading dock', polygon: rectPolygon([0, 3, 9, 60]) },
+    { id: 'entrance', name: 'Entrance & checkout', polygon: rectPolygon([61, 4, 68, 59]) },
     {
       id: 'dry_goods',
       name: 'Dry goods',
       // Wraps around the staff-only room in the north-west corner.
       polygon: [
-        [29, 4],
-        [77, 4],
-        [77, 31],
-        [16, 31],
-        [16, 15],
-        [29, 15],
+        [22, 4],
+        [61, 4],
+        [61, 23],
+        [11, 23],
+        [11, 13],
+        [22, 13],
       ],
     },
-    { id: 'beverages', name: 'Beverage pallets', polygon: rectPolygon([16, 31, 46, 75]) },
+    { id: 'beverages', name: 'Beverage pallets', polygon: rectPolygon([11, 23, 36, 59]) },
     {
       id: 'cold_room',
       name: 'Cold & dairy room',
-      polygon: rectPolygon([47, 32, 75, 52]),
+      polygon: rectPolygon([37, 24, 59, 39]),
       friction: config.coldRoomFriction,
       speedMultiplier: config.coldRoomSpeedMultiplier,
     },
-    { id: 'frozen', name: 'Freezer aisle', polygon: rectPolygon([47, 54, 62, 75]) },
-    { id: 'meat_fish', name: 'Meat & fish counter', polygon: rectPolygon([63, 54, 76, 75]) },
-    { id: 'behind_counter', name: 'Behind the counter', polygon: rectPolygon([64, 54, 76, 58]) },
+    { id: 'frozen', name: 'Freezer aisle', polygon: rectPolygon([37, 41, 48, 59]) },
+    { id: 'meat_fish', name: 'Meat & fish counter', polygon: rectPolygon([49, 41, 60, 59]) },
+    { id: 'behind_counter', name: 'Behind the counter', polygon: rectPolygon([50, 41, 60, 45]) },
     {
       id: 'staff_only',
       name: 'Staff-only back room',
-      polygon: rectPolygon([16, 4, 27, 13]),
+      polygon: rectPolygon([11, 4, 20, 11]),
       wantedOnEnter: true,
     },
-    { id: 'parking', name: 'Parking lot', polygon: rectPolygon([90, 3, 104, 76]) },
-    { id: 'office', name: 'Office', polygon: rectPolygon([111, 30, 119, 49]) },
+    { id: 'parking', name: 'Parking lot', polygon: rectPolygon([70, 3, 80, 60]) },
+    { id: 'office', name: 'Office', polygon: rectPolygon([87, 22, 95, 41]) },
   ];
 }
 
@@ -341,22 +351,22 @@ function paintTiles(): TileLayers {
 
   // Outside: grass, the dock yard, parking lot, street and sidewalks.
   ground.fill([0, 0, MAP_WIDTH - 1, MAP_HEIGHT - 1], 'grass');
-  ground.fill([0, 3, 11, 76], 'asphalt').fill([12, 3, 14, 76], 'dock');
-  ground.fill([90, 3, 103, 76], 'asphalt');
-  for (const x of PARKING_LINE_XS) ground.fill([x, 3, x, 76], 'parking_line');
-  ground.fill([104, 0, 104, MAP_HEIGHT - 1], 'sidewalk').fill([110, 0, 110, MAP_HEIGHT - 1], 'sidewalk');
+  ground.fill([0, 3, 7, 60], 'asphalt').fill([8, 3, 9, 60], 'dock');
+  ground.fill([70, 3, 79, 60], 'asphalt');
+  for (const x of PARKING_LINE_XS) ground.fill([x, 3, x, 60], 'parking_line');
+  ground.fill([80, 0, 80, MAP_HEIGHT - 1], 'sidewalk').fill([86, 0, 86, MAP_HEIGHT - 1], 'sidewalk');
   ground.fill([STREET_X[0], 0, STREET_X[1], MAP_HEIGHT - 1], 'road');
-  for (let y = 0; y < MAP_HEIGHT; y += 2) ground.set(107, y, 'road_line');
+  for (let y = 0; y < MAP_HEIGHT; y += 2) ground.set(83, y, 'road_line');
 
   // Tree lines along the top and bottom edges, west of the street.
-  for (const y of [0, 1, 2, 77, 78, 79]) walls.fill([0, y, STREET_X[0] - 2, y], 'tree');
-  for (const y of [0, 1, 2, 77, 78, 79]) ground.fill([0, y, STREET_X[0] - 2, y], 'grass');
+  for (const y of [0, 1, 2, 61, 62, 63]) walls.fill([0, y, STREET_X[0] - 2, y], 'tree');
+  for (const y of [0, 1, 2, 61, 62, 63]) ground.fill([0, y, STREET_X[0] - 2, y], 'grass');
 
   // Store shell and floors.
   ground.fill([STORE[0] + 1, STORE[1] + 1, STORE[2] - 1, STORE[3] - 1], 'floor');
-  ground.fill([16, 31, 45, 75], 'floor_alt');
+  ground.fill([11, 23, 35, 59], 'floor_alt');
   walls.outline(STORE, 'wall');
-  for (const x of [20, 40, 60, 80]) walls.set(x, STORE[1], 'wall_window').set(x, STORE[3], 'wall_window');
+  for (const x of [20, 35, 50, 65]) walls.set(x, STORE[1], 'wall_window').set(x, STORE[3], 'wall_window');
   for (const [y0, y1] of DOCK_GATES) {
     walls.fill([STORE[0], y0, STORE[0], y1], null);
     ground.fill([STORE[0], y0, STORE[0], y1], 'dock');
@@ -364,18 +374,18 @@ function paintTiles(): TileLayers {
   }
   walls.fill([STORE[2], ENTRANCE_DOOR[0], STORE[2], ENTRANCE_DOOR[1]], null);
   ground.fill([STORE[2], ENTRANCE_DOOR[0], STORE[2], ENTRANCE_DOOR[1]], 'door');
-  ground.fill([86, ENTRANCE_DOOR[0], 88, ENTRANCE_DOOR[1]], 'entrance_mat');
+  ground.fill([66, ENTRANCE_DOOR[0], 68, ENTRANCE_DOOR[1]], 'entrance_mat');
   above.set(STORE[2], ENTRANCE_DOOR[0] - 1, 'sign').set(STORE[2], ENTRANCE_DOOR[1] + 1, 'sign');
 
   // Staff-only room: the shortcut from the dock to the back of the store.
-  ground.fill([16, 4, 27, 13], 'floor_staff');
+  ground.fill([11, 4, 20, 11], 'floor_staff');
   walls.fill([STAFF_ROOM[0], STAFF_ROOM[3], STAFF_ROOM[2], STAFF_ROOM[3]], 'wall');
   walls.fill([STAFF_ROOM[2], STAFF_ROOM[1], STAFF_ROOM[2], STAFF_ROOM[3]], 'wall');
   walls.fill([STORE[0], STAFF_DOCK_DOOR[0], STORE[0], STAFF_DOCK_DOOR[1]], null);
   ground.fill([STORE[0], STAFF_DOCK_DOOR[0], STORE[0], STAFF_DOCK_DOOR[1]], 'staff_door');
   walls.fill([STAFF_ROOM[2], STAFF_STORE_DOOR[0], STAFF_ROOM[2], STAFF_STORE_DOOR[1]], null);
   ground.fill([STAFF_ROOM[2], STAFF_STORE_DOOR[0], STAFF_ROOM[2], STAFF_STORE_DOOR[1]], 'staff_door');
-  walls.set(18, 5, 'crate').set(19, 5, 'crate').set(25, 12, 'crate');
+  walls.set(13, 5, 'crate').set(14, 5, 'crate').set(19, 10, 'crate');
   above.set(STAFF_ROOM[2], STAFF_STORE_DOOR[0] - 1, 'sign');
 
   // Dry goods: long pallet-rack aisles. Rack tops overhang the aisle north of each row.
@@ -405,22 +415,22 @@ function paintTiles(): TileLayers {
 
   // Freezer aisles.
   for (const x of FREEZER_XS) {
-    walls.fill([x, 57, x + 1, 63], 'freezer').fill([x, 66, x + 1, 72], 'freezer');
+    walls.fill([x, 43, x + 1, 49], 'freezer').fill([x, 52, x + 1, 57], 'freezer');
   }
 
   // Meat & fish counter; the butcher works behind it.
   walls.fill([COUNTER_X[0], COUNTER_ROW, COUNTER_X[1], COUNTER_ROW], 'counter');
-  walls.fill([COUNTER_X[0], 54, COUNTER_X[0], COUNTER_ROW], 'counter');
-  ground.fill([64, 54, 76, 58], 'floor_alt');
-  walls.fill([66, 66, 73, 66], 'fridge');
-  decor.fill([74, COUNTER_ROW, 76, COUNTER_ROW], 'hazard');
+  walls.fill([COUNTER_X[0], 41, COUNTER_X[0], COUNTER_ROW], 'counter');
+  ground.fill([50, 41, 60, 45], 'floor_alt');
+  walls.fill([52, 52, 58, 52], 'fridge');
+  decor.fill([58, COUNTER_ROW, 60, COUNTER_ROW], 'hazard');
 
   // Entrance: checkout line with lanes, trolley rows at both ends.
   for (let y = STORE[1] + 1; y < STORE[3]; y++) {
     if (CHECKOUT_LANES.has(y)) continue;
-    walls.set(CHECKOUT_X, y, y < 17 || y > 61 ? 'trolley' : 'checkout');
+    walls.set(CHECKOUT_X, y, y < 14 || y > 48 ? 'trolley' : 'checkout');
   }
-  walls.fill([86, 6, 87, 14], 'trolley').fill([86, 65, 87, 73], 'trolley');
+  walls.fill([66, 6, 67, 12], 'trolley').fill([66, 51, 67, 57], 'trolley');
 
   // Forklift route corners get hazard markings on the floor.
   for (const [, points] of FORKLIFT_ROUTES) for (const [x, y] of points) decor.set(x, y, 'hazard');
@@ -436,21 +446,21 @@ function paintTiles(): TileLayers {
   walls.outline(OFFICE_BUILDING, 'wall');
   walls.fill([OFFICE_BUILDING[0], OFFICE_DOOR[0], OFFICE_BUILDING[0], OFFICE_DOOR[1]], null);
   ground.fill([OFFICE_BUILDING[0], OFFICE_DOOR[0], OFFICE_BUILDING[0], OFFICE_DOOR[1]], 'door');
-  ground.fill([111, OFFICE_DOOR[0], 111, OFFICE_DOOR[1]], 'sidewalk');
+  ground.fill([87, OFFICE_DOOR[0], 87, OFFICE_DOOR[1]], 'sidewalk');
   walls
-    .set(115, 35, 'office_desk')
-    .set(116, 35, 'office_desk')
-    .set(115, 44, 'office_desk')
-    .set(116, 44, 'office_desk');
-  walls.set(OFFICE_BUILDING[0], 35, 'wall_window').set(OFFICE_BUILDING[0], 44, 'wall_window');
+    .set(91, 27, 'office_desk')
+    .set(92, 27, 'office_desk')
+    .set(91, 36, 'office_desk')
+    .set(92, 36, 'office_desk');
+  walls.set(OFFICE_BUILDING[0], 27, 'wall_window').set(OFFICE_BUILDING[0], 36, 'wall_window');
   above.set(OFFICE_BUILDING[0], OFFICE_DOOR[0] - 1, 'sign');
   for (const [x, y] of [
-    [114, 10],
-    [117, 20],
-    [113, 26],
-    [116, 54],
-    [113, 62],
-    [118, 70],
+    [90, 6],
+    [93, 14],
+    [89, 19],
+    [92, 46],
+    [89, 52],
+    [94, 57],
   ] as const) {
     walls.set(x, y, 'tree');
   }
@@ -534,9 +544,13 @@ export function buildKesproMap(
     );
   });
 
-  const vanSlots = VAN_SLOT_TILES.map(([x, y], i) =>
-    point(px(x), px(y), `van_${i + 1}`, [{ name: 'index', type: 'int', value: i + 1 }]),
-  );
+  const vanSlots = VAN_SLOT_TILES.map(([x, y], i) => {
+    const team = TEAM_VAN_SLOTS.indexOf(i + 1) + 1;
+    return point(px(x), px(y), `van_${i + 1}`, [
+      { name: 'index', type: 'int', value: i + 1 },
+      ...(team > 0 ? [{ name: 'team', type: 'int', value: team } satisfies Property] : []),
+    ]);
+  });
 
   const isOddSpot = (x: number, y: number): boolean =>
     ODD_SPOT_TILES.some(([ox, oy]) => ox === x && oy === y);

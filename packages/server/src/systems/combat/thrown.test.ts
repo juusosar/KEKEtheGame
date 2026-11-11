@@ -28,6 +28,8 @@ const weapons = getWeaponCatalogue();
 const TICK = 1 / config.serverTickHz;
 const MAX = config.maxHp;
 let map: MapModel;
+/** Van slot 3 (0-based 2), west column of the dock: the map edge is 96 px to its left. */
+const WEST_VAN = 2;
 
 beforeAll(() => {
   map = loadThemeMap(getTheme(defaultThemeId));
@@ -55,7 +57,7 @@ function setup(
 ): Setup {
   const state = new GameState();
   state.settings.teams = teams;
-  const base = vanSpawn(map, 0, playerHalfSize(config));
+  const base = vanSpawn(map, WEST_VAN, playerHalfSize(config));
   const players = at.map(([dx, dy], i) => {
     const p = new PlayerState();
     p.sessionId = `p${i}`;
@@ -228,7 +230,7 @@ describe('thrown weapons (M4-3)', () => {
     }
     if (!found) throw new Error('no thin wall on the map');
     const t = grid.tileSize;
-    const base = vanSpawn(map, 0, playerHalfSize(config));
+    const base = vanSpawn(map, WEST_VAN, playerHalfSize(config));
     const wallLeft = found.tx * t;
     const y = found.ty * t + t / 2;
     // Thrower 3.5 tiles left of the wall; the victim's centre 10 px past the wall's right face.

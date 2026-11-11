@@ -244,7 +244,7 @@ export async function aimMouse(
  * @keke/shared). The butcher (M5-6) cleaves anyone standing there, so specs that meet up to fight or
  * count HP pick a spot outside it.
  */
-const BEHIND_COUNTER = { x: 2048, y: 1728, w: 416, h: 160 };
+const BEHIND_COUNTER = { x: 1600, y: 1312, w: 352, h: 160 };
 
 /** True when `at` is inside the butcher's zone or within `margin` px of it. */
 export function nearButcherCounter(at: { x: number; y: number }, margin = 64): boolean {

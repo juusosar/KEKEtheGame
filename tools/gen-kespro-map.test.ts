@@ -73,8 +73,8 @@ describe('maps/kespro.tmj', () => {
     expect(committed).toBe(serializeMap(buildKesproMap(config, tsj)));
   });
 
-  it('is about 120 x 80 tiles of 32 px', () => {
-    expect([map.width, map.height, map.tileSize]).toEqual([120, 80, 32]);
+  it('is 96 x 64 tiles of 32 px (tightened from 120 x 80, 2026-11-11)', () => {
+    expect([map.width, map.height, map.tileSize]).toEqual([96, 64, 32]);
   });
 
   it('has every zone from §9.1', () => {
@@ -112,9 +112,20 @@ describe('maps/kespro.tmj', () => {
     expect(new Set(map.itemSpawns.map((s) => s.zone))).toEqual(new Set(ITEM_ZONES));
   });
 
-  it('keeps the team vans at the first two slots, 8 tiles apart (P1 review F3)', () => {
-    expect(map.teamVanSlots).toEqual([0, 1]);
-    expect(map.vanSlots.some((s) => s.team !== undefined)).toBe(false);
+  it('parks the vans around the middle of the west edge, filling from the middle outwards', () => {
+    const midY = (map.height * map.tileSize) / 2;
+    const offMiddle = map.vanSlots.map((s) => Math.abs(s.y - midY) / map.tileSize);
+    // Every van sits in the middle half of the map's height, and slots 1 to 4 are the four closest.
+    for (const [i, d] of offMiddle.entries()) expect(d, `van ${i + 1}`).toBeLessThanOrEqual(map.height / 4);
+    expect(Math.max(...offMiddle.slice(0, 4))).toBeLessThanOrEqual(Math.min(...offMiddle.slice(4)));
+    for (const s of map.vanSlots) expect(s.x / map.tileSize, `van ${s.index}`).toBeLessThan(10);
+  });
+
+  it('names its own team slots, 5 and 6, at least 8 tiles apart (P1 review F3)', () => {
+    expect(map.teamVanSlots.map((i) => map.vanSlots[i]?.index)).toEqual([5, 6]);
+    const [a, b] = map.teamVanSlots.map((i) => map.vanSlots[i]);
+    if (!a || !b) throw new Error('no team vans');
+    expect(Math.hypot(a.x - b.x, a.y - b.y) / map.tileSize).toBeGreaterThanOrEqual(8);
   });
 
   it('places every item spawn inside its zone, on open floor reachable from the dock', () => {

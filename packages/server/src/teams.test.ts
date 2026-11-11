@@ -164,14 +164,15 @@ describe('Teams option on the server (integration)', () => {
     return depositor.me.carrying;
   }
 
-  it('balances 4 players 2 against 2 and gives each team one shared van in the first slots', async () => {
+  it("balances 4 players 2 against 2 and gives each team one shared van in the map's team slots", async () => {
     const { room, red, blue } = await playing(4, 'timed');
+    const [redVan, blueVan] = map.teamVanSlots;
     expect([red.length, blue.length]).toEqual([2, 2]);
-    for (const p of red) expect(p.me.van).toBe(0);
-    for (const p of blue) expect(p.me.van).toBe(1);
+    for (const p of red) expect(p.me.van).toBe(redVan);
+    for (const p of blue) expect(p.me.van).toBe(blueVan);
     expect([...room.state.vans.values()].map((v) => [v.van, v.team]).sort()).toEqual([
-      [0, 1],
-      [1, 2],
+      [redVan, 1],
+      [blueVan, 2],
     ]);
     // Personal targets stay personal (§4.3).
     const targets = [...red, ...blue].map((p) => p.me.target);
@@ -290,7 +291,7 @@ describe('Teams option on the server (integration)', () => {
     const [stay, moved] = red;
     expect(stay?.me.team).toBe(1);
     expect(moved?.me.team).toBe(2);
-    expect(moved?.me.van).toBe(1);
+    expect(moved?.me.van).toBe(map.teamVanSlots[1]);
     expect(room.combatWorld.players.find((c) => c.id === moved?.conn.sessionId)?.team).toBe(2);
   });
 

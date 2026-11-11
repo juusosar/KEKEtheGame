@@ -27,9 +27,12 @@ export function kesproMap(): MapModel {
   return cachedMap;
 }
 
-/** An open floor spot: van 0's spawn, then `dx`, `dy` pixels away. */
+/** Van slot 3 (0-based 2), west column of the dock: open floor with the map edge 96 px to its left. */
+export const WEST_VAN = 2;
+
+/** An open floor spot: the west van's spawn, then `dx`, `dy` pixels away. */
 export function spot(dx = 0, dy = 0): Vec2 {
-  const base = vanSpawn(kesproMap(), 0, playerHalfSize(config));
+  const base = vanSpawn(kesproMap(), WEST_VAN, playerHalfSize(config));
   return { x: base.x + dx, y: base.y + dy };
 }
 

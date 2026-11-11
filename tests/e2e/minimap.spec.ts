@@ -36,10 +36,10 @@ test('offline walk: the minimap shows our van and follows us', async ({ page }) 
   await expect.poll(() => kinds(page)).toEqual(['self', 'van']);
 
   const start = (await markers(page)).find((m) => m.kind === 'self');
-  await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(600, 400));
+  await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(600, 480));
   await expect
     .poll(async () => (await markers(page)).find((m) => m.kind === 'self'))
-    .toMatchObject({ x: 600, y: 400, mine: true });
+    .toMatchObject({ x: 600, y: 480, mine: true });
   expect(start?.x).not.toBe(600);
   expect(pageErrors).toEqual([]);
 });

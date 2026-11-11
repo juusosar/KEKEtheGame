@@ -25,7 +25,7 @@ type WithHook = { __KEKE__?: KekeHook };
 /** config.json raceQuota (Playwright cannot import @keke/shared). */
 const RACE_QUOTA = 6;
 /** Centre of the kespro office trigger, walkable (see race.spec.ts). */
-const OFFICE = { x: 3696, y: 1280 };
+const OFFICE = { x: 2928, y: 1024 };
 
 const hook = (page: Page) =>
   page.evaluate(() => {
