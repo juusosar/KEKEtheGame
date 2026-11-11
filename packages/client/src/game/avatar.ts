@@ -21,6 +21,12 @@ const OUTLINE_DIRS: readonly { x: number; y: number }[] = [
   { x: 0, y: 1 },
 ];
 
+/** `#RRGGBB` plus an alpha 0..1 as a CSS `rgba()` string (Phaser text backgrounds). */
+function hexWithAlpha(hex: string, alpha: number): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
 /** Below this many pixels per render frame a remote player counts as standing (patch jitter). */
 const WALK_EPSILON_PX = 0.05;
 
@@ -43,6 +49,8 @@ export class Avatar {
   /** Team-colour outline (§4.3, M6-4): tint-filled copies of the body drawn just behind it; made on first use. */
   private outlineCopies: Phaser.GameObjects.Sprite[] = [];
   private outlineColor: string | null = null;
+  /** Team ring on the floor under the feet (playtest 1 problem 7: a 1 px outline is not enough). */
+  private teamRing: Phaser.GameObjects.Ellipse | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -82,10 +90,14 @@ export class Avatar {
     this.look = look;
   }
 
-  /** Team-colour outline around the body (`#RRGGBB`), or null for none. Cheap to call every frame. */
+  /**
+   * Team colour (`#RRGGBB`), or null for none: an outline around the body, a ring on the floor under the
+   * feet and a team-tinted nameplate. Cheap to call every frame.
+   */
   setOutline(color: string | null): void {
-    const next =
-      color !== null && /^#[0-9a-f]{6}$/i.test(color) && renderConfig.playerOutlinePx > 0 ? color : null;
+    const valid = color !== null && /^#[0-9a-f]{6}$/i.test(color) ? color : null;
+    this.setTeamRing(valid);
+    const next = valid !== null && renderConfig.playerOutlinePx > 0 ? valid : null;
     if (next === this.outlineColor) return;
     this.outlineColor = next;
     if (next !== null && this.outlineCopies.length === 0) {
@@ -99,6 +111,51 @@ export class Avatar {
     }
     this.applyAlpha();
     this.syncOutline();
+  }
+
+  private teamColor: string | null = null;
+
+  private setTeamRing(color: string | null): void {
+    if (color === this.teamColor) return;
+    this.teamColor = color;
+    this.label?.setBackgroundColor(
+      color === null ? 'rgba(0,0,0,0.45)' : hexWithAlpha(color, renderConfig.teamNameplateAlpha),
+    );
+    if (color === null || renderConfig.teamRingWidthPx <= 0) {
+      this.teamRing?.setVisible(false);
+      return;
+    }
+    const fill = Phaser.Display.Color.HexStringToColor(color).color;
+    if (this.teamRing === null) {
+      this.teamRing = this.scene.add.ellipse(
+        0,
+        0,
+        renderConfig.teamRingWidthPx,
+        renderConfig.teamRingHeightPx,
+        fill,
+        renderConfig.teamRingFillAlpha,
+      );
+    }
+    this.teamRing.setFillStyle(fill, renderConfig.teamRingFillAlpha).setStrokeStyle(1, fill, 1);
+    this.syncTeamRing();
+  }
+
+  /** Under the feet, one layer below the body (and its outline). */
+  private syncTeamRing(): void {
+    const ring = this.teamRing;
+    if (ring === null) return;
+    const on = this.teamColor !== null && this.visible;
+    ring.setVisible(on);
+    if (!on) return;
+    ring
+      .setPosition(Math.round(this.body.x), Math.round(this.body.y + renderConfig.teamRingOffsetY))
+      .setDepth(this.body.depth - 0.0001)
+      .setAlpha(this.connectedAlpha * this.combat.alpha);
+  }
+
+  /** Team colour shown (ring and nameplate; debug hook), null for none. */
+  get team(): string | null {
+    return this.teamColor;
   }
 
   /** Current outline colour (debug hook), null for none. */
@@ -207,6 +264,7 @@ export class Avatar {
     this.hat.setVisible(visible);
     this.label?.setVisible(visible);
     this.syncOutline();
+    this.syncTeamRing();
   }
 
   /**
@@ -235,6 +293,7 @@ export class Avatar {
     this.label?.setPosition(Math.round(x), Math.round(y - renderConfig.nameplateOffsetY - this.labelLift));
     this.placeWanted(x, y);
     this.syncOutline();
+    this.syncTeamRing();
   }
 
   get currentFacing(): Facing {
@@ -247,5 +306,6 @@ export class Avatar {
     this.label?.destroy();
     this.wantedIcon?.destroy();
     for (const copy of this.outlineCopies) copy.destroy();
+    this.teamRing?.destroy();
   }
 }
