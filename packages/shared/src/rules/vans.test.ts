@@ -41,6 +41,25 @@ describe('assignVans (§4.3, §9.1, §15.3)', () => {
     expect(Object.fromEntries(vans)).toEqual({ a: 0, x: 2, b: 1 });
   });
 
+  it('puts the teams at the map team slots and keeps everyone else off them (P1 review F3)', () => {
+    const options = { teams: true, slotCount: 16, teamSlots: [0, 11] as const };
+    const vans = assignVans(
+      [entry('a', 0, 1), entry('x', 1, 0, 11), entry('b', 2, 2, 1), entry('y', 3, 0, 4), entry('z', 4, 0)],
+      options,
+    );
+    // x held slot 11 before (another map's numbering): it is team 2's now, so x takes the lowest free one.
+    expect(Object.fromEntries(vans)).toEqual({ a: 0, b: 11, x: 1, y: 4, z: 2 });
+  });
+
+  it('ignores the team slots with Teams off', () => {
+    const vans = assignVans([entry('a', 0, 0, 11), entry('b', 1, 0)], {
+      teams: false,
+      slotCount: 16,
+      teamSlots: [0, 11],
+    });
+    expect(Object.fromEntries(vans)).toEqual({ a: 11, b: 0 });
+  });
+
   it('is deterministic and shares slots only when there are more players than slots', () => {
     const roster = [0, 1, 2, 3, 4].map((i) => entry(`p${i}`, i));
     const first = assignVans(roster, { teams: false, slotCount: 3 });

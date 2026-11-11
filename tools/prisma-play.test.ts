@@ -268,3 +268,82 @@ describe('one-way gates on the prisma map (P2-1, decision 9)', () => {
     expect(findPath(grid, dairy, van, { radius: half.hw, refuses, blocked: blockedBy(checkout) })).toBeNull();
   });
 });
+
+/** 8-way walking distance in tiles from `from` to every tile (diagonals never cut a wall corner). */
+function walkFrom(from: Vec2): Float64Array {
+  const { width, tileSize } = grid;
+  const dist = new Float64Array(width * grid.height).fill(Infinity);
+  const start = Math.floor(from.y / tileSize) * width + Math.floor(from.x / tileSize);
+  dist[start] = 0;
+  const done = new Uint8Array(dist.length);
+  const open = [start];
+  while (open.length > 0) {
+    let best = 0;
+    for (let i = 1; i < open.length; i++)
+      if (must(dist[must(open[i])]) < must(dist[must(open[best])])) best = i;
+    const cell = must(open.splice(best, 1)[0]);
+    if (done[cell] === 1) continue;
+    done[cell] = 1;
+    const cx = cell % width;
+    const cy = Math.floor(cell / width);
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ] as const) {
+      if (grid.isSolid(cx + dx, cy + dy)) continue;
+      if (dx !== 0 && dy !== 0 && (grid.isSolid(cx + dx, cy) || grid.isSolid(cx, cy + dy))) continue;
+      const next = (cy + dy) * width + cx + dx;
+      const d = must(dist[cell]) + (dx !== 0 && dy !== 0 ? Math.SQRT2 : 1);
+      if (d < must(dist[next])) {
+        dist[next] = d;
+        open.push(next);
+      }
+    }
+  }
+  return dist;
+}
+
+describe('team vans on the prisma map (P1 review F3)', () => {
+  const at = (dist: Float64Array, p: Vec2): number =>
+    must(dist[Math.floor(p.y / grid.tileSize) * grid.width + Math.floor(p.x / grid.tileSize)]);
+  const walks = map.teamVanSlots.map((slot) => {
+    const van = must(map.vanSlots[slot], `van slot ${slot}`);
+    const dist = walkFrom(van);
+    const items = map.itemSpawns.reduce((sum, s) => sum + at(dist, s), 0) / map.itemSpawns.length;
+    const b = map.officeTrigger.bounds;
+    let office = Infinity;
+    for (let y = b.minY + grid.tileSize / 2; y < b.maxY; y += grid.tileSize) {
+      for (let x = b.minX + grid.tileSize / 2; x < b.maxX; x += grid.tileSize)
+        office = Math.min(office, at(dist, { x, y }));
+    }
+    return { van, items, office };
+  });
+
+  it('names its own two team slots, not the first two', () => {
+    expect(map.teamVanSlots).not.toEqual([0, 1]);
+    expect(map.teamVanSlots.map((i) => map.vanSlots[i]?.index)).toEqual([1, 12]);
+  });
+
+  it('keeps the two team vans at least 8 tiles apart, like the first map', () => {
+    const [a, b] = walks.map((w) => w.van);
+    expect(Math.hypot(must(a).x - must(b).x, must(a).y - must(b).y) / grid.tileSize).toBeGreaterThanOrEqual(
+      8,
+    );
+  });
+
+  it('gives both teams about the same walk to the item spawns and to the office (within 15 %)', () => {
+    const [a, b] = walks.map((w) => must(w));
+    for (const key of ['items', 'office'] as const) {
+      const x = must(a)[key];
+      const y = must(b)[key];
+      expect(Number.isFinite(x) && Number.isFinite(y), key).toBe(true);
+      expect(Math.abs(x - y) / Math.min(x, y), key).toBeLessThanOrEqual(0.15);
+    }
+  });
+});

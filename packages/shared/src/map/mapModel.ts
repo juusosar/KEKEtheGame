@@ -70,6 +70,8 @@ export interface VanSlot {
   readonly index: number;
   readonly x: number;
   readonly y: number;
+  /** 1 or 2: this slot is that team's van with Teams on (`team` property, P1 review F3). */
+  readonly team?: 1 | 2;
 }
 
 export interface ItemSpawn {
@@ -146,6 +148,11 @@ export interface MapModel {
   readonly zones: readonly Zone[];
   /** Sorted by `index`. */
   readonly vanSlots: readonly VanSlot[];
+  /**
+   * Positions in `vanSlots` (0-based) of team 1's and team 2's van with Teams on: the slots with a
+   * `team` property, or the first two when the map names none (§9.1; P1 review F3).
+   */
+  readonly teamVanSlots: readonly [number, number];
   readonly itemSpawns: readonly ItemSpawn[];
   /** From the optional `ambient_sounds` layer; empty when the map has none. */
   readonly ambientSounds: readonly AmbientSound[];
@@ -338,12 +345,18 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
       const where = `van_slots #${o.id}`;
       const pos = ctx.point(o, where);
       const index = ctx.int(o, 'index', where);
-      return pos === undefined || index === undefined ? [] : [{ index, ...pos }];
+      const team = ctx.optionalNumber(o, 'team', where);
+      if (team !== undefined && team !== 1 && team !== 2)
+        issues.push(`${where}: team must be 1 or 2, got ${team}`);
+      if (pos === undefined || index === undefined) return [];
+      const slot: VanSlot = { index, ...pos, ...((team === 1 || team === 2) && { team }) };
+      return [slot];
     })
     .sort((a, b) => a.index - b.index);
   vanSlots.forEach((slot, i) => {
     if (slot.index === vanSlots[i - 1]?.index) issues.push(`van_slots: duplicate index ${slot.index}`);
   });
+  const teamVanSlots = readTeamVanSlots(vanSlots, issues);
 
   const itemSpawns = objects('item_spawns').flatMap((o) => {
     const where = `item_spawns #${o.id}`;
@@ -452,6 +465,7 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     collision,
     zones,
     vanSlots,
+    teamVanSlots,
     itemSpawns,
     ambientSounds,
     npcSpawns,
@@ -467,6 +481,22 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
 /** True when pixel position (x, y) is inside the office trigger (race-mode delivery). */
 export function inOfficeTrigger(map: MapModel, x: number, y: number): boolean {
   return pointInPolygon(x, y, map.officeTrigger.polygon);
+}
+
+/** `MapModel.teamVanSlots`: both teams named once each, or neither (then the first two slots). */
+function readTeamVanSlots(vanSlots: readonly VanSlot[], issues: string[]): readonly [number, number] {
+  const named = [1, 2].map((team) => {
+    const at = vanSlots.flatMap((slot, i) => (slot.team === team ? [i] : []));
+    if (at.length > 1) issues.push(`van_slots: team ${team} is on ${at.length} slots, expected 1`);
+    return at[0];
+  });
+  const [one, two] = named;
+  if (one === undefined && two === undefined) return [0, 1];
+  if (one === undefined || two === undefined) {
+    issues.push('van_slots: name a slot for both teams (team 1 and team 2) or for neither');
+    return [0, 1];
+  }
+  return [one, two];
 }
 
 function buildCollisionGrid(walls: TiledTileLayer, tileSize: number): MapCollisionGrid {
