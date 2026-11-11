@@ -51,6 +51,6 @@ COPY --from=build /app/packages/client/dist packages/client/dist
 # (GET /healthz answers {"ok":true,"debug":false}). Never pass KEKE_DEBUG=1 to a public server.
 USER node
 EXPOSE 2567
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --start-interval=2s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||2567)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 CMD ["node", "--enable-source-maps", "packages/server/dist/index.js"]
