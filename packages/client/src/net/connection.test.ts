@@ -9,14 +9,21 @@ describe('checkHealth', () => {
     let url = '';
     const fetcher = (async (input: string) => {
       url = input;
-      return new Response(JSON.stringify({ ok: true, debug: true }), { status: 200 });
+      return new Response(JSON.stringify({ ok: true, debug: true, maps: ['kespro', 'prisma'] }), {
+        status: 200,
+      });
     }) as unknown as typeof fetch;
     await expect(checkHealth('http://host:2567/colyseus', fetcher)).resolves.toEqual({
       ok: true,
       debug: true,
+      maps: ['kespro', 'prisma'],
     });
     expect(url).toBe('http://host:2567/colyseus/healthz');
-    await expect(checkHealth('', answer(200, { ok: true }))).resolves.toEqual({ ok: true, debug: false });
+    await expect(checkHealth('', answer(200, { ok: true }))).resolves.toEqual({
+      ok: true,
+      debug: false,
+      maps: [],
+    });
   });
 
   it('rejects an error status, a wrong body and a network failure', async () => {

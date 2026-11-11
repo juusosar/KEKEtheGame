@@ -30,9 +30,9 @@ describe('game server HTTP (integration)', () => {
 
   it('answers /healthz with ok and whether the debug messages are on', async () => {
     const res = await colyseus.http.get('/healthz');
-    expect(res.data as HealthResponse).toEqual({ ok: true, debug: false });
+    expect(res.data as HealthResponse).toEqual({ ok: true, debug: false, maps: ['kespro', 'prisma'] });
     const debug = await debugServer.http.get('/healthz');
-    expect(debug.data as HealthResponse).toEqual({ ok: true, debug: true });
+    expect((debug.data as HealthResponse).debug).toBe(true);
   });
 
   it('no longer defines the M0 hello room', async () => {

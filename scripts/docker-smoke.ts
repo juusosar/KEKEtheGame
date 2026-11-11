@@ -15,6 +15,7 @@ import {
   HEALTH_PATH,
   ROOM_NAMES,
   ServerMessage,
+  themes,
   type HealthResponse,
   type LobbyErrorMessage,
 } from '@keke/shared';
@@ -95,6 +96,14 @@ async function main(): Promise<void> {
       return res.ok ? ((await res.json()) as HealthResponse) : undefined;
     });
     check(health.ok && health.debug === false, `GET ${HEALTH_PATH} answers {"ok":true,"debug":false}`);
+    // Every available map made it into the image and loaded (P1 review F9).
+    const expected = Object.values(themes)
+      .filter((t) => t.available)
+      .map((t) => t.id);
+    check(
+      expected.every((id) => health.maps.includes(id)),
+      `GET ${HEALTH_PATH} lists the loaded maps ${expected.join(', ')} (got ${health.maps.join(', ')})`,
+    );
 
     const page = await fetch(`${base}/`);
     const html = await page.text();

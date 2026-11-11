@@ -1,6 +1,6 @@
 // Synchronised room state (§15.2 schema/). Clients read it; only the server writes it.
 import { schema, t, type SchemaType } from '@colyseus/schema';
-import { DEFAULT_MAP_CHOICE } from '@keke/shared';
+import { DEFAULT_MAP_CHOICE, defaultThemeId } from '@keke/shared';
 
 /** One connected player (or late-joining spectator). Keyed by sessionId in `GameState.players`. */
 export const PlayerState = schema(
@@ -389,7 +389,7 @@ export const GameState = schema(
      * Theme id of the map the room plays on (Phase 2, P1-1): the round's map from each countdown, and in
      * the lobby the first map of the `maps` setting. Clients build their tilemap from this theme.
      */
-    mapId: t.string().default('kespro'),
+    mapId: t.string().default(defaultThemeId),
     /**
      * Theme ids of the maps this server loaded (P1-5), set once at room creation: the lobby's map picker
      * offers only choices made of these.

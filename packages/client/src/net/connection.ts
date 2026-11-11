@@ -13,5 +13,6 @@ export async function checkHealth(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = (await res.json()) as Partial<HealthResponse> | null;
   if (body?.ok !== true) throw new Error('unexpected health check answer');
-  return { ok: true, debug: body.debug === true };
+  const maps = Array.isArray(body.maps) ? body.maps.filter((m): m is string => typeof m === 'string') : [];
+  return { ok: true, debug: body.debug === true, maps };
 }

@@ -54,7 +54,7 @@ export function createGameServer({
     express: (app) => {
       // Health check for the client's connection badge and the e2e specs (replaces the M0 hello room).
       app.get(HEALTH_PATH, (_req, res) => {
-        const health: HealthResponse = { ok: true, debug };
+        const health: HealthResponse = { ok: true, debug, maps: maps.ids };
         res.set('Cache-Control', 'no-store').json(health);
       });
       const indexHtml = join(clientDist, 'index.html');

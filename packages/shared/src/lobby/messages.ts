@@ -12,6 +12,8 @@ export interface HealthResponse {
   ok: true;
   /** The debug-only room messages are accepted (the server runs with KEKE_DEBUG=1). */
   debug: boolean;
+  /** Theme ids of the maps this server loaded, in order (P1 review F9: Docker smoke checks them). */
+  maps: string[];
 }
 
 /** Client → server message types. */
