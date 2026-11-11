@@ -69,22 +69,44 @@ const BM = [47, 50, 54];
 const GD = [43, 47, 50];
 const A = [45, 49, 52];
 
-/** The second store's tune: a bit quicker, in D major, D - Bm - G - A then D - G - A - D. Original placeholder. */
+const FSM = [42, 45, 49];
+
+/** Second store, section A (8 bars): the hook over D - Bm - G - A - D - G - A - D. */
+// prettier-ignore
+const PRISMA_A: readonly Note[] = [
+  [74, 2], [78, 2], [81, 4], [78, 2], [76, 2], [74, 4],
+  [71, 4], [74, 2], [78, 2], [76, 4], [null, 4],
+  [79, 2], [78, 2], [76, 2], [74, 2], [71, 4], [74, 4],
+  [76, 6], [73, 2], [69, 4], [null, 4],
+  [81, 2], [81, 2], [78, 2], [86, 6], [85, 2], [83, 2],
+  [83, 4], [79, 4], [74, 2], [76, 2], [79, 4],
+  [81, 4], [79, 2], [78, 2], [76, 2], [73, 2], [76, 4],
+  [74, 6], [78, 2], [74, 4], [null, 4],
+];
+
+/** Second store, section B (8 bars): a calmer middle over G - A - F#m - Bm - Em - A - D - A. */
+// prettier-ignore
+const PRISMA_B: readonly Note[] = [
+  [74, 2], [76, 2], [79, 4], [78, 2], [76, 2], [74, 4],
+  [76, 6], [73, 2], [69, 4], [73, 4],
+  [73, 2], [74, 2], [73, 2], [69, 2], [66, 4], [69, 4],
+  [71, 8], [null, 4], [74, 2], [76, 2],
+  [79, 4], [76, 2], [79, 2], [83, 4], [81, 2], [79, 2],
+  [81, 4], [76, 4], [73, 4], [76, 4],
+  [78, 2], [79, 2], [81, 4], [86, 4], [81, 4],
+  [85, 4], [83, 2], [81, 2], [76, 4], [null, 4],
+];
+
+/**
+ * The second store's tune: a bit quicker, in D major. Original placeholder, built like STORE_TUNE:
+ * A, B, then A again with the arpeggio out for four bars. 24 bars, about 42 s.
+ */
 export const PRISMA_TUNE: MusicSpec = {
   bpm: 136,
-  chords: [D, BM, GD, A, D, GD, A, D],
-  // One bar per line.
-  // prettier-ignore
-  melody: [
-    [74, 2], [78, 2], [81, 4], [78, 2], [76, 2], [74, 4],
-    [71, 4], [74, 2], [78, 2], [76, 4], [null, 4],
-    [79, 2], [78, 2], [76, 2], [74, 2], [71, 4], [74, 4],
-    [76, 6], [73, 2], [69, 4], [null, 4],
-    [81, 2], [81, 2], [78, 2], [86, 6], [85, 2], [83, 2],
-    [83, 4], [79, 4], [74, 2], [76, 2], [79, 4],
-    [81, 4], [79, 2], [78, 2], [76, 2], [73, 2], [76, 4],
-    [74, 6], [78, 2], [74, 4], [null, 4],
-  ],
+  chords: [D, BM, GD, A, D, GD, A, D, GD, A, FSM, BM, EM, A, D, A, D, BM, GD, A, D, GD, A, D],
+  melody: [...PRISMA_A, ...PRISMA_B, ...PRISMA_A],
+  noArpBars: [16, 17, 18, 19],
+  fillBars: [7, 15, 23],
 };
 
 /** Music per theme id (§14: the theme file names the track; phase 2 adds the second map's tune). */
