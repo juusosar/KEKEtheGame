@@ -1,8 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
+import { createRoom, requireDebugServer, toPlay, waitControlling } from './helpers';
 
-// M7-2 (§12): the sound settings control is on every screen, its changes survive a reload, and the Game
-// scene loops its map's music track. Audio output itself is not checked: the specs read state only.
+// M7-2 (§12): the sound settings control is on every screen, its changes survive a reload, the Game
+// scene loops its map's music track, and round events play their sounds. Audio output itself is not
+// checked: the specs read state and the latched play counts (`__KEKE__.sfx()`) only.
 type WithHook = { __KEKE__?: KekeHook };
 
 test('volume and mute settings are saved and come back after a reload', async ({ page }) => {
@@ -62,5 +64,42 @@ test('the Game scene loops the map music and the sound files are served', async 
     expect(res.ok(), path ?? '').toBe(true);
     expect((await res.body()).subarray(0, 4).toString('ascii')).toBe('RIFF');
   }
+  expect(pageErrors).toEqual([]);
+});
+
+const played = (page: Page) =>
+  page.evaluate(() => (globalThis as WithHook).__KEKE__?.sfx() ?? ({} as Record<string, number>));
+
+test('a solo round plays the countdown, the go, our swing and the round-end buzzer', async ({
+  page,
+  request,
+}) => {
+  await requireDebugServer(request);
+  test.setTimeout(60_000);
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err));
+  await toPlay(page, 'Kuulija', '?debug=1');
+  await createRoom(page);
+  await page.getByRole('button', { name: 'Ready', exact: true }).click();
+  await page.getByRole('button', { name: 'Start' }).click();
+  await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 10_000 });
+  await waitControlling(page);
+
+  await expect.poll(async () => (await played(page))['countdownGo'] ?? 0).toBe(1);
+  const atStart = await played(page);
+  expect(atStart['countdown'] ?? 0).toBeGreaterThanOrEqual(1);
+  expect(atStart['countdown'] ?? 0).toBeLessThanOrEqual(3);
+
+  // Our own fists swing: the server's attack echo plays the swing at full volume.
+  // Held across an input step (1/30 s), as combat.spec.ts does, so the press is sampled.
+  await page.mouse.move(200, 200);
+  await page.mouse.down();
+  await page.waitForTimeout(120);
+  await page.mouse.up();
+  await expect.poll(async () => (await played(page))['swing'] ?? 0).toBeGreaterThanOrEqual(1);
+
+  expect(await page.evaluate(() => (globalThis as WithHook).__KEKE__?.endPhase() ?? false)).toBe(true);
+  await expect(page.locator('body')).toHaveAttribute('data-phase', 'roundResults', { timeout: 10_000 });
+  await expect.poll(async () => (await played(page))['roundEnd'] ?? 0).toBe(1);
   expect(pageErrors).toEqual([]);
 });

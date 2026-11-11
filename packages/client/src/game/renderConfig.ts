@@ -96,6 +96,8 @@ export interface RenderConfig {
   readonly forkliftLightBlinkHz: number;
   /** A forklift beep fades to silence at this distance from the camera's player, px (M5-7). */
   readonly forkliftBeepHearingPx: number;
+  /** Other players' sounds (hits, pickups, ...) fade to silence at this distance, px (M7-2). */
+  readonly sfxHearingPx: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -155,6 +157,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const wantedIconOffsetY = num('wantedIconOffsetY', () => true, 'a number');
   const forkliftLightBlinkHz = num('forkliftLightBlinkHz', (n) => n > 0, 'positive');
   const forkliftBeepHearingPx = num('forkliftBeepHearingPx', (n) => n >= 0, '>= 0');
+  const sfxHearingPx = num('sfxHearingPx', (n) => n >= 0, '>= 0');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -205,6 +208,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     wantedIconOffsetY,
     forkliftLightBlinkHz,
     forkliftBeepHearingPx,
+    sfxHearingPx,
   });
 }
 
