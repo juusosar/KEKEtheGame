@@ -298,6 +298,7 @@ export {
   CART_DIRS,
   boxesOverlap,
   cartDirFor,
+  cartGrid,
   cartHalfSize,
   cartsSegmentTime,
   newCart,
