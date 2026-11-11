@@ -288,6 +288,22 @@ describe('sessions (M7-1)', () => {
     expect(timeUp.rows.every((r) => !r.delivered)).toBe(true);
   });
 
+  it('counts the delivered box for the deliverer, whose van no longer controls it (playtest 1)', () => {
+    const raceState: P = {
+      ...state('roundResults', [player('a', 0, { place: 2, van: 0 }), player('b', 1, { place: 1, van: 1 })], {
+        vans: { '0': { van: 0, points: 2, controlled: 2 }, '1': { van: 1, points: 1, controlled: 1 } },
+        raceWinner: 'b',
+      }),
+      settings: { mode: 'race', roundsPerMap: 1, teams: false },
+    };
+    const model = readRoundScreen(raceState, 'a', 7);
+    if (model.kind !== 'results') throw new Error(model.kind);
+    expect(model.rows.map((r) => [r.id, r.items])).toEqual([
+      ['b', 8],
+      ['a', 2],
+    ]);
+  });
+
   it('marks podium sides whose place the item points decided, and gives colours and members', () => {
     const model = readRoundScreen(
       state('podium', [

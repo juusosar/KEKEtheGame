@@ -157,31 +157,38 @@ export class LobbyScene extends Phaser.Scene {
     this.layer = layer;
     const panel = h('div', { class: 'panel', role: 'region', 'aria-labelledby': 'keke-lobby-heading' });
 
-    panel.append(h('h2', { id: 'keke-lobby-heading' }, t('lobby.heading')));
-    this.codeEl = h('span', { class: 'code', id: 'keke-lobby-code' }, code);
-    panel.append(h('p', { class: 'room-code' }, t('lobby.codeLabel'), ' ', this.codeEl));
-    panel.append(h('p', { class: 'muted' }, t('lobby.codeHint')));
+    // Two columns on short screens (playtest 1: at 720p with 8 players the room code scrolled away):
+    // the room and its players on the left, settings and Start on the right. See ui.css.
+    const room = h('div', { class: 'lobby-col lobby-room' });
+    const setup = h('div', { class: 'lobby-col lobby-setup' });
+    panel.classList.add('lobby-panel');
+    panel.append(room, setup);
 
-    panel.append(h('h3', { id: 'keke-lobby-players' }, t('lobby.playersHeading')));
+    room.append(h('h2', { id: 'keke-lobby-heading' }, t('lobby.heading')));
+    this.codeEl = h('span', { class: 'code', id: 'keke-lobby-code' }, code);
+    room.append(h('p', { class: 'room-code' }, t('lobby.codeLabel'), ' ', this.codeEl));
+    room.append(h('p', { class: 'muted' }, t('lobby.codeHint')));
+
+    room.append(h('h3', { id: 'keke-lobby-players' }, t('lobby.playersHeading')));
     this.playerList = h('ul', { class: 'players', 'aria-labelledby': 'keke-lobby-players' });
-    panel.append(this.playerList);
+    room.append(this.playerList);
 
     this.readyButton = this.button(t('lobby.ready'), 'wide', () =>
       this.send(ClientMessage.ready, { ready: !(this.view.me?.ready ?? false) }),
     );
     this.readyButton.setAttribute('aria-pressed', 'false');
-    panel.append(this.readyButton);
+    room.append(this.readyButton);
 
-    panel.append(h('h3', {}, t('lobby.settingsHeading')));
-    panel.append(this.createSettings());
+    setup.append(h('h3', {}, t('lobby.settingsHeading')));
+    setup.append(this.createSettings());
     this.settingsNote = h('p', { class: 'muted' });
-    panel.append(this.settingsNote);
+    setup.append(this.settingsNote);
 
     this.startButton = this.button(t('lobby.start'), 'wide start', () => this.send(ClientMessage.start));
     this.startNote = h('p', { class: 'muted' });
     this.status = h('p', { class: 'status', role: 'status', 'aria-live': 'polite' });
     const leave = this.button(t('lobby.leave'), 'secondary', () => this.leave());
-    panel.append(this.startButton, this.startNote, this.status, h('div', { class: 'actions' }, leave));
+    setup.append(this.startButton, this.startNote, this.status, h('div', { class: 'actions' }, leave));
 
     layer.append(panel);
   }

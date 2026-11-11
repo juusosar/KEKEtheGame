@@ -1370,3 +1370,22 @@ body[data-phase='podium'] .keke-minimap {
 .keke-hud .hud-feed li.mine {
   font-weight: 600;
 }
+/* Playtest 1: explains the ★ on a podium row whose place the item count decided. */
+.keke-round .podium-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #ffd54f;
+}
+/* Lobby on short screens (playtest 1: at 720p with 8 players the room code and the first players
+   scrolled off while settings and Start showed): room and players left, settings and Start right. */
+@media (max-height: 800px) and (min-width: 760px) {
+  #keke-lobby .panel.lobby-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+    width: min(860px, calc(100vw - 32px));
+  }
+  #keke-lobby .lobby-setup > h3:first-child {
+    margin-top: 0;
+  }
+}

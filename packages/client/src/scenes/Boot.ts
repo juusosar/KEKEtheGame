@@ -67,6 +67,16 @@ export class BootScene extends Phaser.Scene {
     this.scene.bringToTop();
   }
 
+  /**
+   * In a round the green "connected" line sat on top of the target card for the whole game (playtest 1):
+   * the Game scene hides it while all is well. A connection problem still shows there.
+   */
+  override update(): void {
+    const quiet =
+      document.body.dataset['scene'] === 'game' && document.body.dataset['connection'] === 'connected';
+    if (this.label.visible === quiet) this.label.setVisible(!quiet);
+  }
+
   private async connect(): Promise<void> {
     const endpoint = serverEndpoint(window.location, import.meta.env.DEV);
     try {

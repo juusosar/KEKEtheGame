@@ -297,6 +297,10 @@ export class RoundScreen {
             ...rest.map((r) => podiumItem(r)),
           )
         : null,
+      // Playtest 1: the ★ was not explained when the tie was not at the top.
+      [...model.rows].some((r) => r.tieBroken)
+        ? h('p', { class: 'podium-note' }, t('round.podium.tieNote'))
+        : null,
       h(
         'p',
         { id: 'keke-podium-next', class: 'round-next', 'data-seconds': model.seconds },
