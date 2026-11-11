@@ -205,6 +205,16 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
   ],
 };
 
+/**
+ * Item spawns marked `oddSpot: true` (§10.1, phase 2 decision 11): joke items appear here first when
+ * one is free. Each must be a tile in ITEM_SPAWN_TILES (the spawns themselves do not move).
+ */
+export const ODD_SPOT_TILES: readonly TilePoint[] = [
+  [71, 20], // the far end of a dry-goods rack aisle
+  [73, 55], // behind the butcher's counter, in the corner
+  [36, 74], // behind the last beverage pallet stacks
+];
+
 /** [type, x, y, post]: `post` makes the NPC stand guard there instead of patrolling (§8). */
 const NPC_SPAWN_TILES: readonly (readonly [string, number, number, boolean?])[] = [
   ['security', 30, 9, true], // post at the staff-only door
@@ -528,8 +538,15 @@ export function buildKesproMap(
     point(px(x), px(y), `van_${i + 1}`, [{ name: 'index', type: 'int', value: i + 1 }]),
   );
 
+  const isOddSpot = (x: number, y: number): boolean =>
+    ODD_SPOT_TILES.some(([ox, oy]) => ox === x && oy === y);
   const itemSpawns = Object.entries(ITEM_SPAWN_TILES).flatMap(([zone, spots]) =>
-    spots.map(([x, y]) => point(centre(x), centre(y), '', [{ name: 'zone', type: 'string', value: zone }])),
+    spots.map(([x, y]) =>
+      point(centre(x), centre(y), '', [
+        { name: 'zone', type: 'string', value: zone },
+        ...(isOddSpot(x, y) ? [{ name: 'oddSpot', type: 'bool', value: true } satisfies Property] : []),
+      ]),
+    ),
   );
 
   const npcSpawns = NPC_SPAWN_TILES.map(([type, x, y, post]) =>

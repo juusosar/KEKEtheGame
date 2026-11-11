@@ -26,6 +26,9 @@ export const OBJECT_LAYERS = [
   'office_trigger',
 ] as const;
 
+/** Object layers a map may have. A missing one means "none" (§15.4 additions of phase 2). */
+export const OPTIONAL_OBJECT_LAYERS = ['ambient_sounds'] as const;
+
 /** Tiled stores flip/rotation flags in the top 4 bits of a gid. */
 const GID_FLAG_MASK = 0x0fffffff;
 
@@ -67,6 +70,24 @@ export interface ItemSpawn {
   readonly y: number;
   /** Zone id the spawn belongs to (matches `Item.zone` in the catalogue). */
   readonly zone: string;
+  /**
+   * Optional `oddSpot` property: a funny place (end of an aisle, top of a pallet, the bottle-return
+   * corner) where joke items prefer to appear (§10.1, phase 2 decision 11). Default false.
+   */
+  readonly oddSpot: boolean;
+}
+
+/**
+ * A looping ambient sound from the optional `ambient_sounds` layer (e.g. the bottle machine hum).
+ * Rules ignore it; the client plays `sound`, fading out with distance.
+ */
+export interface AmbientSound {
+  readonly x: number;
+  readonly y: number;
+  /** Sound name the client knows (e.g. `bottleHum`). */
+  readonly sound: string;
+  /** Hearing range in pixels: full volume at the point, silent at this distance. */
+  readonly radius: number;
 }
 
 export interface NpcSpawn {
@@ -112,6 +133,8 @@ export interface MapModel {
   /** Sorted by `index`. */
   readonly vanSlots: readonly VanSlot[];
   readonly itemSpawns: readonly ItemSpawn[];
+  /** From the optional `ambient_sounds` layer; empty when the map has none. */
+  readonly ambientSounds: readonly AmbientSound[];
   readonly npcSpawns: readonly NpcSpawn[];
   readonly npcWaypoints: readonly NpcWaypoint[];
   readonly forkliftRoutes: readonly ForkliftRoute[];
@@ -298,7 +321,22 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     } else if (!zoneIds.has(zone)) {
       issues.push(`${where}: zone "${zone}" is not in the zones layer`);
     }
-    return pos === undefined || zone === undefined ? [] : [{ ...pos, zone }];
+    const oddSpot = ctx.optionalBoolean(o, 'oddSpot', where) ?? false;
+    return pos === undefined || zone === undefined ? [] : [{ ...pos, zone, oddSpot }];
+  });
+
+  const ambientSounds = (objectLayers.get('ambient_sounds')?.objects ?? []).flatMap((o) => {
+    const where = `ambient_sounds #${o.id}`;
+    const pos = ctx.point(o, where);
+    const sound = ctx.string(o, 'sound', where);
+    if (sound === undefined) issues.push(`${where}: missing "sound" property`);
+    const radius = ctx.optionalNumber(o, 'radius', where);
+    if (radius === undefined || radius <= 0) {
+      issues.push(`${where}: needs a positive "radius" property (pixels)`);
+    }
+    return pos === undefined || sound === undefined || radius === undefined || radius <= 0
+      ? []
+      : [{ ...pos, sound, radius }];
   });
 
   const npcSpawns = objects('npc_spawns').flatMap((o) => {
@@ -346,6 +384,7 @@ export function loadMap(raw: unknown, source = 'map'): MapModel {
     zones,
     vanSlots,
     itemSpawns,
+    ambientSounds,
     npcSpawns,
     npcWaypoints,
     forkliftRoutes,

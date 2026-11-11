@@ -52,6 +52,19 @@ describe('sound effects', () => {
   });
 });
 
+describe('ambient loops', () => {
+  it('bottleHum joins end to start without a click', () => {
+    const { samples } = decodeWav(wavAt(`${ASSETS_DIR}/audio/bottleHum.wav`));
+    let biggestStep = 0;
+    for (let i = 1; i < samples.length; i++) {
+      biggestStep = Math.max(biggestStep, Math.abs((samples[i] ?? 0) - (samples[i - 1] ?? 0)));
+    }
+    // The jump from the last sample back to the first is no bigger than a step inside the sound.
+    const wrapStep = Math.abs((samples[0] ?? 0) - (samples[samples.length - 1] ?? 0));
+    expect(wrapStep).toBeLessThanOrEqual(biggestStep);
+  });
+});
+
 describe('music', () => {
   it('every available theme has a loop at the path its theme file names', () => {
     for (const theme of Object.values(themes)) {

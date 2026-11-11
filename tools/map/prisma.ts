@@ -86,6 +86,8 @@ const DELI_COUNTER_X: readonly [number, number] = [57, 70];
 /** Bottle-return alcove: walls on its west and north side, open at x 71–72 to the drinks aisle. */
 const ALCOVE: Rect = [64, 36, 72, 42]; // west/north walls included
 const BOTTLE_MACHINES: Rect = [66, 42, 69, 42];
+/** The bottle machines' hum (P2-6): a looping ambient sound heard within this many tiles. */
+const BOTTLE_HUM_RADIUS_TILES = 9;
 
 /** Cart corral pen outside, east of the exit: rails on three sides, open to the west. */
 export const CORRAL: Rect = [28, 46, 37, 50];
@@ -221,7 +223,7 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
     [27, 32],
     [37, 35],
   ],
-  // The last two sit in the bottle-return dead end (§9.2, decision 11).
+  // The last two sit in the bottle-return dead end (§9.2, decision 11): they are the odd spots.
   drinks: [
     [58, 26],
     [66, 28],
@@ -246,6 +248,15 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
     [69, 23],
   ],
 };
+
+/**
+ * Item spawns marked `oddSpot: true` (§10.1, phase 2 decision 11): joke items appear here first when
+ * one is free. On this map that is the bottle-return dead end. Each must be a tile in ITEM_SPAWN_TILES.
+ */
+export const ODD_SPOT_TILES: readonly TilePoint[] = [
+  [67, 39],
+  [70, 40],
+];
 
 /** [type, x, y, post]: `post` makes the NPC stand guard there instead of patrolling (§8). */
 const NPC_SPAWN_TILES: readonly (readonly [string, number, number, boolean?])[] = [
@@ -575,8 +586,15 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     point(px(x), px(y), `van_${i + 1}`, [{ name: 'index', type: 'int', value: i + 1 }]),
   );
 
+  const isOddSpot = (x: number, y: number): boolean =>
+    ODD_SPOT_TILES.some(([ox, oy]) => ox === x && oy === y);
   const itemSpawns = Object.entries(ITEM_SPAWN_TILES).flatMap(([zone, spots]) =>
-    spots.map(([x, y]) => point(centre(x), centre(y), '', [{ name: 'zone', type: 'string', value: zone }])),
+    spots.map(([x, y]) =>
+      point(centre(x), centre(y), '', [
+        { name: 'zone', type: 'string', value: zone },
+        ...(isOddSpot(x, y) ? [{ name: 'oddSpot', type: 'bool', value: true } satisfies Property] : []),
+      ]),
+    ),
   );
 
   const npcSpawns = NPC_SPAWN_TILES.map(([type, x, y, post]) =>
@@ -614,6 +632,14 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     height: px(triggerArea[3] - triggerArea[1] + 1),
   });
 
+  // Made last so adding it leaves every other object id unchanged.
+  const ambientSounds = [
+    point(px((BOTTLE_MACHINES[0] + BOTTLE_MACHINES[2] + 1) / 2), centre(BOTTLE_MACHINES[1]), 'bottle_hum', [
+      { name: 'sound', type: 'string', value: 'bottleHum' },
+      { name: 'radius', type: 'float', value: px(BOTTLE_HUM_RADIUS_TILES) },
+    ]),
+  ];
+
   const layers = [
     tileLayer(1, 'ground'),
     tileLayer(2, 'walls'),
@@ -626,6 +652,7 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     objectLayer(9, 'forklift_routes', forkliftRoutes),
     objectLayer(10, 'office_trigger', [officeTrigger]),
     tileLayer(11, 'above'),
+    objectLayer(12, 'ambient_sounds', ambientSounds),
   ];
 
   const { type: _type, version: _version, ...embedded } = tileset;

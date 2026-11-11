@@ -149,10 +149,73 @@ describe('loadMap: object layers', () => {
 
   it('reads item spawns with their zone', () => {
     expect(map.itemSpawns).toEqual([
-      { x: 256, y: 64, zone: 'cold_room' },
-      { x: 64, y: 224, zone: 'meat_fish' },
-      { x: 128, y: 224, zone: 'behind_counter' },
+      { x: 256, y: 64, zone: 'cold_room', oddSpot: false },
+      { x: 64, y: 224, zone: 'meat_fish', oddSpot: false },
+      { x: 128, y: 224, zone: 'behind_counter', oddSpot: false },
     ]);
+  });
+
+  it('reads the optional item spawn oddSpot flag and rejects a non-boolean one', () => {
+    const raw = cloneFixture();
+    const spawn = (layerOf(raw, 'item_spawns').objects as { id: number; properties?: unknown[] }[])[2] as {
+      id: number;
+      properties: unknown[];
+    };
+    spawn.properties.push({ name: 'oddSpot', type: 'bool', value: true });
+    expect(loadMap(raw, 'test-map').itemSpawns.map((s) => s.oddSpot)).toEqual([false, false, true]);
+    spawn.properties = [
+      { name: 'zone', type: 'string', value: 'behind_counter' },
+      { name: 'oddSpot', type: 'string', value: 'yes' },
+    ];
+    expect(issuesOf(raw).join('\n')).toMatch(
+      new RegExp(`item_spawns #${spawn.id}: property "oddSpot" must be a boolean`),
+    );
+  });
+
+  it('has no ambient sounds when the optional ambient_sounds layer is missing', () => {
+    expect(map.ambientSounds).toEqual([]);
+  });
+
+  it('reads ambient sounds and checks their sound and radius', () => {
+    const raw = cloneFixture() as { layers: unknown[] };
+    const layer = {
+      id: 99,
+      name: 'ambient_sounds',
+      type: 'objectgroup',
+      draworder: 'topdown',
+      x: 0,
+      y: 0,
+      opacity: 1,
+      visible: true,
+      objects: [
+        {
+          id: 900,
+          name: 'hum',
+          type: '',
+          x: 100,
+          y: 120,
+          width: 0,
+          height: 0,
+          rotation: 0,
+          visible: true,
+          point: true,
+          properties: [
+            { name: 'sound', type: 'string', value: 'bottleHum' },
+            { name: 'radius', type: 'float', value: 256 },
+          ],
+        },
+      ],
+    };
+    raw.layers.push(layer);
+    expect(loadMap(raw, 'test-map').ambientSounds).toEqual([
+      { x: 100, y: 120, sound: 'bottleHum', radius: 256 },
+    ]);
+    (layer.objects[0] as { properties: unknown[] }).properties = [
+      { name: 'radius', type: 'float', value: 0 },
+    ];
+    const issues = issuesOf(raw).join('\n');
+    expect(issues).toMatch(/ambient_sounds #900: missing "sound" property/);
+    expect(issues).toMatch(/ambient_sounds #900: needs a positive "radius" property/);
   });
 
   it('reads NPC spawn types from a property or the object class', () => {

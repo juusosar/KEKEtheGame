@@ -109,3 +109,32 @@ test('a solo round plays the countdown, the go, our swing and the round-end buzz
   expect(pageErrors).toEqual([]);
   expect(unregistered).toEqual([]);
 });
+
+test('the bottle machines hum on the second map, louder up close (P2-6)', async ({ page, request }) => {
+  const pageErrors: Error[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err));
+  const hum = async (): Promise<{ sound: string; volume: number }[]> =>
+    page.evaluate(() => (globalThis as WithHook).__KEKE__?.ambient() ?? []);
+
+  // The first map has no ambient sounds.
+  await page.goto('/?debug=1&scene=game');
+  await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 15_000 });
+  await page.waitForFunction(() => (globalThis as WithHook).__KEKE__ !== undefined);
+  expect(await hum()).toEqual([]);
+
+  await page.goto('/?debug=1&scene=game&map=prisma');
+  await expect(page.locator('body')).toHaveAttribute('data-map', 'prisma', { timeout: 15_000 });
+  await page.waitForFunction(() => (globalThis as WithHook).__KEKE__ !== undefined);
+  // Inside the bottle-return alcove, two tiles in front of the machines (tile 68,40).
+  expect(
+    await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(68 * 32 + 16, 40 * 32 + 16)),
+  ).toBe(true);
+  await expect.poll(async () => (await hum())[0]?.volume ?? 0).toBeGreaterThan(0.3);
+  expect((await hum())[0]?.sound).toBe('bottleHum');
+  // Out in the parking lot it is silent.
+  expect(await page.evaluate(() => (globalThis as WithHook).__KEKE__?.teleport(1600, 1856))).toBe(true);
+  await expect.poll(async () => (await hum())[0]?.volume ?? 1).toBe(0);
+  const served = await request.get('/assets/audio/bottleHum.wav');
+  expect(served.ok()).toBe(true);
+  expect(pageErrors).toEqual([]);
+});

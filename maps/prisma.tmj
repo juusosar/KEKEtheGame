@@ -10,8 +10,8 @@
   "height": 72,
   "tilewidth": 32,
   "tileheight": 32,
-  "nextlayerid": 12,
-  "nextobjectid": 116,
+  "nextlayerid": 13,
+  "nextobjectid": 117,
   "layers": [
     {
       "id": 1,
@@ -2081,6 +2081,11 @@
               "name": "zone",
               "type": "string",
               "value": "drinks"
+            },
+            {
+              "name": "oddSpot",
+              "type": "bool",
+              "value": true
             }
           ]
         },
@@ -2100,6 +2105,11 @@
               "name": "zone",
               "type": "string",
               "value": "drinks"
+            },
+            {
+              "name": "oddSpot",
+              "type": "bool",
+              "value": true
             }
           ]
         },
@@ -2835,6 +2845,42 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 ]
+    },
+    {
+      "id": 12,
+      "name": "ambient_sounds",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "x": 0,
+      "y": 0,
+      "opacity": 1,
+      "visible": true,
+      "objects": [
+        {
+          "id": 116,
+          "name": "bottle_hum",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 2176,
+          "y": 1360,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "sound",
+              "type": "string",
+              "value": "bottleHum"
+            },
+            {
+              "name": "radius",
+              "type": "float",
+              "value": 288
+            }
+          ]
+        }
+      ]
     }
   ],
   "tilesets": [

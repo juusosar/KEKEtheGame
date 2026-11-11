@@ -293,6 +293,8 @@ export interface KekeHook {
   musicDucks(): number;
   /** The music track the Game scene asked for (M7-2), e.g. `assets/music/kespro_loop.wav`; null when none. */
   music(): string | null;
+  /** The map's ambient loops (P2-6) and their volume this frame (0..1); empty when the map has none. */
+  ambient(): { sound: string; volume: number }[];
 }
 
 /** A store worker as drawn (M5-7). */

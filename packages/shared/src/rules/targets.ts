@@ -22,6 +22,8 @@ export interface TargetSpawnPoint {
   readonly x: number;
   readonly y: number;
   readonly zone: string;
+  /** An odd spot (§10.1): joke items appear here first when one is free. Missing = false. */
+  readonly oddSpot?: boolean;
 }
 
 /** What target assignment needs from a map. `MapModel` from shared/src/map satisfies this shape. */
@@ -82,10 +84,26 @@ export function spawnsForItem(item: TargetItemDef, spawns: readonly TargetSpawnP
 }
 
 /**
+ * The spawns `item` should pick from (§10.1 "joke items prefer odd spots", phase 2 decision 11):
+ * for a joke item the free odd spots when there is one, otherwise every spawn it may use. Normal
+ * items are unaffected (they may use an odd spot in their own zone like any other spawn).
+ */
+export function preferredSpawnsForItem(
+  item: TargetItemDef,
+  spawns: readonly TargetSpawnPoint[],
+): TargetSpawnPoint[] {
+  const allowed = spawnsForItem(item, spawns);
+  if (item.rarity !== 'joke') return allowed;
+  const odd = allowed.filter((s) => s.oddSpot === true);
+  return odd.length > 0 ? odd : allowed;
+}
+
+/**
  * Model "c" (§3.1, §10.1):
  * - with chance `jokeItemChance` the target is a joke item, otherwise a normal item;
  * - the item is picked uniformly among items of that rarity that have a free eligible spawn, and the
- *   spawn uniformly among that item's free eligible spawns;
+ *   spawn uniformly among that item's free eligible spawns, where a joke item takes a free odd spot
+ *   whenever there is one (`preferredSpawnsForItem`);
  * - if no item of the rolled rarity can be placed, the other rarity is used; if nothing fits, undefined.
  *
  * The joke roll always consumes one random number, so the RNG sequence does not depend on the catalogue.
@@ -101,7 +119,7 @@ export const modelCAssigner: TargetAssigner = {
     if (candidates.length === 0) candidates = placeable(wantJoke ? 'normal' : 'joke');
     if (candidates.length === 0) return undefined;
     const item = rng.pick(candidates);
-    const spawn = rng.pick(spawnsForItem(item, free));
+    const spawn = rng.pick(preferredSpawnsForItem(item, free));
     return { item, x: spawn.x, y: spawn.y, zone: spawn.zone };
   },
 };

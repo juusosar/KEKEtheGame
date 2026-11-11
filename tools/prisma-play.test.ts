@@ -176,6 +176,17 @@ describe('target assignment on the prisma map', () => {
     }
   });
 
+  it('sends joke items to the bottle-return odd spots first, then anywhere (P2-6)', () => {
+    let world = createItemWorld();
+    for (let i = 0; i < 4; i++) world = addCarryPlayer(world, `p${i}`, i + 1);
+    const jokes = { ...config, jokeItemChance: 1 };
+    world = assignTargets(world, { catalogue: catalogue.items, map, rng: createRng(7), config: jokes }).world;
+    expect(world.items.map((i) => i.rarity)).toEqual(['joke', 'joke', 'joke', 'joke']);
+    const zones = world.items.map((i) => map.zoneAt(i.x, i.y)?.id);
+    // Two odd spots: the first two jokes take them, the other two land elsewhere.
+    expect(zones.filter((z) => z === 'bottle_return')).toHaveLength(2);
+  });
+
   it('every item spawn is reachable on foot from every van by a player', () => {
     const half = config.playerHitboxSize / 2;
     const van = must(map.vanSlots[0]);

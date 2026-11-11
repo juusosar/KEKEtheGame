@@ -138,4 +138,11 @@ export const SOUNDS: Record<SfxName, readonly Layer[]> = {
     { wave: 'square', at: 0.36, seconds: 0.5, freq: 1047, gain: 0.2, duty: 0.25, fade: 1 },
     { wave: 'triangle', at: 0.36, seconds: 0.5, freq: 523, gain: 0.3, fade: 1 },
   ],
+  // The bottle machines' electric hum (P2-6), looped in game. One second of whole cycles with no
+  // envelope, so the end joins the start without a click.
+  bottleHum: [
+    { wave: 'sine', seconds: 1, freq: 100, gain: 0.22, attack: 0, release: 0 },
+    { wave: 'square', seconds: 1, freq: 50, gain: 0.05, attack: 0, release: 0 },
+    { wave: 'triangle', seconds: 1, freq: 300, gain: 0.04, attack: 0, release: 0 },
+  ],
 };

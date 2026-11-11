@@ -124,6 +124,18 @@ describe('maps/kespro.tmj', () => {
     }
   });
 
+  it('marks 2 to 4 odd spots for joke items (§10.1, P2-6), one behind the butcher counter', () => {
+    const odd = map.itemSpawns.filter((s) => s.oddSpot);
+    expect(odd.length).toBeGreaterThanOrEqual(2);
+    expect(odd.length).toBeLessThanOrEqual(4);
+    for (const s of odd) expect(isReachable(s.x, s.y), `odd spot ${tileOf(s.x)},${tileOf(s.y)}`).toBe(true);
+    expect(odd.some((s) => map.zoneAt(s.x, s.y)?.id === 'behind_counter')).toBe(true);
+  });
+
+  it('has no ambient sounds', () => {
+    expect(map.ambientSounds).toEqual([]);
+  });
+
   it('puts some meat & fish spawns behind the counter', () => {
     const behind = map.itemSpawns.filter((s) => map.zoneAt(s.x, s.y)?.id === 'behind_counter');
     expect(behind.length).toBeGreaterThanOrEqual(2);

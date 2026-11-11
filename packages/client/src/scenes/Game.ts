@@ -25,6 +25,7 @@ import {
   type Vec2,
 } from '@keke/shared';
 import Phaser from 'phaser';
+import { AmbientSounds } from '../audio/ambient';
 import { audioEngine } from '../audio/engine';
 import { Sfx } from '../audio/sfx';
 import {
@@ -183,6 +184,8 @@ export class GameScene extends Phaser.Scene {
   private npcs: NpcRenderer | undefined;
   /** Sound effects (§12); online only. */
   private sfx: Sfx | undefined;
+  /** The map's ambient loops (P2-6: the bottle machines' hum), fading with distance from us. */
+  private ambient: AmbientSounds | undefined;
   private cueGate = new CueGate();
   /** Round phase and intro seconds at the last patch, for the countdown and round-end sounds. */
   private roundClock: RoundClock | null = null;
@@ -240,6 +243,8 @@ export class GameScene extends Phaser.Scene {
     // P3-2: a session can move to another map between rounds; fetch every loaded map's music now so the
     // switch does not start in silence. Tiles and sheets of every theme come with the manifest already.
     if (current) this.preloadRoomMusic(current.room.state);
+    this.ambient = new AmbientSounds(this.model.ambientSounds);
+    this.ambient.start();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown());
     document.body.dataset['scene'] = 'game';
     document.body.dataset['map'] = this.theme.id;
@@ -288,6 +293,7 @@ export class GameScene extends Phaser.Scene {
     this.drawCombat(time / 1000, npcAnchors);
     this.projectiles?.draw(time / 1000);
     this.updateMinimap(dt);
+    this.ambient?.update(this.listenerPosition());
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
     if (this.hud) this.updateHud(this.hud);
     if (this.debug) this.updateDebug();
@@ -785,14 +791,19 @@ export class GameScene extends Phaser.Scene {
     return Math.hypot(them.x - us.x, them.y - us.y) <= renderConfig.hudFeedNearPx;
   }
 
+  /** Where we hear from: our body, or the camera centre while it is hidden (KO, spectating). */
+  private listenerPosition(): Vec2 {
+    return this.local.body.visible
+      ? { x: this.local.body.x, y: this.local.body.y }
+      : this.cameras.main.midPoint;
+  }
+
   /** Plays sound cues (§12): ours at full volume, other players' fading with distance from us. */
   private playCues(cues: readonly SoundCue[]): void {
     const sfx = this.sfx;
     if (!sfx || cues.length === 0) return;
     const now = performance.now() / 1000;
-    const listener = this.local.body.visible
-      ? { x: this.local.body.x, y: this.local.body.y }
-      : this.cameras.main.midPoint;
+    const listener = this.listenerPosition();
     for (const cue of cues) {
       if (!this.cueGate.allow(cue, now)) continue;
       const src = cue.source;
@@ -826,9 +837,7 @@ export class GameScene extends Phaser.Scene {
   private drawNpcs(now: number): ReadonlyMap<string, Vec2> | undefined {
     const npcs = this.npcs;
     if (!npcs) return undefined;
-    const listener = this.local.body.visible
-      ? { x: this.local.body.x, y: this.local.body.y }
-      : this.cameras.main.midPoint;
+    const listener = this.listenerPosition();
     return npcs.draw(now, performance.now(), this.view?.phase === 'playing', (_id, at) => {
       this.sfx?.play('forkliftBeep', hearingVolume(at, listener, renderConfig.forkliftBeepHearingPx));
     });
@@ -1112,6 +1121,8 @@ export class GameScene extends Phaser.Scene {
     this.npcs?.destroy();
     this.npcs = undefined;
     this.sfx = undefined;
+    this.ambient?.stop();
+    this.ambient = undefined;
     audioEngine().stopMusic();
     this.teardownDebug();
     delete document.body.dataset['scene'];
@@ -1360,6 +1371,7 @@ export class GameScene extends Phaser.Scene {
       sfx: () => ({ ...(this.sfx?.played() ?? {}) }),
       musicDucks: () => this.sfx?.ducks() ?? 0,
       music: () => audioEngine().musicTrack(),
+      ambient: () => this.ambient?.levels() ?? [],
       held: () => this.combatFx?.heldSnapshots() ?? [],
       swings: () => this.combatFx?.swingSnapshot() ?? { predicted: 0, last: null },
       fx: () => this.combatFx?.fxSnapshots() ?? [],

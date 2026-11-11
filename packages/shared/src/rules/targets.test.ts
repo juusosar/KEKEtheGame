@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../config';
 import { createRng } from '../rng';
 import { ANY_ZONE } from '../items/catalogue';
-import { eligibleSpawns, modelCAssigner, spawnsForItem, type TargetItemDef, type TargetMap } from './targets';
+import {
+  eligibleSpawns,
+  modelCAssigner,
+  preferredSpawnsForItem,
+  spawnsForItem,
+  type TargetItemDef,
+  type TargetMap,
+} from './targets';
 
 const config = loadConfig();
 const T = 32;
@@ -121,5 +128,87 @@ describe('modelCAssigner (§3.1, §10.1)', () => {
   it('returns undefined when no spawn is free', () => {
     const occupied = map.itemSpawns.map((s) => ({ x: s.x, y: s.y }));
     expect(place(1, { occupied })).toBeUndefined();
+  });
+});
+
+describe('odd spots (§10.1, phase 2 decision 11)', () => {
+  // Same map plus two odd spots: one in dry goods, one in beverages; one more too close to the van.
+  const oddMap: TargetMap = {
+    ...map,
+    itemSpawns: [
+      ...map.itemSpawns,
+      { x: 6 * T, y: 0, zone: 'dry_goods', oddSpot: true }, // too close to the van: never eligible
+      { x: 12 * T, y: 0, zone: 'dry_goods', oddSpot: true },
+      { x: 40 * T, y: 0, zone: 'beverages', oddSpot: true },
+    ],
+  };
+  const gnome = catalogue[3] as TargetItemDef;
+  const flour = catalogue[0] as TargetItemDef;
+  const jokes = { ...config, jokeItemChance: 1 };
+  const noJokes = { ...config, jokeItemChance: 0 };
+  const place = (seed: number, occupied: { x: number; y: number }[], cfg = jokes) =>
+    modelCAssigner.place({ catalogue, map: oddMap, occupied, rng: createRng(seed), config: cfg });
+
+  it('preferredSpawnsForItem gives a joke item only the free odd spots', () => {
+    const free = eligibleSpawns(oddMap, [], config);
+    expect(preferredSpawnsForItem(gnome, free).map((s) => s.x / T)).toEqual([12, 40]);
+  });
+
+  it('preferredSpawnsForItem leaves normal items alone, odd spots of their zone included', () => {
+    const free = eligibleSpawns(oddMap, [], config);
+    expect(preferredSpawnsForItem(flour, free).map((s) => s.x / T)).toEqual([8, 12]);
+  });
+
+  it('puts joke items on a free odd spot every time', () => {
+    const seen = new Set<number>();
+    for (let seed = 0; seed < 60; seed++) {
+      const p = place(seed, []);
+      expect(p?.item.id).toBe('gnome');
+      expect([12, 40]).toContain((p?.x ?? 0) / T);
+      seen.add((p?.x ?? 0) / T);
+    }
+    expect([...seen].sort((a, b) => a - b)).toEqual([12, 40]); // uniform among the odd spots
+  });
+
+  it('uses the remaining odd spot when the other is taken', () => {
+    for (let seed = 0; seed < 20; seed++) {
+      expect(place(seed, [{ x: 12 * T, y: 0 }])?.x).toBe(40 * T);
+    }
+  });
+
+  it('falls back to any free spawn when every odd spot is taken', () => {
+    const occupied = [
+      { x: 12 * T, y: 0 },
+      { x: 40 * T, y: 0 },
+    ];
+    const xs = new Set<number>();
+    for (let seed = 0; seed < 60; seed++) {
+      const p = place(seed, occupied);
+      expect(p?.item.id).toBe('gnome');
+      xs.add((p?.x ?? 0) / T);
+    }
+    expect([...xs].sort((a, b) => a - b)).toEqual([8, 20, 30]);
+  });
+
+  it('a map without odd spots behaves as before', () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const before = modelCAssigner.place({
+        catalogue,
+        map,
+        occupied: [],
+        rng: createRng(seed),
+        config: jokes,
+      });
+      expect([8, 20, 30]).toContain((before?.x ?? 0) / T);
+    }
+  });
+
+  it('normal items still use odd spots in their own zone', () => {
+    const xs = new Set<number>();
+    for (let seed = 0; seed < 80; seed++) {
+      const p = place(seed, [], noJokes);
+      if (p?.item.id === 'flour') xs.add(p.x / T);
+    }
+    expect([...xs].sort((a, b) => a - b)).toEqual([8, 12]);
   });
 });
