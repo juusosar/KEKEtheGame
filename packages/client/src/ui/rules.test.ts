@@ -58,27 +58,33 @@ describe('rules on the client', () => {
 
   it('reads the remembered setup and falls back field by field', () => {
     const max = config.maxRoundsPerMap;
-    expect(readRoomSetup(null, max)).toEqual({
+    expect(readRoomSetup(null, max, 15)).toEqual({
       mode: 'timed',
       roundsPerMap: 1,
       teams: false,
       maps: 'both',
       rules: {},
+      bots: 0,
+      botLevel: 'normal',
     });
-    expect(readRoomSetup('not json', max).mode).toBe('timed');
+    expect(readRoomSetup('not json', max, 15).mode).toBe('timed');
     const stored = JSON.stringify({
       mode: 'race',
       roundsPerMap: 2,
       teams: true,
       maps: 'prisma',
       rules: { raceQuota: 9 },
+      bots: 20,
+      botLevel: 'hard',
     });
-    expect(readRoomSetup(stored, max)).toEqual({
+    expect(readRoomSetup(stored, max, 15)).toEqual({
       mode: 'race',
       roundsPerMap: 2,
       teams: true,
       maps: 'prisma',
       rules: { raceQuota: 9 },
+      bots: 15,
+      botLevel: 'hard',
     });
     const bad = JSON.stringify({
       mode: 'golf',
@@ -86,13 +92,17 @@ describe('rules on the client', () => {
       teams: 'yes',
       maps: 'mall',
       rules: { raceQuota: 0, tileSize: 8 },
+      bots: -2,
+      botLevel: 'godlike',
     });
-    expect(readRoomSetup(bad, max)).toEqual({
+    expect(readRoomSetup(bad, max, 15)).toEqual({
       mode: 'timed',
       roundsPerMap: 1,
       teams: false,
       maps: 'both',
       rules: {},
+      bots: 0,
+      botLevel: 'normal',
     });
   });
 });

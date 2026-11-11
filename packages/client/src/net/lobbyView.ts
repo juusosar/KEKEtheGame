@@ -6,6 +6,7 @@ import {
   GAME_MODES,
   ROUND_PHASES,
   canStart,
+  isBotLevel,
   isMapChoice,
   readRules,
   type GameMode,
@@ -26,6 +27,8 @@ export interface LobbyPlayerView {
   joinOrder: number;
   spectator: boolean;
   connected: boolean;
+  /** A bot player the server runs (host setting `bots`). */
+  bot: boolean;
   isHost: boolean;
   isMe: boolean;
 }
@@ -84,6 +87,8 @@ function readSettings(value: unknown): LobbySettings {
     teams: bool(value, 'teams', DEFAULT_LOBBY_SETTINGS.teams),
     maps: readMaps(str(value, 'maps', DEFAULT_LOBBY_SETTINGS.maps)),
     rules: readRules(value['rules']),
+    bots: num(value, 'bots', DEFAULT_LOBBY_SETTINGS.bots),
+    botLevel: isBotLevel(value['botLevel']) ? value['botLevel'] : DEFAULT_LOBBY_SETTINGS.botLevel,
   };
 }
 
@@ -107,6 +112,7 @@ export function readLobby(state: unknown, mySessionId: string): LobbyView {
       joinOrder: num(value, 'joinOrder'),
       spectator: bool(value, 'spectator'),
       connected: bool(value, 'connected', true),
+      bot: bool(value, 'bot'),
       isHost: id === hostId,
       isMe: id === mySessionId,
     });

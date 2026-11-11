@@ -2,6 +2,7 @@
 // setup. The rules themselves (keys, ranges, validation) live in @keke/shared (lobby/rules.ts).
 import {
   DEFAULT_LOBBY_SETTINGS,
+  isBotLevel,
   GAME_MODES,
   RULES,
   hostRulesSchema,
@@ -190,7 +191,11 @@ function dropDefaults(base: GameConfig, rules: HostRules): HostRules {
 export const ROOM_SETUP_KEY = 'keke.roomSetup';
 
 /** The setup menu's last choices from storage; anything missing or invalid falls back to the default. */
-export function readRoomSetup(raw: string | null, maxRoundsPerMap: number): LobbySettings {
+export function readRoomSetup(
+  raw: string | null,
+  maxRoundsPerMap: number,
+  maxBotCount: number,
+): LobbySettings {
   const fallback: LobbySettings = { ...DEFAULT_LOBBY_SETTINGS, rules: {} };
   if (raw === null) return fallback;
   let data: unknown;
@@ -205,6 +210,8 @@ export function readRoomSetup(raw: string | null, maxRoundsPerMap: number): Lobb
   const rounds = bag['roundsPerMap'];
   const maps = bag['maps'];
   const rules = readRules(bag['rules']);
+  const bots = bag['bots'];
+  const botLevel = bag['botLevel'];
   return {
     mode:
       typeof mode === 'string' && (GAME_MODES as readonly string[]).includes(mode)
@@ -217,5 +224,10 @@ export function readRoomSetup(raw: string | null, maxRoundsPerMap: number): Lobb
     teams: typeof bag['teams'] === 'boolean' ? bag['teams'] : fallback.teams,
     maps: typeof maps === 'string' && isMapChoice(maps) ? maps : fallback.maps,
     rules: hostRulesSchema.safeParse(rules).success ? rules : {},
+    bots:
+      typeof bots === 'number' && Number.isInteger(bots) && bots >= 0
+        ? Math.min(bots, maxBotCount)
+        : fallback.bots,
+    botLevel: isBotLevel(botLevel) ? botLevel : fallback.botLevel,
   };
 }
