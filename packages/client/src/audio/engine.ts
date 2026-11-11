@@ -12,8 +12,17 @@ type Listener = (settings: AudioSettings) => void;
 interface Graph {
   ctx: AudioContext;
   music: GainNode;
+  /** Between the music bus and the master: dips under key sounds about us (duckMusic). */
+  duck: GainNode;
   sfx: GainNode;
 }
+
+/** Music level while ducked, as a share of its setting (playtest 1 idea 10). */
+export const MUSIC_DUCK_LEVEL = 0.35;
+/** How long the music stays ducked, and how fast it dips and comes back, seconds. */
+export const MUSIC_DUCK_HOLD_SECONDS = 0.9;
+const MUSIC_DUCK_ATTACK_SECONDS = 0.03;
+const MUSIC_DUCK_RELEASE_SECONDS = 0.35;
 
 export class AudioEngine {
   private settings: AudioSettings;
@@ -76,6 +85,21 @@ export class AudioEngine {
         // Closed context or similar: stay silent.
       }
     });
+  }
+
+  /** Dips the music for a moment so a key sound about us stands out; a new dip restarts the hold. */
+  duckMusic(): void {
+    const graph = this.graph;
+    if (!graph) return;
+    try {
+      const gain = graph.duck.gain;
+      const now = graph.ctx.currentTime;
+      gain.cancelScheduledValues(now);
+      gain.setTargetAtTime(MUSIC_DUCK_LEVEL, now, MUSIC_DUCK_ATTACK_SECONDS);
+      gain.setTargetAtTime(1, now + MUSIC_DUCK_HOLD_SECONDS, MUSIC_DUCK_RELEASE_SECONDS);
+    } catch {
+      // A closed context: nothing to duck.
+    }
   }
 
   /** Loops `url` on the music bus (one track at a time; the same track keeps playing). */
@@ -149,10 +173,11 @@ export class AudioEngine {
       const master = ctx.createGain();
       master.connect(ctx.destination);
       const music = ctx.createGain();
+      const duck = ctx.createGain();
       const sfx = ctx.createGain();
-      music.connect(master);
+      music.connect(duck).connect(master);
       sfx.connect(master);
-      this.graph = { ctx, music, sfx };
+      this.graph = { ctx, music, duck, sfx };
       this.applyGains();
     } catch {
       this.graph = null;

@@ -4,6 +4,7 @@
 // specs can latch on the count.
 import { audioEngine, type AudioEngine } from './engine';
 import { SFX_NAMES, sfxUrl, type SfxName } from './names';
+import { ducksMusic } from './sfxPlan';
 
 export type { SfxName } from './names';
 
@@ -19,10 +20,21 @@ export class Sfx {
     if (!(volume > 0)) return;
     this.counts[name]++;
     this.engine.playSfx(sfxUrl(name), Math.min(1, volume));
+    if (ducksMusic(name, volume)) {
+      this.ducked++;
+      this.engine.duckMusic();
+    }
   }
 
   /** How many times each sound was played (debug hook). */
   played(): Record<SfxName, number> {
     return { ...this.counts };
   }
+
+  /** How many times a sound about us ducked the music (debug hook). */
+  ducks(): number {
+    return this.ducked;
+  }
+
+  private ducked = 0;
 }

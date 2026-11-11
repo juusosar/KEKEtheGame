@@ -16,7 +16,8 @@ export interface AudioSettings {
 
 export const DEFAULT_AUDIO_SETTINGS: Readonly<AudioSettings> = {
   master: 0.8,
-  music: 0.5,
+  // Playtest 1: at 0.5 the loop sat as loud as the KO, deposit and swing sounds.
+  music: 0.35,
   sfx: 0.8,
   muted: false,
 };

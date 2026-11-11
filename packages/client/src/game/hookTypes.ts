@@ -289,6 +289,8 @@ export interface KekeHook {
   wantedIcons(): string[];
   /** How many times each sound effect has played (names in audio/names.ts), muted or not. */
   sfx(): Record<string, number>;
+  /** How many times a sound about us ducked the music (playtest 1: KO, deposit, packed box, delivery). */
+  musicDucks(): number;
   /** The music track the Game scene asked for (M7-2), e.g. `assets/music/kespro_loop.wav`; null when none. */
   music(): string | null;
 }
