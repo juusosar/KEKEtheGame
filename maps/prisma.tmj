@@ -11,7 +11,7 @@
   "tilewidth": 32,
   "tileheight": 32,
   "nextlayerid": 15,
-  "nextobjectid": 140,
+  "nextobjectid": 143,
   "layers": [
     {
       "id": 1,
@@ -1856,8 +1856,8 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 784,
-          "y": 464,
+          "x": 2128,
+          "y": 400,
           "width": 0,
           "height": 0,
           "point": true,
@@ -1865,7 +1865,7 @@
             {
               "name": "zone",
               "type": "string",
-              "value": "pantry"
+              "value": "frozen"
             }
           ]
         },
@@ -1875,7 +1875,7 @@
           "type": "",
           "rotation": 0,
           "visible": true,
-          "x": 1168,
+          "x": 784,
           "y": 464,
           "width": 0,
           "height": 0,
@@ -1894,6 +1894,25 @@
           "type": "",
           "rotation": 0,
           "visible": true,
+          "x": 1168,
+          "y": 464,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "zone",
+              "type": "string",
+              "value": "pantry"
+            }
+          ]
+        },
+        {
+          "id": 67,
+          "name": "",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
           "x": 720,
           "y": 560,
           "width": 0,
@@ -1908,7 +1927,7 @@
           ]
         },
         {
-          "id": 67,
+          "id": 68,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1927,7 +1946,7 @@
           ]
         },
         {
-          "id": 68,
+          "id": 69,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1946,7 +1965,7 @@
           ]
         },
         {
-          "id": 69,
+          "id": 70,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1965,7 +1984,7 @@
           ]
         },
         {
-          "id": 70,
+          "id": 71,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -1984,7 +2003,7 @@
           ]
         },
         {
-          "id": 71,
+          "id": 72,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2003,7 +2022,7 @@
           ]
         },
         {
-          "id": 72,
+          "id": 73,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2022,7 +2041,7 @@
           ]
         },
         {
-          "id": 73,
+          "id": 74,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2041,7 +2060,7 @@
           ]
         },
         {
-          "id": 74,
+          "id": 75,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2060,7 +2079,45 @@
           ]
         },
         {
-          "id": 75,
+          "id": 76,
+          "name": "",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1872,
+          "y": 272,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "zone",
+              "type": "string",
+              "value": "pantry"
+            }
+          ]
+        },
+        {
+          "id": 77,
+          "name": "",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1616,
+          "y": 144,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "zone",
+              "type": "string",
+              "value": "pantry"
+            }
+          ]
+        },
+        {
+          "id": 78,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2079,7 +2136,7 @@
           ]
         },
         {
-          "id": 76,
+          "id": 79,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2098,7 +2155,7 @@
           ]
         },
         {
-          "id": 77,
+          "id": 80,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2117,7 +2174,7 @@
           ]
         },
         {
-          "id": 78,
+          "id": 81,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2136,7 +2193,7 @@
           ]
         },
         {
-          "id": 79,
+          "id": 82,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2160,7 +2217,7 @@
           ]
         },
         {
-          "id": 80,
+          "id": 83,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2184,7 +2241,7 @@
           ]
         },
         {
-          "id": 81,
+          "id": 84,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2203,7 +2260,7 @@
           ]
         },
         {
-          "id": 82,
+          "id": 85,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2222,7 +2279,7 @@
           ]
         },
         {
-          "id": 83,
+          "id": 86,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2241,7 +2298,7 @@
           ]
         },
         {
-          "id": 84,
+          "id": 87,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2260,7 +2317,7 @@
           ]
         },
         {
-          "id": 85,
+          "id": 88,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2279,7 +2336,7 @@
           ]
         },
         {
-          "id": 86,
+          "id": 89,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2298,7 +2355,7 @@
           ]
         },
         {
-          "id": 87,
+          "id": 90,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2317,7 +2374,7 @@
           ]
         },
         {
-          "id": 88,
+          "id": 91,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2336,7 +2393,7 @@
           ]
         },
         {
-          "id": 89,
+          "id": 92,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2355,7 +2412,7 @@
           ]
         },
         {
-          "id": 90,
+          "id": 93,
           "name": "",
           "type": "",
           "rotation": 0,
@@ -2386,7 +2443,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 91,
+          "id": 94,
           "name": "security",
           "type": "",
           "rotation": 0,
@@ -2410,7 +2467,7 @@
           ]
         },
         {
-          "id": 92,
+          "id": 95,
           "name": "security",
           "type": "",
           "rotation": 0,
@@ -2429,7 +2486,7 @@
           ]
         },
         {
-          "id": 93,
+          "id": 96,
           "name": "security",
           "type": "",
           "rotation": 0,
@@ -2448,7 +2505,7 @@
           ]
         },
         {
-          "id": 94,
+          "id": 97,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2467,7 +2524,7 @@
           ]
         },
         {
-          "id": 95,
+          "id": 98,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2486,7 +2543,7 @@
           ]
         },
         {
-          "id": 96,
+          "id": 99,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2505,7 +2562,7 @@
           ]
         },
         {
-          "id": 97,
+          "id": 100,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2524,7 +2581,7 @@
           ]
         },
         {
-          "id": 98,
+          "id": 101,
           "name": "stocker",
           "type": "",
           "rotation": 0,
@@ -2543,7 +2600,7 @@
           ]
         },
         {
-          "id": 99,
+          "id": 102,
           "name": "butcher",
           "type": "",
           "rotation": 0,
@@ -2562,7 +2619,7 @@
           ]
         },
         {
-          "id": 100,
+          "id": 103,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2581,7 +2638,7 @@
           ]
         },
         {
-          "id": 101,
+          "id": 104,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2600,7 +2657,7 @@
           ]
         },
         {
-          "id": 102,
+          "id": 105,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2619,7 +2676,7 @@
           ]
         },
         {
-          "id": 103,
+          "id": 106,
           "name": "customer",
           "type": "",
           "rotation": 0,
@@ -2650,7 +2707,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 104,
+          "id": 107,
           "name": "wp_1",
           "type": "",
           "rotation": 0,
@@ -2662,7 +2719,7 @@
           "point": true
         },
         {
-          "id": 105,
+          "id": 108,
           "name": "wp_2",
           "type": "",
           "rotation": 0,
@@ -2674,7 +2731,7 @@
           "point": true
         },
         {
-          "id": 106,
+          "id": 109,
           "name": "wp_3",
           "type": "",
           "rotation": 0,
@@ -2686,7 +2743,7 @@
           "point": true
         },
         {
-          "id": 107,
+          "id": 110,
           "name": "wp_4",
           "type": "",
           "rotation": 0,
@@ -2698,7 +2755,7 @@
           "point": true
         },
         {
-          "id": 108,
+          "id": 111,
           "name": "wp_5",
           "type": "",
           "rotation": 0,
@@ -2710,7 +2767,7 @@
           "point": true
         },
         {
-          "id": 109,
+          "id": 112,
           "name": "wp_6",
           "type": "",
           "rotation": 0,
@@ -2722,7 +2779,7 @@
           "point": true
         },
         {
-          "id": 110,
+          "id": 113,
           "name": "wp_7",
           "type": "",
           "rotation": 0,
@@ -2734,7 +2791,7 @@
           "point": true
         },
         {
-          "id": 111,
+          "id": 114,
           "name": "wp_8",
           "type": "",
           "rotation": 0,
@@ -2746,7 +2803,7 @@
           "point": true
         },
         {
-          "id": 112,
+          "id": 115,
           "name": "wp_9",
           "type": "",
           "rotation": 0,
@@ -2758,7 +2815,7 @@
           "point": true
         },
         {
-          "id": 113,
+          "id": 116,
           "name": "wp_10",
           "type": "",
           "rotation": 0,
@@ -2770,7 +2827,7 @@
           "point": true
         },
         {
-          "id": 114,
+          "id": 117,
           "name": "wp_11",
           "type": "",
           "rotation": 0,
@@ -2782,7 +2839,7 @@
           "point": true
         },
         {
-          "id": 115,
+          "id": 118,
           "name": "wp_12",
           "type": "",
           "rotation": 0,
@@ -2794,7 +2851,7 @@
           "point": true
         },
         {
-          "id": 116,
+          "id": 119,
           "name": "wp_13",
           "type": "",
           "rotation": 0,
@@ -2806,7 +2863,7 @@
           "point": true
         },
         {
-          "id": 117,
+          "id": 120,
           "name": "wp_14",
           "type": "",
           "rotation": 0,
@@ -2818,7 +2875,7 @@
           "point": true
         },
         {
-          "id": 118,
+          "id": 121,
           "name": "wp_15",
           "type": "",
           "rotation": 0,
@@ -2830,7 +2887,7 @@
           "point": true
         },
         {
-          "id": 119,
+          "id": 122,
           "name": "wp_16",
           "type": "",
           "rotation": 0,
@@ -2854,7 +2911,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 120,
+          "id": 123,
           "name": "stockroom_loop",
           "type": "",
           "rotation": 0,
@@ -2895,7 +2952,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 129,
+          "id": 132,
           "name": "office_trigger",
           "type": "",
           "rotation": 0,
@@ -3003,7 +3060,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 130,
+          "id": 133,
           "name": "bottle_hum",
           "type": "",
           "rotation": 0,
@@ -3027,7 +3084,7 @@
           ]
         },
         {
-          "id": 139,
+          "id": 142,
           "name": "oven_crackle",
           "type": "",
           "rotation": 0,
@@ -3063,7 +3120,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 131,
+          "id": 134,
           "name": "checkout_1",
           "type": "",
           "rotation": 0,
@@ -3086,7 +3143,7 @@
           ]
         },
         {
-          "id": 132,
+          "id": 135,
           "name": "checkout_2",
           "type": "",
           "rotation": 0,
@@ -3109,7 +3166,7 @@
           ]
         },
         {
-          "id": 133,
+          "id": 136,
           "name": "checkout_3",
           "type": "",
           "rotation": 0,
@@ -3132,7 +3189,7 @@
           ]
         },
         {
-          "id": 134,
+          "id": 137,
           "name": "checkout_4",
           "type": "",
           "rotation": 0,
@@ -3155,7 +3212,7 @@
           ]
         },
         {
-          "id": 135,
+          "id": 138,
           "name": "checkout_5",
           "type": "",
           "rotation": 0,
@@ -3178,7 +3235,7 @@
           ]
         },
         {
-          "id": 136,
+          "id": 139,
           "name": "checkout_6",
           "type": "",
           "rotation": 0,
@@ -3201,7 +3258,7 @@
           ]
         },
         {
-          "id": 137,
+          "id": 140,
           "name": "door_7",
           "type": "",
           "rotation": 0,
@@ -3224,7 +3281,7 @@
           ]
         },
         {
-          "id": 138,
+          "id": 141,
           "name": "door_8",
           "type": "",
           "rotation": 0,
@@ -3259,7 +3316,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 121,
+          "id": 124,
           "name": "cart_1",
           "type": "",
           "rotation": 0,
@@ -3278,7 +3335,7 @@
           ]
         },
         {
-          "id": 122,
+          "id": 125,
           "name": "cart_2",
           "type": "",
           "rotation": 0,
@@ -3297,7 +3354,7 @@
           ]
         },
         {
-          "id": 123,
+          "id": 126,
           "name": "cart_3",
           "type": "",
           "rotation": 0,
@@ -3316,7 +3373,7 @@
           ]
         },
         {
-          "id": 124,
+          "id": 127,
           "name": "cart_4",
           "type": "",
           "rotation": 0,
@@ -3335,7 +3392,7 @@
           ]
         },
         {
-          "id": 125,
+          "id": 128,
           "name": "cart_5",
           "type": "",
           "rotation": 0,
@@ -3354,7 +3411,7 @@
           ]
         },
         {
-          "id": 126,
+          "id": 129,
           "name": "cart_6",
           "type": "",
           "rotation": 0,
@@ -3373,7 +3430,7 @@
           ]
         },
         {
-          "id": 127,
+          "id": 130,
           "name": "cart_7",
           "type": "",
           "rotation": 0,
@@ -3392,7 +3449,7 @@
           ]
         },
         {
-          "id": 128,
+          "id": 131,
           "name": "cart_8",
           "type": "",
           "rotation": 0,

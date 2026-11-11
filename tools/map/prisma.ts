@@ -269,7 +269,10 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
     [53, 30],
     [56, 34],
     [44, 34],
+    [66, 12],
   ],
+  // The last pantry spawns and the last frozen one are back stock in the stockroom (P4-2 follow-up,
+  // P1 review F7): Wanted on the way in, and the staff exit is the quick way out to the lot.
   pantry: [
     [24, 14],
     [36, 14],
@@ -282,6 +285,8 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
     [34, 29],
     [27, 32],
     [37, 35],
+    [58, 8],
+    [50, 4],
   ],
   // The last two sit in the bottle-return dead end (§9.2, decision 11): they are the odd spots.
   drinks: [

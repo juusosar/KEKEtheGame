@@ -159,10 +159,9 @@ describe('maps/prisma.tmj', () => {
   it('places every item spawn inside its zone, on open floor reachable from the vans', () => {
     for (const s of map.itemSpawns) {
       const where = `${s.zone} spawn at ${tileOf(s.x)},${tileOf(s.y)}`;
-      expect(
-        zonesAt(map.zones, s.x, s.y).map((z) => z.id),
-        where,
-      ).toContain(s.zone);
+      const zones = zonesAt(map.zones, s.x, s.y).map((z) => z.id);
+      // Back stock in the stockroom spawns items of the store's zones (P1 review F7).
+      if (!zones.includes('stockroom')) expect(zones, where).toContain(s.zone);
       expect(map.collision.isSolid(tileOf(s.x), tileOf(s.y)), where).toBe(false);
       expect(isReachable(s.x, s.y), where).toBe(true);
     }
@@ -173,9 +172,14 @@ describe('maps/prisma.tmj', () => {
     expect(at('behind_counter').length).toBeGreaterThanOrEqual(2);
     expect(at('behind_counter').every((s) => s.zone === 'deli')).toBe(true);
     expect(at('bottle_return').map((s) => s.zone)).toEqual(['drinks', 'drinks']);
-    // One bakery spawn sits on the hot floor as a lure (P4-2); none in the stockroom.
+    // One bakery spawn sits on the hot floor as a lure (P4-2).
     expect(at('oven').map((s) => s.zone)).toEqual(['bakery']);
-    expect(at('stockroom')).toHaveLength(0);
+    // Three back-stock spawns in the stockroom give it a reason to go in (P1 review F7).
+    expect(
+      at('stockroom')
+        .map((s) => s.zone)
+        .sort(),
+    ).toEqual(['frozen', 'pantry', 'pantry']);
   });
 
   it('makes the two bottle-return spawns the odd spots for joke items (decision 11, P2-6)', () => {

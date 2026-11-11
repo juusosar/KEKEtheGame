@@ -27,9 +27,6 @@
       "count": { "base": 2, "per": { "players": 6, "add": 1 }, "min": 0 },
       "patrol": { "pauseSeconds": { "min": 1, "max": 3 } },
       "chase": { "speedPxPerSecond": 150, "sightRangeTiles": 12, "loseSightSeconds": 4 },
-      "mapZones": {
-        "prisma": { "releaseZones": ["parking", "cart_corral", "sidewalk", "street", "office"] }
-      },
       "attack": {
         "cooldownSeconds": 1,
         "melee": { "damage": 15, "rangePx": 32, "arcDegrees": 90, "knockbackPx": 16, "stunSeconds": 0.5 }
