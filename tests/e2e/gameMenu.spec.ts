@@ -1,5 +1,16 @@
 import { expect } from '@playwright/test';
-import { createRoom, game, joinRoom, players, test, toPlay, waitControlling } from './helpers';
+import {
+  createRoom,
+  game,
+  installFakePad,
+  joinRoom,
+  noNpcs,
+  players,
+  tapPad,
+  test,
+  toPlay,
+  waitControlling,
+} from './helpers';
 
 // M7 review F5: Esc opens the in-game menu (§13.3 Menu). The round keeps running behind it (multiplayer,
 // no pause) but our inputs go idle; it has Resume, the sound settings, the controls table and Leave room
@@ -24,6 +35,8 @@ test('in-game menu: Esc opens it, inputs go idle, Leave room returns to Play', a
     await page.waitForFunction(() => (globalThis as { __KEKE__?: unknown }).__KEKE__ !== undefined);
     await waitControlling(page);
   }
+  // Walking is checked below: keep store workers from shoving us.
+  await noNpcs(host);
 
   const menu = host.getByRole('dialog', { name: 'Menu' });
   await expect(menu).toBeHidden();
@@ -110,33 +123,11 @@ test('in-game menu: offline walk mode goes back to the title', async ({ page }) 
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'title', { timeout: 10_000 });
 });
 
-/** Replaces navigator.getGamepads with one standard-mapping pad that the spec presses through `__pad`. */
-const FAKE_PAD = `(() => {
-  const buttons = Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
-  const pad = { id: 'e2e pad', index: 0, connected: true, mapping: 'standard', timestamp: performance.now(),
-    axes: [0, 0, 0, 0], buttons, vibrationActuator: null };
-  Object.defineProperty(navigator, 'getGamepads', { value: () => [pad, null, null, null] });
-  globalThis.__pad = {
-    set(i, down) { buttons[i] = { pressed: down, touched: down, value: down ? 1 : 0 }; pad.timestamp = performance.now(); },
-  };
-})();`;
-
 test('in-game menu: gamepad Start opens it, D-pad and A/B drive it', async ({ page }) => {
-  await page.addInitScript(FAKE_PAD);
+  await installFakePad(page);
   await page.goto('/?debug=1&scene=game');
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'game', { timeout: 15_000 });
-  const tap = async (button: number): Promise<void> => {
-    await page.evaluate(
-      (i) => (globalThis as { __pad?: { set(i: number, d: boolean): void } }).__pad?.set(i, true),
-      button,
-    );
-    await page.waitForTimeout(150);
-    await page.evaluate(
-      (i) => (globalThis as { __pad?: { set(i: number, d: boolean): void } }).__pad?.set(i, false),
-      button,
-    );
-    await page.waitForTimeout(150);
-  };
+  const tap = (button: number): Promise<void> => tapPad(page, button);
   const START = 9;
   const A = 0;
   const B = 1;
