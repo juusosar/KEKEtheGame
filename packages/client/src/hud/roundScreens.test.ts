@@ -107,6 +107,7 @@ describe('readRoundScreen', () => {
         sessionPoints: 10,
         sessionPlace: 0,
         members: ['B', 'C'],
+        delivered: false,
         mine: false,
       },
       {
@@ -117,6 +118,7 @@ describe('readRoundScreen', () => {
         sessionPoints: 7,
         sessionPlace: 0,
         members: ['A'],
+        delivered: false,
         mine: true,
       },
     ]);
@@ -208,6 +210,43 @@ describe('sessions (M7-1)', () => {
     if (teams.kind !== 'results') throw new Error(teams.kind);
     expect(teams.items).toBe('deposited');
     expect(teams.rows.map((r) => r.items)).toEqual([1, 4]);
+  });
+
+  it('marks the player and the team that delivered the order box (M6 review F2)', () => {
+    const raceState = (teams: boolean, winner: string): P => ({
+      ...state(
+        'roundResults',
+        [
+          player('a', 0, { place: 2, van: 0, deposited: 6, team: teams ? 1 : 0 }),
+          player('b', 1, { place: 1, van: 1, deposited: 0, team: teams ? 2 : 0 }),
+        ],
+        {
+          vans: { '0': { van: 0, points: 0, controlled: 0 }, '1': { van: 1, points: 0, controlled: 0 } },
+          raceWinner: winner,
+          raceStolen: true,
+          teams: teams
+            ? { '1': { team: 1, place: 2, itemPoints: 0 }, '2': { team: 2, place: 1, itemPoints: 0 } }
+            : {},
+        },
+        teams,
+      ),
+      settings: { mode: 'race', roundsPerMap: 1, teams },
+    });
+    const ffa = readRoundScreen(raceState(false, 'b'), 'a');
+    if (ffa.kind !== 'results') throw new Error(ffa.kind);
+    expect(ffa.rows.map((r) => [r.id, r.delivered])).toEqual([
+      ['b', true],
+      ['a', false],
+    ]);
+    const teams = readRoundScreen(raceState(true, 'b'), 'a');
+    if (teams.kind !== 'results') throw new Error(teams.kind);
+    expect(teams.teamRows.map((r) => [r.team, r.delivered])).toEqual([
+      [2, true],
+      [1, false],
+    ]);
+    const timeUp = readRoundScreen(raceState(false, ''), 'a');
+    if (timeUp.kind !== 'results') throw new Error(timeUp.kind);
+    expect(timeUp.rows.every((r) => !r.delivered)).toBe(true);
   });
 
   it('marks podium sides whose place the item points decided, and gives colours and members', () => {

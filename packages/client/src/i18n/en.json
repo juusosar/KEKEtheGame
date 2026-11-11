@@ -172,6 +172,8 @@
   "round.results.earned": "Earned",
   "round.results.total": "Total",
   "round.results.controlled": "Controlled",
+  "round.results.deposited": "Deposited",
+  "round.results.deliveredTag": "Delivered",
   "round.results.standing": "Standing",
   "round.results.next": "Next round in {seconds} s",
   "round.results.toPodium": "Podium in {seconds} s",
