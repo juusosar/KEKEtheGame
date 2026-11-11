@@ -1,0 +1,13 @@
+# Caddy in front of the KEKE game container on a VPS (README: "Hosting online (VPS)").
+# Copy to /etc/caddy/Caddyfile, replace game.example.com with your domain (its DNS A/AAAA record must
+# point at this server), then `sudo systemctl reload caddy`. Caddy gets and renews the HTTPS
+# certificate on its own; ports 80 and 443 must be open.
+#
+# reverse_proxy passes WebSocket upgrades through as is, so the room connections (wss://) need
+# no extra settings. The game runs as one instance: do not load-balance it across several.
+
+game.example.com {
+	encode zstd gzip
+	# The container publishes port 2567 on localhost only: docker run -p 127.0.0.1:2567:2567 ...
+	reverse_proxy 127.0.0.1:2567
+}
