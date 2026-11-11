@@ -776,37 +776,235 @@
   margin: 8px 0 0;
   color: #bdbdbd;
 }
-.keke-round .podium-list {
-  margin: 0;
+.keke-round td.standing {
+  color: #bdbdbd;
+}
+
+/* Session podium (M7-1): three steps drawn 2-1-3 (DOM order stays 1, 2, 3), the rest listed below. */
+.keke-round .round-podium {
+  width: min(720px, calc(100vw - 32px));
+}
+.keke-round .podium-rounds {
+  margin: -6px 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #bdbdbd;
+}
+.keke-round .podium-winner {
+  margin: 4px 0 14px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffd54f;
+  animation: keke-podium-pop 600ms ease-out both;
+}
+.keke-round .podium-stage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  min-height: 220px;
+}
+.keke-round .podium-step {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  max-width: 210px;
+  min-width: 0;
+}
+.keke-round .podium-step.step-1 {
+  order: 2;
+}
+.keke-round .podium-step.step-2 {
+  order: 1;
+}
+.keke-round .podium-step.step-3 {
+  order: 3;
+}
+.keke-round .podium-sides {
+  margin: 0 0 6px;
   padding: 0;
   list-style: none;
 }
-.keke-round .podium-list li {
+.keke-round .podium-block {
   display: flex;
-  gap: 12px;
-  align-items: baseline;
-  padding: 6px 10px;
-  font-size: 16px;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6px;
+  border-radius: 4px 4px 0 0;
+  font:
+    800 30px/1 ui-monospace,
+    monospace;
+  color: rgba(0, 0, 0, 0.55);
+  text-shadow: none;
+  transform-origin: bottom;
+  animation: keke-podium-rise 500ms ease-out both;
 }
-.keke-round .podium-list li .name {
-  flex: 1;
+.keke-round .step-1 .podium-block {
+  height: 110px;
+  background: linear-gradient(#ffe082, #ffb300);
+  animation-delay: 300ms;
+}
+.keke-round .step-2 .podium-block {
+  height: 78px;
+  background: linear-gradient(#eeeeee, #9e9e9e);
+  animation-delay: 150ms;
+}
+.keke-round .step-3 .podium-block {
+  height: 54px;
+  background: linear-gradient(#e6b98a, #a0522d);
+}
+.keke-round .podium-step.empty .podium-block {
+  opacity: 0.35;
+}
+.keke-round li.side {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+  margin: 4px 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
   text-align: left;
+  animation: keke-podium-pop 500ms ease-out both;
 }
-.keke-round .podium-list li.place-1 {
-  font-size: 26px;
-  font-weight: 800;
+.keke-round .podium-stage li.side {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+}
+.keke-round .podium-stage .step-1 li.side {
+  animation-delay: 700ms;
+}
+.keke-round .podium-stage .step-2 li.side {
+  animation-delay: 550ms;
+}
+.keke-round .podium-stage .step-3 li.side {
+  animation-delay: 400ms;
+}
+.keke-round li.side .token {
+  grid-row: span 3;
+  width: 26px;
+  height: 26px;
+  border: 2px solid rgba(0, 0, 0, 0.6);
+  border-radius: 50% 50% 40% 40%;
+  background: var(--side-color, #888);
+}
+.keke-round .podium-stage li.side .token {
+  grid-row: auto;
+  width: 34px;
+  height: 34px;
+}
+.keke-round .podium-stage .step-1 li.side .token {
+  width: 44px;
+  height: 44px;
+  box-shadow: 0 0 0 3px #ffd54f;
+}
+.keke-round li.side .place {
+  display: none;
+}
+.keke-round .podium-rest li.side .place {
+  display: inline;
+}
+.keke-round li.side .name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.keke-round li.side .members {
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+}
+.keke-round .podium-stage .step-1 li.side .name {
+  font-size: 20px;
   color: #ffd54f;
 }
-.keke-round .podium-list li.place-2 {
-  font-size: 21px;
-  color: #e0e0e0;
+.keke-round li.side.team-1 .name {
+  color: #e53935;
 }
-.keke-round .podium-list li.place-3 {
-  font-size: 18px;
-  color: #d7a26b;
+.keke-round li.side.team-2 .name {
+  color: #3fa9f5;
 }
-.keke-round .podium-list li.me {
-  background: color-mix(in srgb, var(--keke-accent) 30%, transparent);
+.keke-round li.side .points {
+  font-weight: 700;
+}
+.keke-round li.side .items {
+  font-size: 12px;
+  color: #bdbdbd;
+}
+.keke-round li.side.tie-break .items {
+  color: #ffd54f;
+}
+.keke-round li.side.tie-break .items::after {
+  content: ' ★';
+}
+.keke-round li.side.me {
+  background: color-mix(in srgb, var(--keke-accent) 35%, transparent);
+  outline: 2px solid var(--keke-accent);
+}
+.keke-round .podium-rest {
+  margin: 10px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid #444;
+  list-style: none;
+}
+.keke-round .podium-rest li.side {
+  grid-template-columns: auto auto 1fr auto auto;
+  column-gap: 10px;
+}
+.keke-round .podium-rest li.side .token {
+  grid-row: auto;
+  width: 16px;
+  height: 16px;
+}
+@keyframes keke-podium-rise {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes keke-podium-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .keke-round .podium-block,
+  .keke-round li.side,
+  .keke-round .podium-winner {
+    animation: none;
+  }
+}
+@media (max-width: 520px) {
+  .keke-round .podium-stage {
+    min-height: 0;
+  }
+  .keke-round .podium-block {
+    font-size: 20px;
+  }
+  .keke-round .step-1 .podium-block {
+    height: 64px;
+  }
+  .keke-round .step-2 .podium-block {
+    height: 46px;
+  }
+  .keke-round .step-3 .podium-block {
+    height: 32px;
+  }
 }
 /* The in-round HUD steps back while the results and podium are up. */
 body[data-phase='roundResults'] .keke-hud,

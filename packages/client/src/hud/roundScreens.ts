@@ -1,8 +1,8 @@
 // Reads the synced GameState into the full-screen round panels of §13.1: the Round intro (map, mode and
-// the 3-2-1 countdown), the Round results (placement, item points, points earned, running total) and a
-// plain Session podium (final standings; M7-1 dresses it up). Pure (no DOM), unit-tested in node.
+// the 3-2-1 countdown), the Round results (placement, item points, points earned, running total and
+// session standing) and the Session podium (final standings, M7-1). Pure (no DOM), unit-tested in node.
 // Fields come from the M3-5 round flow (PlayerState place/roundPoints/sessionPoints/…, GameState.teams).
-import type { GameMode } from '@keke/shared';
+import { teamColor, type GameMode } from '@keke/shared';
 import { isBag, mapEntries, num, readLobby, type Bag } from '../net/lobbyView';
 
 export interface ResultRow {
@@ -15,10 +15,17 @@ export interface ResultRow {
   place: number;
   /** Item points deposited this round. */
   deposited: number;
+  /**
+   * The Items column: what this round ranked the player on. `deposited`, except in a Race without Teams,
+   * where it is the items the player's van controls (`VanState.controlled`), as the server ranks there.
+   */
+  items: number;
   /** Placement points earned this round. */
   roundPoints: number;
   /** Running session total of placement points. */
   sessionPoints: number;
+  /** Session standing after this round (`PlayerState.sessionPlace`; the team's with Teams on). */
+  sessionPlace: number;
   isMe: boolean;
 }
 
@@ -28,6 +35,7 @@ export interface ResultTeamRow {
   itemPoints: number;
   roundPoints: number;
   sessionPoints: number;
+  sessionPlace: number;
   /** Member nicknames, join order. */
   members: string[];
   /** Our own team. */
@@ -42,9 +50,15 @@ export interface PodiumRow {
   name: string;
   /** 0 for a player side. */
   team: number;
+  /** Player colour, or the team colour. */
+  color: string;
+  /** Team member nicknames in join order; empty for a player side. */
+  members: string[];
   place: number;
   points: number;
   itemPoints: number;
+  /** Shares its points with a side on another place: the item points decided it (§5 tie-break). */
+  tieBroken: boolean;
   mine: boolean;
 }
 
@@ -70,12 +84,22 @@ export type RoundScreenModel =
       /** The last round of the session: the podium comes next instead of another round. */
       final: boolean;
       teams: boolean;
+      /** What the player Items column counts: own deposits, or items controlled (Race without Teams). */
+      items: 'deposited' | 'controlled';
       rows: ResultRow[];
       teamRows: ResultTeamRow[];
       /** Race mode only. */
       race: RaceOutcome | null;
     }
-  | { kind: 'podium'; seconds: number; teams: boolean; rows: PodiumRow[] };
+  | {
+      kind: 'podium';
+      seconds: number;
+      teams: boolean;
+      /** Rounds the session had. */
+      totalRounds: number;
+      /** Ranked sides, best first. */
+      rows: PodiumRow[];
+    };
 
 /** Unranked (0) sorts last. */
 const byPlace = (a: number, b: number): number => (a === 0 ? 99 : a) - (b === 0 ? 99 : b);
@@ -110,6 +134,12 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
   const membersOf = (team: number): string[] => inRound.filter((p) => p.team === team).map((p) => p.nickname);
 
   if (lobby.phase === 'roundResults') {
+    // Race without Teams ranks each player on the items their van controls (M6-2), so show that.
+    const controlled = lobby.settings.mode === 'race' && !teams;
+    const vanControlled = new Map<number, number>();
+    for (const [, value] of mapEntries(s['vans'])) {
+      if (isBag(value)) vanControlled.set(num(value, 'van'), num(value, 'controlled'));
+    }
     const rows: ResultRow[] = inRound.map((p) => ({
       id: p.id,
       nickname: p.nickname,
@@ -117,8 +147,10 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       team: p.team,
       place: field(p.id, 'place'),
       deposited: field(p.id, 'deposited'),
+      items: controlled ? (vanControlled.get(field(p.id, 'van')) ?? 0) : field(p.id, 'deposited'),
       roundPoints: field(p.id, 'roundPoints'),
       sessionPoints: field(p.id, 'sessionPoints'),
+      sessionPlace: field(p.id, 'sessionPlace'),
       isMe: p.isMe,
     }));
     rows.sort((a, b) => byPlace(a.place, b.place) || a.nickname.localeCompare(b.nickname));
@@ -129,6 +161,7 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
         itemPoints: num(bag, 'itemPoints'),
         roundPoints: num(bag, 'roundPoints'),
         sessionPoints: num(bag, 'sessionPoints'),
+        sessionPlace: num(bag, 'sessionPlace'),
         members: membersOf(team),
         mine: team === myTeam,
       }))
@@ -155,6 +188,7 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       totalRounds,
       final: totalRounds > 0 && round >= totalRounds,
       teams,
+      items: controlled ? 'controlled' : 'deposited',
       rows,
       teamRows,
       race,
@@ -168,9 +202,12 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       id: `team:${team}`,
       name: '',
       team,
+      color: teamColor(team) ?? '#888888',
+      members: membersOf(team),
       place: num(bag, 'sessionPlace'),
       points: num(bag, 'sessionPoints'),
       itemPoints: num(bag, 'sessionItemPoints'),
+      tieBroken: false,
       mine: team === myTeam,
     });
   }
@@ -180,12 +217,32 @@ export function readRoundScreen(state: unknown, mySessionId: string): RoundScree
       id: p.id,
       name: p.nickname,
       team: 0,
+      color: p.color,
+      members: [],
       place: field(p.id, 'sessionPlace'),
       points: field(p.id, 'sessionPoints'),
       itemPoints: field(p.id, 'sessionItemPoints'),
+      tieBroken: false,
       mine: p.isMe,
     });
   }
   rows.sort((a, b) => byPlace(a.place, b.place) || b.points - a.points || a.name.localeCompare(b.name));
-  return { kind: 'podium', seconds, teams, rows };
+  const ranked = rows.map((r) => ({
+    ...r,
+    tieBroken:
+      r.place > 0 && rows.some((o) => o !== r && o.place > 0 && o.points === r.points && o.place !== r.place),
+  }));
+  return { kind: 'podium', seconds, teams, totalRounds, rows: ranked };
+}
+
+/** Podium steps: the sides on places 1, 2 and 3 (ties share a step); everyone else is listed below. */
+export function podiumSteps(rows: readonly PodiumRow[]): { steps: PodiumRow[][]; rest: PodiumRow[] } {
+  const steps: PodiumRow[][] = [[], [], []];
+  const rest: PodiumRow[] = [];
+  for (const row of rows) {
+    const step = row.place >= 1 && row.place <= 3 ? steps[row.place - 1] : undefined;
+    if (step) step.push(row);
+    else rest.push(row);
+  }
+  return { steps, rest };
 }
