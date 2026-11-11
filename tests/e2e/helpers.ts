@@ -62,6 +62,12 @@ export async function createRoom(page: Page): Promise<string> {
   }
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'lobby', { timeout: 10_000 });
   await expect(page.locator('body')).toHaveAttribute('data-room', /^[A-Z]{4}$/);
+  // We made this room, so we host it: only the host sees Start. A click that slipped onto another
+  // spec's Join button would land us in their lobby as a guest, so fail loudly here (M5 review F7).
+  await expect(
+    page.getByRole('button', { name: 'Start' }),
+    'createRoom: this page should host the new room, not have joined another',
+  ).toBeVisible();
   return (await page.locator('body').getAttribute('data-room')) ?? '';
 }
 
