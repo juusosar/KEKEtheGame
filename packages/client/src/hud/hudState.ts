@@ -122,11 +122,14 @@ export interface HudContext {
   office?: Vec2;
   /** Race quota from the bundled config, used only when the room has not synced `raceQuota`; defaults to 6. */
   raceQuota?: number;
+  /** Atlas of the order box sheet for the room's map (P1-5); defaults to the default theme's. */
+  orderBoxAtlas?: string;
 }
 
 const DEFAULT_RACE_QUOTA = 6;
 
-function readItem(value: unknown, catalogue: HudContext['catalogue']): HudItem | null {
+function readItem(value: unknown, ctx: HudContext): HudItem | null {
+  const catalogue = ctx.catalogue;
   if (!isBag(value)) return null;
   const itemId = str(value, 'itemId');
   if (itemId === ORDER_BOX_ITEM_ID) {
@@ -137,7 +140,7 @@ function readItem(value: unknown, catalogue: HudContext['catalogue']): HudItem |
       desc: t('item.orderBox.desc'),
       zone: '',
       sprite: ORDER_BOX_ITEM_ID,
-      atlas: ORDER_BOX_ATLAS,
+      atlas: ctx.orderBoxAtlas ?? ORDER_BOX_ATLAS,
       rarity: 'normal',
       x: num(value, 'x'),
       y: num(value, 'y'),
@@ -175,8 +178,7 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
     if (isBag(value)) extra.set(str(value, 'sessionId', key) || key, value);
   }
   const items = new Map<string, unknown>(mapEntries(s['items']));
-  const itemById = (id: number): HudItem | null =>
-    id === 0 ? null : readItem(items.get(String(id)), ctx.catalogue);
+  const itemById = (id: number): HudItem | null => (id === 0 ? null : readItem(items.get(String(id)), ctx));
 
   const race = lobby.settings.mode === 'race';
   const inRound = lobby.players.filter((p) => !p.spectator);

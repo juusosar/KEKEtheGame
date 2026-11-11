@@ -36,9 +36,7 @@ export interface WorldDepths {
 
 const ITEMS_ATLAS = 'items';
 /** Race order box (M6-3): its own atlas with one frame (M1-1 art), not a catalogue item. */
-const BOX_ATLAS = 'order_box';
 const BOX_FRAME = 'order_box';
-const VAN_ATLAS = 'van';
 const SPARKLE_KEY = 'keke_sparkle';
 /** The 4 outline copies of an item sprite: left, right, up, down. */
 const OUTLINE_DIRS: readonly Vec2[] = [
@@ -135,6 +133,8 @@ export class WorldRenderer {
     private readonly model: MapModel,
     theme: ThemeId,
     private readonly depth: WorldDepths,
+    /** Atlas keys of the map's van and order box sheets (P1-5: each theme has its own colours). */
+    private readonly sheets: { van: string; orderBox: string } = { van: 'van', orderBox: 'order_box' },
   ) {
     this.catalogue = getItemCatalogue(theme);
     if (!scene.textures.exists(SPARKLE_KEY)) {
@@ -157,7 +157,7 @@ export class WorldRenderer {
     const seen = new Set<number>();
     for (const view of world.items) {
       const box = view.itemId === ORDER_BOX_ITEM_ID;
-      const atlas = box ? BOX_ATLAS : ITEMS_ATLAS;
+      const atlas = box ? this.sheets.orderBox : ITEMS_ATLAS;
       const frame = box ? BOX_FRAME : this.catalogue.get(view.itemId)?.sprite;
       if (
         frame === undefined ||
@@ -285,7 +285,7 @@ export class WorldRenderer {
     for (const view of vans) {
       const slot = this.model.vanSlots[view.van];
       const frame = vanFrame(view.van);
-      if (!slot || !this.scene.textures.get(VAN_ATLAS).has(frame)) {
+      if (!slot || !this.scene.textures.get(this.sheets.van).has(frame)) {
         this.warnOnce(`van ${view.van} has no slot or frame`);
         continue;
       }
@@ -294,7 +294,7 @@ export class WorldRenderer {
       if (!drawn) {
         const bay = this.scene.add.graphics().setDepth(this.depth.van);
         const sprite = this.scene.add
-          .image(slot.x, slot.y, VAN_ATLAS, frame)
+          .image(slot.x, slot.y, this.sheets.van, frame)
           .setDepth(this.depth.van + 0.001);
         drawn = { view, slot, sprite, bay, outline: undefined, painted: null };
         this.vans.set(view.van, drawn);

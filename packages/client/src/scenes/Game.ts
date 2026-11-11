@@ -37,6 +37,7 @@ import {
   type SoundCue,
 } from '../audio/sfxPlan';
 import { createManifestAnimations, preloadManifestAssets } from '../game/assets';
+import { themeAtlasKey, type AssetManifest } from '../game/manifest';
 import { Avatar } from '../game/avatar';
 import { CombatFx, type FxBody } from '../game/combatFx';
 import { SprayFx } from '../game/sprayFx';
@@ -120,6 +121,8 @@ export class GameScene extends Phaser.Scene {
   private theme!: MapTheme;
   /** Where the tiles, item catalogue and music come from: `theme`, or the default map while its map is not built. */
   private assets!: MapTheme;
+  /** The asset manifest: theme-coloured sheet keys (van, order box) come from it. */
+  private manifest: AssetManifest | undefined;
   private model!: MapModel;
   private config!: GameConfig;
   private inputManager!: InputManager;
@@ -205,7 +208,7 @@ export class GameScene extends Phaser.Scene {
     this.room = current?.room ?? null;
     this.code = current?.code ?? '';
 
-    createManifestAnimations(this);
+    this.manifest = createManifestAnimations(this);
     this.createTilemap(raw);
     const profile = this.createLocalPlayer();
     this.createWorld(profile.color);
@@ -349,11 +352,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createWorld(offlineColor: string): void {
-    this.world = new WorldRenderer(this, this.model, this.assets.id, {
-      van: DEPTH.decor + 0.5,
-      item: DEPTH.player - 0.5,
-      carried: DEPTH.player + 0.6,
-    });
+    this.world = new WorldRenderer(
+      this,
+      this.model,
+      this.assets.id,
+      {
+        van: DEPTH.decor + 0.5,
+        item: DEPTH.player - 0.5,
+        carried: DEPTH.player + 0.6,
+      },
+      {
+        // The picked map's colours (P1-5), even while its tiles are still the default map's.
+        van: themeAtlasKey(this.manifest, this.theme.id, 'van'),
+        orderBox: themeAtlasKey(this.manifest, this.theme.id, 'order_box'),
+      },
+    );
     // Offline walk: our van in slot 1, where we start. In a room the state says which vans exist.
     if (this.room === null) this.world.showOfflineVan(offlineColor);
   }
@@ -845,6 +858,7 @@ export class GameScene extends Phaser.Scene {
       vanSlots: this.model.vanSlots,
       office: this.officeCentre(),
       raceQuota: this.config.raceQuota,
+      orderBoxAtlas: themeAtlasKey(this.manifest, this.theme.id, 'order_box'),
     };
     const hud = new Hud({
       iconFor: (sprite, atlas) => this.itemIcon(sprite, atlas),
