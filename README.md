@@ -41,7 +41,7 @@ git rm --cached -r . && git reset --hard
 | `npm run gen:items`    | Regenerates the item catalogue JSON from `tools/items/*.md`                |
 | `npm run gen:sfx`      | Regenerates the placeholder sound effects and music (see below)            |
 | `npm run docker:smoke` | Builds the Docker image and checks that it runs the game (needs Docker)    |
-| `npm run soak`         | 8-player multi-session soak test (see below)                               |
+| `npm run soak`         | 16-player multi-session soak test (see below)                              |
 
 ## Development
 
@@ -55,7 +55,7 @@ Run `npm run e2e:install` once to download Playwright's Chromium. After that, `n
 
 ## Soak test
 
-`npm run soak` plays whole sessions with 8 simulated players against an in-process server, back to back in the same room: a 3-round Timed, a 3-round Race, both again with teams on, a 3-round Timed and a 3-round Race on the second map (Prisma), then a Timed session and a Race session with teams over both maps (3 rounds on each, with a map switch in the middle). That takes about 30 minutes with the soak's shorter rounds and a race quota of 2; the last full run (2026-11-11) made 227 desync checks with no desyncs and no errors, and the heap stayed flat. The bots (`packages/server/src/soak/bot.ts`) play from their own decoded copy of the state like real clients: they walk with the shared pathfinder, fetch their target, deposit it, carry race boxes to the office, steal, fight each other and hit store workers (so they get Wanted). The soak fails on any server or client error, any desync (it pauses the simulation now and then and compares every client's state with the server's), a podium or lobby that is not clean, bots that never picked up, deposited, knocked someone out, got Wanted, packed a box or delivered one, and growth of tick time or heap between the first and the last session. It prints a summary and writes `test-results/soak/report.json`.
+`npm run soak` plays whole sessions with 16 simulated players (a full room; `--players 8` for fewer) against an in-process server, back to back in the same room: a 3-round Timed, a 3-round Race, both again with teams on, a 3-round Timed and a 3-round Race on the second map (Prisma), then a Timed session and a Race session with teams over both maps (3 rounds on each, with a map switch in the middle). That takes about 30 minutes with the soak's shorter rounds and a race quota of 2; the last full run (2026-11-11) made 227 desync checks with no desyncs and no errors, and the heap stayed flat. The bots (`packages/server/src/soak/bot.ts`) play from their own decoded copy of the state like real clients: they walk with the shared pathfinder, fetch their target, deposit it, carry race boxes to the office, steal, fight each other and hit store workers (so they get Wanted). The soak fails on any server or client error, any desync (it pauses the simulation now and then and compares every client's state with the server's), a podium or lobby that is not clean, bots that never picked up, deposited, knocked someone out, got Wanted, packed a box or delivered one, and growth of tick time or heap between the first and the last session. It prints a summary and writes `test-results/soak/report.json`.
 
 Options: `--players 8`, `--sessions timed,race,timed+teams,race+teams,timed@prisma,race@prisma,timed@both,race+teams@both` (`@<map>` plays that session on that map, `@both` on both; default the first map), `--rounds 3`, `--timed 45 --race 75` (round seconds; `--timed 180 --race 240` for the real lengths), `--port 2597`, `--seed 7`. `--browsers 2` makes two of the players real game clients in headless Chromium that join through the menus and mash keys, and fails on their console errors (run `npm run build` first). `npm test` runs a short version (2 Race rounds with teams, and 2 Timed rounds on Prisma).
 
@@ -176,7 +176,7 @@ docker run -d --name keke --restart unless-stopped -p 2567:2567 keke
 
 ## Hosting online (VPS)
 
-For games over the internet, run the image on any small Linux VPS (1 vCPU and 1 GB of RAM is plenty for a few rooms of 8: the M7-4 soak measured one 8-player room at 0.4 to 0.6 ms mean and at most 1.3 ms p95 server tick time of its 50 ms budget, a few percent of one core, with about 35 MB of heap after GC; rerun `npm run soak` to measure again after server changes) with Docker and [Caddy](https://caddyserver.com/docs/install) installed, and a domain name whose DNS record points at the server.
+For games over the internet, run the image on any small Linux VPS (1 vCPU and 1 GB of RAM is plenty for a few full rooms: the M7-4 soak measured one 8-player room at 0.4 to 0.6 ms mean and at most 1.3 ms p95 server tick time of its 50 ms budget, and a 16-player room (2026-11-11, on a busy machine) at 0.7 to 1.5 ms mean and at most 3.9 ms p95, under a tenth of one core, with about 72 MB of heap; rerun `npm run soak` to measure again after server changes) with Docker and [Caddy](https://caddyserver.com/docs/install) installed, and a domain name whose DNS record points at the server.
 
 1. Copy the repo to the server (`git clone`) and build the image: `docker build -t keke .`
 2. Start it with the port published on localhost only, so the game is reached through Caddy and HTTPS: `docker run -d --name keke --restart unless-stopped -p 127.0.0.1:2567:2567 keke`

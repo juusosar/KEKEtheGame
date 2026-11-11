@@ -12,6 +12,7 @@ import {
   teamColor,
   type PlayerColor,
 } from './profile';
+import { loadConfig } from './config';
 
 describe('teamColor', () => {
   it('gives teams 1 and 2 their own colours and nothing to anyone else', () => {
@@ -102,10 +103,13 @@ describe('distinctColor (playtest 1)', () => {
     expect(distinctColor(last, [last])).toBe(PLAYER_COLORS[0]);
   });
 
-  it('gives eight default joiners eight different colours', () => {
+  it('gives a full room of default joiners a colour each', () => {
+    const max = loadConfig().maxPlayersPerRoom;
+    expect(max).toBeGreaterThanOrEqual(16);
+    expect(PLAYER_COLORS.length).toBeGreaterThanOrEqual(max);
     const taken: string[] = [];
-    for (let i = 0; i < 8; i++) taken.push(distinctColor(DEFAULT_COLOR, taken));
-    expect(new Set(taken).size).toBe(8);
+    for (let i = 0; i < max; i++) taken.push(distinctColor(DEFAULT_COLOR, taken));
+    expect(new Set(taken).size).toBe(max);
   });
 
   it('keeps the wanted colour when the whole palette is taken', () => {

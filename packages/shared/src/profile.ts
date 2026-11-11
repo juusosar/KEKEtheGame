@@ -19,6 +19,11 @@ export const PLAYER_COLORS = [
   '#7CB342',
   '#3949AB',
   '#F5F5F5',
+  // 16 players per room: one colour each (players 13 to 16 used to repeat someone's colour).
+  '#F48FB1',
+  '#B39DDB',
+  '#9E9E9E',
+  '#424242',
 ] as const;
 export type PlayerColor = (typeof PLAYER_COLORS)[number];
 

@@ -144,7 +144,8 @@ export class RoundScreen {
       'section',
       {
         id: 'keke-results',
-        class: 'round-panel round-results',
+        // Big rooms (up to 16 players plus the team rows): tighter rows so the table fits 720p.
+        class: `round-panel round-results${model.rows.length > RESULTS_ROOMY_ROWS ? ' many' : ''}`,
         role: 'dialog',
         'aria-labelledby': 'keke-results-title',
       },
@@ -263,7 +264,12 @@ export class RoundScreen {
       ...steps.map((sides, i) =>
         h(
           'div',
-          { class: `podium-step step-${i + 1}${sides.length === 0 ? ' empty' : ''}`, 'data-step': i + 1 },
+          {
+            class: `podium-step step-${i + 1}${sides.length === 0 ? ' empty' : ''}${
+              sides.length > PODIUM_STEP_ROOMY ? ' crowded' : ''
+            }`,
+            'data-step': i + 1,
+          },
           h(
             'ul',
             { class: 'podium-sides', 'aria-label': ordinalLabel(i + 1) },
@@ -297,7 +303,11 @@ export class RoundScreen {
       rest.length > 0
         ? h(
             'ol',
-            { class: 'podium-rest', 'aria-label': t('round.podium.others'), start: rest[0]?.place || 4 },
+            {
+              class: `podium-rest${rest.length > PODIUM_REST_ONE_COLUMN_MAX ? ' many' : ''}`,
+              'aria-label': t('round.podium.others'),
+              start: rest[0]?.place || 4,
+            },
             ...rest.map((r) => podiumItem(r)),
           )
         : null,
@@ -392,6 +402,13 @@ function winnerLine(winners: readonly PodiumRow[]): HTMLElement {
       : t('round.podium.winner', { name: winners[0] ? sideName(winners[0]) : '' });
   return h('p', { class: 'podium-winner', 'data-shared': shared }, text);
 }
+
+/** Results rows at full size; more (rooms hold 16) get tighter rows. */
+const RESULTS_ROOMY_ROWS = 10;
+/** Sides a podium step shows as full cards; more (ties in a 16-player room) become compact rows. */
+const PODIUM_STEP_ROOMY = 2;
+/** Rows below the steps in one column; a longer list takes two, so the podium fits a 720p screen. */
+const PODIUM_REST_ONE_COLUMN_MAX = 5;
 
 function podiumItem(r: PodiumRow): HTMLLIElement {
   const token = h('i', { class: 'token', 'aria-hidden': true });

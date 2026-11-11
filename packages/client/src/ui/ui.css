@@ -130,7 +130,7 @@
 }
 .keke-menu .swatches {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 6px;
 }
 .keke-menu .swatch {
@@ -245,6 +245,35 @@
 .keke-menu .players li.is-ready .state {
   color: #8bd17c;
   font-weight: 700;
+}
+/* More than 8 players (rooms hold 16): two compact columns, so the list stays as tall as 8 rows. */
+.keke-menu .players.many {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+}
+.keke-menu .players.many li {
+  min-width: 0;
+  gap: 6px;
+  padding: 5px 0;
+  font-size: 14px;
+}
+.keke-menu .players.many .swatch-dot {
+  width: 12px;
+  height: 12px;
+}
+.keke-menu .players.many .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.keke-menu .players.many .tags {
+  flex: 1 0 auto;
+  font-size: 12px;
+}
+.keke-menu .players.many .state {
+  font-size: 12px;
 }
 .keke-menu button[aria-pressed='true'].wide::after {
   content: ' ✓';
@@ -806,6 +835,24 @@
   color: #8be08b;
   font-weight: 700;
 }
+/* More than 10 players: tighter rows, so 16 players and the team rows fit a 720p screen. */
+.keke-round .round-results.many {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.keke-round .round-results.many h2 {
+  margin-bottom: 4px;
+}
+.keke-round .round-results.many table {
+  margin: 4px 0;
+  font-size: 13px;
+}
+.keke-round .round-results.many td {
+  padding: 2px 6px;
+}
+.keke-round .round-results.many td .members {
+  font-size: 11px;
+}
 .keke-round tr.me {
   background: color-mix(in srgb, var(--keke-accent) 30%, transparent);
 }
@@ -944,6 +991,15 @@
 .keke-round .podium-stage .step-1 li.side {
   animation-delay: 700ms;
 }
+/* A team card lists up to 8 members (16-player rooms): wrap them inside the card. */
+.keke-round .podium-stage li.side .name {
+  max-width: 100%;
+  white-space: normal;
+}
+.keke-round .podium-stage li.side .members {
+  font-size: 11px;
+  white-space: normal;
+}
 .keke-round .podium-stage .step-2 li.side {
   animation-delay: 550ms;
 }
@@ -1029,6 +1085,44 @@
   grid-row: auto;
   width: 16px;
   height: 16px;
+}
+/* Big rooms (16 players): a step shared by 3 or more sides lists them as compact rows, and a long
+   rest list takes two columns, so the podium fits a 720p screen. */
+.keke-round .podium-step.crowded li.side {
+  grid-template-columns: auto 1fr auto;
+  column-gap: 6px;
+  justify-items: start;
+  margin: 2px 0;
+  padding: 3px 6px;
+  font-size: 13px;
+  text-align: left;
+}
+.keke-round .podium-stage .podium-step.crowded li.side .token,
+.keke-round .podium-stage .podium-step.crowded.step-1 li.side .token {
+  width: 16px;
+  height: 16px;
+  box-shadow: none;
+}
+.keke-round .podium-stage .podium-step.crowded li.side .name {
+  white-space: nowrap;
+}
+.keke-round .podium-stage .podium-step.crowded.step-1 li.side .name {
+  font-size: 14px;
+}
+.keke-round .podium-step.crowded li.side .members,
+.keke-round .podium-step.crowded li.side .items {
+  display: none;
+}
+.keke-round .podium-rest.many {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 12px;
+}
+.keke-round .podium-rest.many li.side {
+  min-width: 0;
+  margin: 2px 0;
+  padding: 3px 6px;
+  font-size: 13px;
 }
 @keyframes keke-podium-rise {
   from {
