@@ -4,6 +4,12 @@ import { t } from '../i18n';
 import { createMenuLayer, h } from '../ui/dom';
 import { PAD_MENU } from '../ui/menuNav';
 
+/** The game's logo (public/assets/logo.svg, also the browser tab icon), rasterised once at LOGO_TEXTURE_PX. */
+const LOGO_KEY = 'logo';
+const LOGO_TEXTURE_PX = 512;
+/** Largest size the logo is drawn at on the title screen. */
+const LOGO_MAX_PX = 240;
+
 /** Data the Title scene accepts: which button to focus (the How to play screen returns to its button). */
 export interface TitleSceneData {
   focus?: 'play' | 'howTo';
@@ -25,19 +31,17 @@ export class TitleScene extends Phaser.Scene {
     this.focusOn = data?.focus ?? 'play';
   }
 
+  preload(): void {
+    if (!this.textures.exists(LOGO_KEY)) {
+      this.load.svg(LOGO_KEY, 'assets/logo.svg', { width: LOGO_TEXTURE_PX, height: LOGO_TEXTURE_PX });
+    }
+  }
+
   create(): void {
     this.leaving = false;
     const theme = getTheme(defaultThemeId);
 
-    const logo = this.add
-      .text(0, 0, 'KEKE', {
-        fontFamily: 'Impact, "Arial Black", sans-serif',
-        fontSize: '120px',
-        color: theme.colors.primary,
-        stroke: theme.colors.outline,
-        strokeThickness: 12,
-      })
-      .setOrigin(0.5);
+    const logo = this.add.image(0, 0, LOGO_KEY).setOrigin(0.5);
     const tagline = this.add
       .text(0, 0, t('title.tagline', { store: theme.brand.storeName }), {
         fontFamily: 'system-ui, sans-serif',
@@ -48,9 +52,10 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
     const layout = (): void => {
       const { width, height } = this.scale;
-      logo.setPosition(width / 2, height * 0.36);
-      logo.setScale(Math.min(1, width / 560));
-      tagline.setPosition(width / 2, height * 0.36 + 90);
+      const size = Math.max(96, Math.min(LOGO_MAX_PX, width * 0.5, height * 0.32));
+      logo.setPosition(width / 2, height * 0.3);
+      logo.setDisplaySize(size, size);
+      tagline.setPosition(width / 2, height * 0.3 + size / 2 + 36);
       tagline.setWordWrapWidth(Math.max(200, width - 32));
     };
     layout();
