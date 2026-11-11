@@ -1,6 +1,8 @@
 // Smoke test for the production Docker image (M7-3): builds the image, runs it, and checks that it
-// serves the game page, answers the health check with debug off, refuses a debug message, and lets
-// two clients meet in one room by code. Needs a running Docker daemon.
+// serves the game page, answers the health check with debug off, refuses a debug message, lets
+// two clients meet in one room by code, and plays a round on the second store (P4-3): the
+// room loads that map, spawns its items, workers and carts, and moves a player from its inputs.
+// Needs a running Docker daemon.
 //
 //   npm run docker:smoke                      build ./Dockerfile as keke:smoke, then test it
 //   npm run docker:smoke -- --no-build        test an existing image (KEKE_IMAGE, default keke:smoke)
@@ -11,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { Client, type Room } from '@colyseus/sdk';
 import {
+  ClientMessage,
   DebugMessage,
   HEALTH_PATH,
   ROOM_NAMES,
@@ -67,10 +70,25 @@ function check(condition: unknown, message: string): asserts condition {
   console.log(`  ok  ${message}`);
 }
 
+interface SmokePlayer {
+  x: number;
+  y: number;
+  ack: number;
+  ready: boolean;
+}
+
 interface SmokeState {
   code: string;
-  players: { size: number };
+  phase: string;
+  mapId: string;
+  players: { size: number; get(id: string): SmokePlayer | undefined; values(): Iterable<SmokePlayer> };
+  items: { size: number };
+  npcs: { size: number };
+  carts: { size: number };
 }
+
+/** The map the round check plays: the second store, so its map, catalogue and twists ship in the image. */
+const ROUND_MAP = 'prisma';
 
 async function main(): Promise<void> {
   if (build) {
@@ -131,6 +149,52 @@ async function main(): Promise<void> {
       host.state.players.size === 2 && guest.state.players.size === 2 ? true : undefined,
     );
     check(guest.roomId === host.roomId, 'a second client joined the same room by code; both see 2 players');
+
+    // Play a round on the second store (P4-3): one map, one round, both players ready. The round's
+    // broadcasts (targets, feed, combat) are not checked here; a catch-all keeps the SDK quiet about them.
+    for (const room of rooms) room.onMessage('*', () => undefined);
+    host.send(ClientMessage.settings, { maps: ROUND_MAP, roundsPerMap: 1 });
+    await waitFor('the map setting', () => (host.state.mapId === ROUND_MAP ? true : undefined));
+    for (const room of rooms) room.send(ClientMessage.ready, { ready: true });
+    await waitFor('both players ready', () =>
+      [...host.state.players.values()].every((p) => p.ready) ? true : undefined,
+    );
+    host.send(ClientMessage.start);
+    await waitFor('the round to start', () => (host.state.phase === 'playing' ? true : undefined), 20_000);
+    check(
+      host.state.mapId === ROUND_MAP && guest.state.mapId === ROUND_MAP,
+      `a round plays on ${ROUND_MAP} (both clients see mapId ${ROUND_MAP})`,
+    );
+    check(
+      host.state.items.size > 0 && host.state.npcs.size > 0 && host.state.carts.size > 0,
+      `the ${ROUND_MAP} round has items (${host.state.items.size}), workers (${host.state.npcs.size}) ` +
+        `and carts (${host.state.carts.size})`,
+    );
+    const me = host.state.players.get(host.sessionId);
+    if (!me) throw new Error('the host has no player in the state');
+    const start = { x: me.x, y: me.y };
+    // Walk away from the van for a second, one input frame per 1/30 s as the client does; the first
+    // direction that is not blocked is enough.
+    let seq = 0;
+    let moved = 0;
+    for (const move of [
+      { x: 0, y: -1 },
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+    ]) {
+      for (let i = 0; i < 30; i++) {
+        host.send(ClientMessage.input, { seq: ++seq, move, aim: 0, buttons: 0 });
+        await new Promise((r) => setTimeout(r, 1000 / 30));
+      }
+      await waitFor('the server to apply the inputs', () => (me.ack >= seq - 2 ? true : undefined), 5_000);
+      moved = Math.hypot(me.x - start.x, me.y - start.y);
+      if (moved > 32) break;
+    }
+    check(
+      moved > 32,
+      `the host walked ${Math.round(moved)} px on ${ROUND_MAP} from its inputs (ack ${me.ack})`,
+    );
 
     const status = await waitFor(
       'the Docker health check',
