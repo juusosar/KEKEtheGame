@@ -4,12 +4,13 @@ import {
   createRoom,
   game,
   joinRoom,
+  noNpcs,
   players,
   requireDebugServer,
   teleportNear,
   test,
-  waitControlling,
   toPlay,
+  waitControlling,
 } from './helpers';
 
 // M6-3: a Quota + Race round won through the UI with two players. The host picks the mode in the lobby,
@@ -78,6 +79,7 @@ test('a Quota + Race round: quota bar, packed box, office arrow, delivery and re
     // The office is on everyone's minimap in race mode.
     await expect.poll(async () => (await hook(page)).minimap.some((m) => m.kind === 'office')).toBe(true);
   });
+  await noNpcs(host);
 
   const hostId = (await game(host)).net?.sessionId ?? '';
   const guestId = (await game(guest)).net?.sessionId ?? '';

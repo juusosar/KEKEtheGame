@@ -96,6 +96,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   protected readonly debug: boolean = false;
   /** Store workers spawn. Room tests that are not about NPCs turn it off (`createGameServer({ npcs: false })`). */
   protected readonly npcsOn: boolean = true;
+  /** Set by the debug `noNpcs` message: no store workers in this room from then on. */
+  private npcsOffForTest = false;
 
   override state = new GameState();
 
@@ -154,6 +156,9 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.debug
         ? this.handleDebugVanPoints(client, message)
         : this.refuse(client, DebugMessage.vanPoints, 'debug_off'),
+    );
+    this.onMessage(DebugMessage.noNpcs, (client) =>
+      this.debug ? this.handleDebugNoNpcs(client) : this.refuse(client, DebugMessage.noNpcs, 'debug_off'),
     );
     this.onMessage(DebugMessage.endPhase, (client) =>
       this.debug ? this.handleDebugEndPhase(client) : this.refuse(client, DebugMessage.endPhase, 'debug_off'),
@@ -388,6 +393,13 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.advancePhase();
   }
 
+  /** Host only: no store workers in this room from now on (e2e specs that are not about NPCs). */
+  private handleDebugNoNpcs(client: Client): void {
+    if (client.sessionId !== this.state.hostId) return this.refuse(client, DebugMessage.noNpcs, 'not_host');
+    this.npcsOffForTest = true;
+    this.npcs.stopForTest();
+  }
+
   // --- Map systems (Phase 2, P1-1) ----------------------------------------------------------------
 
   /**
@@ -451,7 +463,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         dropCarried: (player, reason) => this.items.dropCarried(player, this.roundSeconds(), reason),
       },
       randomSeed(),
-      this.npcsOn ? undefined : [],
+      this.npcsOn && !this.npcsOffForTest ? undefined : [],
       entry.npcs,
     );
     this.combat.npcTargets = this.npcs;

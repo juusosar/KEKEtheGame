@@ -5,14 +5,13 @@ import {
   createRoom,
   game,
   joinRoom,
+  nearButcherCounter,
+  noNpcs,
   players,
   requireDebugServer,
   test,
   toPlay,
   waitControlling,
-  guardPositions,
-  nearButcherCounter,
-  nearGuard,
 } from './helpers';
 
 // M4-2: melee in a real round. Two players stand next to each other in the store (debug teleport), the
@@ -80,6 +79,7 @@ test('a fist swing hits the player in front: HP drops on both screens', async ({
       await waitControlling(page);
     }),
   );
+  await noNpcs(host);
 
   const guestId = (await game(guest)).net?.sessionId ?? '';
   for (const page of [host, guest]) {
@@ -92,13 +92,9 @@ test('a fist swing hits the player in front: HP drops on both screens', async ({
   // Meet in the store, away from the dock (the camera is centred on us there, not clamped to the map edge).
   const hostView = await keke(host);
   const targetId = (await game(host)).net?.target ?? 0;
-  // Our target, unless it lies behind the butcher's counter or near a security guard (either would join
-  // the fight; M7 review F4).
-  const guards = await guardPositions(host);
-  const quiet = (i: { serverX: number; serverY: number }) => {
-    const at = { x: i.serverX, y: i.serverY };
-    return !nearButcherCounter(at) && !nearGuard(guards, at);
-  };
+  // Our target, unless it lies behind the butcher's counter (kept as a guard although noNpcs removes the butcher).
+  const quiet = (i: { serverX: number; serverY: number }) =>
+    !nearButcherCounter({ x: i.serverX, y: i.serverY });
   const target = hostView.items.find((i) => i.id === targetId && quiet(i)) ?? hostView.items.find(quiet);
   if (!target) throw new Error(`target ${targetId} is not drawn`);
   const at = await teleportNear(host, { x: target.serverX, y: target.serverY }, hostView.tile * 1.5);

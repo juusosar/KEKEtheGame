@@ -1,10 +1,11 @@
 import { expect, type Page } from '@playwright/test';
 import type { KekeHook } from '../../packages/client/src/game/hookTypes';
 import {
-  E2E_COUNTDOWN_SECONDS,
   createRoom,
+  E2E_COUNTDOWN_SECONDS,
   game,
   joinRoom,
+  noNpcs,
   players,
   requireDebugServer,
   teleportNear,
@@ -71,6 +72,7 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
     await expect(page.locator('#keke-intro')).toHaveCount(0);
     await expect(page.locator('body')).toHaveAttribute('data-phase', 'playing');
   });
+  await noNpcs(host);
 
   const hostId = (await game(host)).net?.sessionId ?? '';
   const guestId = (await game(guest)).net?.sessionId ?? '';

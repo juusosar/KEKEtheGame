@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import type { KekeHook, KekeNetSnapshot } from '../../packages/client/src/game/hookTypes';
-import { aimMouse, createRoom, joinRoom, players, toPlay, waitControlling } from './helpers';
+import { aimMouse, createRoom, joinRoom, noNpcs, players, toPlay, waitControlling } from './helpers';
 
 // Shared steps for the weapon specs (M4 review F5): two players in a running round, met on the loading
 // dock (no store workers or forklift lanes there, and far from the guards), each with a weapon from the
@@ -43,6 +43,7 @@ export async function startDuel(
       await waitControlling(page);
     }),
   );
+  await noNpcs(host);
   return { host, guest, hostId: (await net(host)).sessionId, guestId: (await net(guest)).sessionId };
 }
 

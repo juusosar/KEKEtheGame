@@ -4,6 +4,7 @@ import {
   createRoom,
   game,
   joinRoom,
+  noNpcs,
   players,
   requireDebugServer,
   teleportNear,
@@ -63,6 +64,7 @@ test('a 3-round session: running totals and standings each round, then the podiu
     await expect(page.locator('#keke-intro .intro-round')).toHaveText(`Round 1 of ${ROUNDS}`);
   });
   await forBoth(waitControlling);
+  await noNpcs(host);
   const hostId = (await game(host)).net?.sessionId ?? '';
   const guestId = (await game(guest)).net?.sessionId ?? '';
 
