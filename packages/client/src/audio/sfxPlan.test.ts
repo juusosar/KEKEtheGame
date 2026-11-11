@@ -36,6 +36,14 @@ describe('combat cues', () => {
     expect(hit('baguette', 'panner', 5)[0]?.name).toBe('hit');
   });
 
+  it('the oven sizzles; a forklift run-over still punches (P2-2)', () => {
+    const burn = (id: string, target = 'me') =>
+      combatCues('hit', { source: { kind: 'hazard', id }, target, damage: 4, weapon: null, hp: 96 }, ctx);
+    expect(burn('oven')).toEqual([{ name: 'sizzle', source: { kind: 'me' } }]);
+    expect(burn('oven', 'b')).toEqual([{ name: 'sizzle', source: { kind: 'player', id: 'b' } }]);
+    expect(burn('forklift_1')[0]?.name).toBe('hit');
+  });
+
   it('KO for anyone, respawn only for us', () => {
     expect(combatCues('ko', { player: 'b' }, ctx)).toEqual([
       { name: 'ko', source: { kind: 'player', id: 'b' } },

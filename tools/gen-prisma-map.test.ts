@@ -185,7 +185,7 @@ describe('maps/prisma.tmj', () => {
   });
 
   it('hums at the bottle machines (P2-6)', () => {
-    expect(map.ambientSounds).toHaveLength(1);
+    expect(map.ambientSounds.map((a) => a.sound)).toEqual(['bottleHum', 'ovenCrackle']);
     const hum = map.ambientSounds[0];
     if (!hum) throw new Error('no hum');
     expect(hum.sound).toBe('bottleHum');
@@ -195,6 +195,13 @@ describe('maps/prisma.tmj', () => {
     const alcove = zoneById('bottle_return').bounds;
     expect(Math.hypot(alcove.minX - hum.x, alcove.minY - hum.y)).toBeLessThan(hum.radius);
     expect(hum.radius).toBeLessThanOrEqual(12 * map.tileSize);
+  });
+
+  it('crackles at the oven, heard in the bakery only (P2-2)', () => {
+    const crackle = map.ambientSounds.find((a) => a.sound === 'ovenCrackle');
+    if (!crackle) throw new Error('no oven crackle');
+    expect(map.zoneAt(crackle.x, crackle.y)?.id).toBe('oven');
+    expect(crackle.radius).toBeLessThanOrEqual(6 * map.tileSize);
   });
 
   it('keeps every item spawn far enough from the vans (§3.1)', () => {

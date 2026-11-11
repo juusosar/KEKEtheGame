@@ -11,7 +11,7 @@
   "tilewidth": 32,
   "tileheight": 32,
   "nextlayerid": 15,
-  "nextobjectid": 136,
+  "nextobjectid": 137,
   "layers": [
     {
       "id": 1,
@@ -2968,6 +2968,30 @@
               "name": "radius",
               "type": "float",
               "value": 288
+            }
+          ]
+        },
+        {
+          "id": 136,
+          "name": "oven_crackle",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 128,
+          "y": 608,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "sound",
+              "type": "string",
+              "value": "ovenCrackle"
+            },
+            {
+              "name": "radius",
+              "type": "float",
+              "value": 160
             }
           ]
         }

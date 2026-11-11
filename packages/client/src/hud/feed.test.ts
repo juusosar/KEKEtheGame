@@ -163,6 +163,27 @@ describe('store workers and Wanted in the feed (M5-7)', () => {
     ).toBe('Forklift hit you (-25)');
   });
 
+  it('the oven burns: "burnt" lines for its hits and KOs, merged per burn (P2-2)', () => {
+    const ovenCtx = { ...npcCtx, npcName: (id: string) => (id === 'oven' ? 'the oven' : 'forklift') };
+    const oven = { kind: 'hazard' as const, id: 'oven' };
+    const burn = combatFeedLine(
+      'hit',
+      { source: oven, target: 'a', damage: 4, weapon: null, hp: 96 },
+      ovenCtx,
+    );
+    expect(burn?.text).toBe('The oven burnt you (-4)');
+    expect(burn?.merge?.render(12)).toBe('The oven burnt you (-12)');
+    expect(
+      combatFeedLine('hit', { source: oven, target: 'b', damage: 4, weapon: null, hp: 96 }, ovenCtx),
+    ).toBeNull();
+    expect(
+      combatFeedLine('ko', { player: 'a', source: oven, weapon: null, respawnInSeconds: 3 }, ovenCtx),
+    ).toMatchObject({ kind: 'ko', text: 'You got burnt by the oven', mine: true });
+    expect(
+      combatFeedLine('ko', { player: 'b', source: oven, weapon: null, respawnInSeconds: 3 }, ovenCtx)?.text,
+    ).toBe('Mikko got burnt by the oven');
+  });
+
   it("announces a worker we knocked out, not other people's", () => {
     expect(
       npcFeedLine(

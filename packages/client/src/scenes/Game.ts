@@ -11,6 +11,7 @@ import {
   getItemCatalogue,
   getNpcCatalogue,
   getWeaponCatalogue,
+  hazardAt,
   inputStepSeconds,
   loadConfig,
   loadMap,
@@ -60,6 +61,7 @@ import { stateMapId, themeFor, themeFromQuery } from '../game/mapTheme';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
 import { PeelRenderer } from '../game/peels';
+import { HeatShimmer } from '../game/heatShimmer';
 import { NpcRenderer } from '../game/npcs';
 import { hearingVolume, npcMelee, npcTypeFromId } from '../game/npcLook';
 import { WorldRenderer } from '../game/worldItems';
@@ -151,6 +153,8 @@ export class GameScene extends Phaser.Scene {
   private world!: WorldRenderer;
   /** Self-checkout gate sprites and stop bubbles (P2-1); none on a map without checkout gates. */
   private gateLayer: GateLayer | undefined;
+  /** Floor hazard glow (the bakery oven, P2-2). */
+  private heat!: HeatShimmer;
 
   // Online only.
   private room: Room | null = null;
@@ -307,6 +311,7 @@ export class GameScene extends Phaser.Scene {
     this.ambient?.update(this.listenerPosition());
     this.world.draw((id) => this.drawnPosition(id), time / 1000);
     this.gateLayer?.update(this.gateBodies(), time / 1000);
+    this.heat.draw(time / 1000);
     if (this.hud) this.updateHud(this.hud);
     if (this.debug) this.updateDebug();
   }
@@ -419,6 +424,8 @@ export class GameScene extends Phaser.Scene {
     });
     // Offline walk: our van in slot 1, where we start. In a room the state says which vans exist.
     if (this.room === null) this.world.showOfflineVan(offlineColor);
+    // P2-2: under the floor items and NPC floor marks, over the tiles.
+    this.heat = new HeatShimmer(this, this.model.zones, DEPTH.decor + 0.3);
   }
 
   /** Items and vans from the synced state, plus nameplates lifted over carried items. */
@@ -1014,11 +1021,21 @@ export class GameScene extends Phaser.Scene {
     hud.tick(performance.now());
     hud.setBoardOpen(this.menu?.isOpen !== true && this.inputManager.scoreboardHeld());
     const device = this.inputManager.device;
-    hud.renderPrompts(pickPrompts(this.promptState(), device), device);
+    const prompt = this.promptState();
+    hud.renderPrompts(pickPrompts(prompt, device), device);
+    hud.renderHeat(this.onHotFloor(prompt));
     hud.updateArrow((world) => this.worldToClient(world), {
       width: hud.root.clientWidth,
       height: hud.root.clientHeight,
     });
+  }
+
+  /** True while we play this round, are up, and stand on a floor hazard (the oven, P2-2): the HUD warns. */
+  private onHotFloor(prompt: PromptState): boolean {
+    if (this.heat.zones.length === 0 || prompt.phase !== 'playing' || !prompt.playing || !prompt.alive)
+      return false;
+    const me = this.predictor.state;
+    return hazardAt(this.heat.zones, me.x, me.y) !== undefined;
   }
 
   /** What the button prompts (F6) need from this frame. */

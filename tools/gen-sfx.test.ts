@@ -53,8 +53,8 @@ describe('sound effects', () => {
 });
 
 describe('ambient loops', () => {
-  it('bottleHum joins end to start without a click', () => {
-    const { samples } = decodeWav(wavAt(`${ASSETS_DIR}/audio/bottleHum.wav`));
+  it.each(['bottleHum', 'ovenCrackle'])('%s joins end to start without a click', (name) => {
+    const { samples } = decodeWav(wavAt(`${ASSETS_DIR}/audio/${name}.wav`));
     let biggestStep = 0;
     for (let i = 1; i < samples.length; i++) {
       biggestStep = Math.max(biggestStep, Math.abs((samples[i] ?? 0) - (samples[i - 1] ?? 0)));

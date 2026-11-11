@@ -92,6 +92,8 @@ export const GATES: readonly { rect: Rect; dir: 'n' | 'e' | 's' | 'w'; kind: 'ch
 /** Oven: oven tiles on the west wall, hot floor in front of them (the `oven` hazard sub-zone). */
 const OVEN_ROWS: readonly [number, number] = [16, 21];
 export const OVEN_HEAT: Rect = [4, OVEN_ROWS[0], 5, OVEN_ROWS[1]];
+/** The oven's crackle (P2-2): a looping ambient sound heard within this many tiles of the hot floor. */
+const OVEN_CRACKLE_RADIUS_TILES = 5;
 /** HP per second on the hot floor (phase 2 decision 10), burnt in `hazardTickSeconds` steps. */
 export const OVEN_DAMAGE_PER_SECOND = 8;
 
@@ -699,6 +701,14 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
         { name: 'kind', type: 'string', value: kind },
       ],
     ),
+  );
+
+  // The oven's crackle (P2-2) joins the ambient sounds, made after the gates so their ids stay unchanged.
+  ambientSounds.push(
+    point(px(OVEN_HEAT[0]), px((OVEN_HEAT[1] + OVEN_HEAT[3] + 1) / 2), 'oven_crackle', [
+      { name: 'sound', type: 'string', value: 'ovenCrackle' },
+      { name: 'radius', type: 'float', value: px(OVEN_CRACKLE_RADIUS_TILES) },
+    ]),
   );
 
   const layers = [
