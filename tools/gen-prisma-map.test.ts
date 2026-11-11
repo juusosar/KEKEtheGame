@@ -252,6 +252,27 @@ describe('maps/prisma.tmj', () => {
     expect(isReachable((x0 + 2.5) * map.tileSize, (y0 + 2.5) * map.tileSize)).toBe(true);
   });
 
+  it('starts 8 carts inside the corral, each pushable out of the open west side (P2-5)', () => {
+    const [x0, y0, x1, y1] = CORRAL;
+    const ts = map.tileSize;
+    expect(map.cartSpawns).toHaveLength(8);
+    const occupied = new Set(map.cartSpawns.map((c) => `${Math.floor(c.x / ts)},${Math.floor(c.y / ts)}`));
+    for (const cart of map.cartSpawns) {
+      const tx = Math.floor(cart.x / ts);
+      const ty = Math.floor(cart.y / ts);
+      expect(tx > x0 && tx < x1 && ty > y0 && ty < y1, `cart at ${tx},${ty}`).toBe(true);
+      expect(zoneAtTile(tx, ty)).toBe('cart_corral');
+      expect(map.collision.isSolid(tx, ty)).toBe(false);
+      expect(cart.dir).toBe('left');
+      // A free tile east of the cart to push it from, reachable from the lot.
+      expect(map.collision.isSolid(tx + 1, ty)).toBe(false);
+      expect(occupied.has(`${tx + 1},${ty}`)).toBe(false);
+      expect(isReachable((tx + 1.5) * ts, (ty + 0.5) * ts)).toBe(true);
+      // Nothing west of it up to the open side.
+      for (let x = x0; x < tx; x++) expect(map.collision.isSolid(x, ty), `west of ${tx},${ty}`).toBe(false);
+    }
+  });
+
   it('connects the stockroom to the store through its staff doors', () => {
     const b = zoneById('stockroom').bounds;
     expect(isReachable((b.minX + b.maxX) / 2, b.minY + 2.5 * map.tileSize)).toBe(true);

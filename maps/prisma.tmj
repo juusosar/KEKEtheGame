@@ -10,8 +10,8 @@
   "height": 72,
   "tilewidth": 32,
   "tileheight": 32,
-  "nextlayerid": 14,
-  "nextobjectid": 128,
+  "nextlayerid": 15,
+  "nextobjectid": 136,
   "layers": [
     {
       "id": 1,
@@ -2830,7 +2830,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 119,
+          "id": 127,
           "name": "office_trigger",
           "type": "",
           "rotation": 0,
@@ -2938,7 +2938,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 120,
+          "id": 128,
           "name": "bottle_hum",
           "type": "",
           "rotation": 0,
@@ -2974,7 +2974,7 @@
       "visible": true,
       "objects": [
         {
-          "id": 121,
+          "id": 129,
           "name": "checkout_1",
           "type": "",
           "rotation": 0,
@@ -2997,7 +2997,7 @@
           ]
         },
         {
-          "id": 122,
+          "id": 130,
           "name": "checkout_2",
           "type": "",
           "rotation": 0,
@@ -3020,7 +3020,7 @@
           ]
         },
         {
-          "id": 123,
+          "id": 131,
           "name": "checkout_3",
           "type": "",
           "rotation": 0,
@@ -3043,7 +3043,7 @@
           ]
         },
         {
-          "id": 124,
+          "id": 132,
           "name": "checkout_4",
           "type": "",
           "rotation": 0,
@@ -3066,7 +3066,7 @@
           ]
         },
         {
-          "id": 125,
+          "id": 133,
           "name": "checkout_5",
           "type": "",
           "rotation": 0,
@@ -3089,7 +3089,7 @@
           ]
         },
         {
-          "id": 126,
+          "id": 134,
           "name": "checkout_6",
           "type": "",
           "rotation": 0,
@@ -3112,7 +3112,7 @@
           ]
         },
         {
-          "id": 127,
+          "id": 135,
           "name": "door_7",
           "type": "",
           "rotation": 0,
@@ -3131,6 +3131,170 @@
               "name": "kind",
               "type": "string",
               "value": "door"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "cart_spawns",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "x": 0,
+      "y": 0,
+      "opacity": 1,
+      "visible": true,
+      "objects": [
+        {
+          "id": 119,
+          "name": "cart_1",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 944,
+          "y": 1520,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
+            }
+          ]
+        },
+        {
+          "id": 120,
+          "name": "cart_2",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1008,
+          "y": 1520,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
+            }
+          ]
+        },
+        {
+          "id": 121,
+          "name": "cart_3",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1072,
+          "y": 1520,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
+            }
+          ]
+        },
+        {
+          "id": 122,
+          "name": "cart_4",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1136,
+          "y": 1520,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
+            }
+          ]
+        },
+        {
+          "id": 123,
+          "name": "cart_5",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 944,
+          "y": 1584,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
+            }
+          ]
+        },
+        {
+          "id": 124,
+          "name": "cart_6",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1008,
+          "y": 1584,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
+            }
+          ]
+        },
+        {
+          "id": 125,
+          "name": "cart_7",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1072,
+          "y": 1584,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
+            }
+          ]
+        },
+        {
+          "id": 126,
+          "name": "cart_8",
+          "type": "",
+          "rotation": 0,
+          "visible": true,
+          "x": 1136,
+          "y": 1584,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "properties": [
+            {
+              "name": "dir",
+              "type": "string",
+              "value": "left"
             }
           ]
         }

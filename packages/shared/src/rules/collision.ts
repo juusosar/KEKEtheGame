@@ -12,6 +12,12 @@ export interface CollisionGrid {
   readonly height: number;
   readonly tileSize: number;
   isSolid(tx: number, ty: number): boolean;
+  /**
+   * Optional bodies that stop lines of sight but are not tiles (pushable carts, P2-5): the fraction t in
+   * [0, 1] at which the segment `from` → `from + delta` first enters one, or null. Movement ignores it;
+   * `clearLine` and projectile wall checks read it.
+   */
+  segmentBlockedAt?(from: Vec2, delta: Vec2): number | null;
 }
 
 /** True when tile (tx, ty) blocks movement. Everything outside the grid is solid, so nobody walks off the map. */
@@ -178,11 +184,12 @@ export function bodiesBlockLine(a: Vec2, b: Vec2, bodies: readonly Circle[]): bo
 
 /**
  * True when nothing solid lies on the straight line from `a` to `b`: sampled every quarter tile, so a
- * spray, a swing or a splash cannot reach through a shelf or a wall. Both end tiles count too (a body is never inside a wall).
+ * spray, a swing or a splash cannot reach through a shelf or a wall (or a cart, `segmentBlockedAt`). Both end tiles count too (a body is never inside a wall).
  */
 export function clearLine(grid: CollisionGrid, a: Vec2, b: Vec2): boolean {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
+  if ((grid.segmentBlockedAt?.(a, { x: dx, y: dy }) ?? null) !== null) return false;
   const dist = Math.hypot(dx, dy);
   const steps = Math.max(1, Math.ceil(dist / (grid.tileSize / 4)));
   for (let i = 0; i <= steps; i++) {
