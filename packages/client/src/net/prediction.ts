@@ -5,6 +5,7 @@
 // throwing away input the server will still run.
 import {
   applyInput,
+  type Circle,
   type GateConfig,
   type InputFrame,
   type MovementConfig,
@@ -43,6 +44,7 @@ export class Predictor {
   private offset = { x: 0, y: 0 };
   /** Movement modifiers from synced state (carry slowdown), the same ones the server applies (review H1). */
   private modifiers: StepModifiers = {};
+  private solids: readonly Circle[] = [];
 
   constructor(
     private readonly map: MovementMap,
@@ -79,10 +81,24 @@ export class Predictor {
     this.modifiers = modifiers;
   }
 
+  /**
+   * Solid bodies (customers, P2-4) for every later step and replay: the positions we draw them at.
+   * They trail the server's by the interpolation delay, so walking into a moving one can need a small
+   * correction; standing ones match exactly.
+   */
+  setSolids(solids: readonly Circle[]): void {
+    this.solids = solids;
+  }
+
+  /** The modifiers a step uses: the synced ones plus the solid bodies. */
+  private stepModifiers(): StepModifiers {
+    return this.solids.length === 0 ? this.modifiers : { ...this.modifiers, solids: this.solids };
+  }
+
   /** Predicts one fixed step. `track` false applies the frame without waiting for an ack (offline play). */
   apply(frame: InputFrame, track = true): MovementState {
     this.previous = this.body;
-    this.body = applyInput(this.body, frame, this.map, this.config, this.modifiers);
+    this.body = applyInput(this.body, frame, this.map, this.config, this.stepModifiers());
     if (track) {
       this.pending.push(frame);
       if (this.pending.length > this.maxPending)
@@ -104,8 +120,9 @@ export class Predictor {
       vy: server.vy,
       ...(server.gate && { gate: server.gate }),
     };
+    const modifiers = this.stepModifiers();
     for (const frame of this.pending) {
-      replayed = applyInput(replayed, frame, this.map, this.config, this.modifiers);
+      replayed = applyInput(replayed, frame, this.map, this.config, modifiers);
     }
 
     const dx = replayed.x - this.body.x;

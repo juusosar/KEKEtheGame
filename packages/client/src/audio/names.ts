@@ -26,6 +26,8 @@ export const SFX_NAMES = [
   'wantedAlarm',
   'wantedAlarmFar',
   'wantedRefresh',
+  // Customers (Phase 2, P2-4).
+  'customerGasp',
   // Race (M6).
   'boxPacked',
   'delivery',

@@ -309,9 +309,54 @@ const NPC_LOOKS: Record<NpcId, { pal: CharacterPalette; decorate?: Decorate }> =
   },
 };
 
+/**
+ * Extra looks for crowds (Phase 2, P2-4): sheets `<npc>_2`, `<npc>_3`, ... drawn like the base sheet
+ * with other skin, hair, shirt and trouser colours. The client gives each NPC of that type one of the
+ * base sheet and its variants (npcLook `npcSheetVariant`), so a customer group is not four twins.
+ */
+export const NPC_VARIANTS: Partial<Record<NpcId, readonly CharacterPalette[]>> = {
+  customer: [
+    {
+      skin: hex('#8d5a3b'),
+      hair: hex('#121212'),
+      shirt: hex('#e67e22'),
+      pants: hex('#1f3a5f'),
+      shoes: hex('#3b2a1a'),
+      eyes: hex('#1a1a1a'),
+    },
+    {
+      skin: hex('#f6d7c3'),
+      hair: hex('#d9b25f'),
+      shirt: hex('#16a085'),
+      pants: hex('#6b6b6b'),
+      shoes: hex('#2c2c2c'),
+      eyes: hex('#1a1a1a'),
+    },
+    {
+      skin: hex('#c99572'),
+      hair: hex('#8a8a8a'),
+      shirt: hex('#c0392b'),
+      pants: hex('#4a3b2a'),
+      shoes: hex('#1e1e1e'),
+      eyes: hex('#1a1a1a'),
+    },
+    {
+      skin: hex('#e8c09a'),
+      hair: hex('#7a3b12'),
+      shirt: hex('#f1c40f'),
+      pants: hex('#2d3436'),
+      shoes: hex('#2c2c2c'),
+      eyes: hex('#1a1a1a'),
+    },
+  ],
+};
+
 export function npcSheets(): { key: string; frames: Frame[] }[] {
-  return NPC_SHEETS.map((id) => ({
-    key: id,
-    frames: characterFrames(NPC_LOOKS[id].pal, NPC_LOOKS[id].decorate),
-  }));
+  return NPC_SHEETS.flatMap((id) => [
+    { key: id as string, frames: characterFrames(NPC_LOOKS[id].pal, NPC_LOOKS[id].decorate) },
+    ...(NPC_VARIANTS[id] ?? []).map((pal, i) => ({
+      key: `${id}_${i + 2}`,
+      frames: characterFrames(pal, NPC_LOOKS[id].decorate),
+    })),
+  ]);
 }

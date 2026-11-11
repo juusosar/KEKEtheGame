@@ -26,6 +26,27 @@ function serverRun(from: MovementState, frames: InputFrame[]): MovementState {
 }
 
 describe('Predictor', () => {
+  it('walks around solid bodies (customers) like the server, also when replaying', () => {
+    const body = { x: 128, y: 64, r: 10 };
+    const p = new Predictor(map, config, start);
+    p.setSolids([body]);
+    const frames = Array.from({ length: 20 }, (_, i) => frame(i + 1, 1));
+    for (const f of frames) p.apply(f);
+    const server = frames.reduce((s, f) => applyInput(s, f, map, config, { solids: [body] }), start);
+    expect(p.state).toEqual(server);
+    expect(body.x - p.state.x).toBeCloseTo(body.r + config.playerHitboxSize / 2, 5);
+    // A reconcile from an older ack replays the rest around the body too: no correction.
+    p.reconcile({
+      ...frames.slice(0, 5).reduce((s, f) => applyInput(s, f, map, config, { solids: [body] }), start),
+      ack: 5,
+    });
+    expect(p.lastCorrection).toBe(0);
+    // Without bodies the same walk goes further.
+    const free = new Predictor(map, config, start);
+    for (const f of frames) free.apply(f);
+    expect(free.state.x).toBeGreaterThan(p.state.x);
+  });
+
   it('predicts with the shared rules, one fixed input step per frame', () => {
     const p = new Predictor(map, config, start);
     p.apply(frame(1, 1));

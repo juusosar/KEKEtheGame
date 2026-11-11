@@ -51,6 +51,26 @@
       "atlas": "customer.json"
     },
     {
+      "key": "customer_2",
+      "texture": "customer_2.png",
+      "atlas": "customer_2.json"
+    },
+    {
+      "key": "customer_3",
+      "texture": "customer_3.png",
+      "atlas": "customer_3.json"
+    },
+    {
+      "key": "customer_4",
+      "texture": "customer_4.png",
+      "atlas": "customer_4.json"
+    },
+    {
+      "key": "customer_5",
+      "texture": "customer_5.png",
+      "atlas": "customer_5.json"
+    },
+    {
       "key": "weapons",
       "texture": "weapons.png",
       "atlas": "weapons.json"
@@ -2106,6 +2126,806 @@
     {
       "key": "customer/ko_right",
       "atlas": "customer",
+      "frames": [
+        "ko_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/idle_down",
+      "atlas": "customer_2",
+      "frames": [
+        "idle_down_0",
+        "idle_down_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/idle_up",
+      "atlas": "customer_2",
+      "frames": [
+        "idle_up_0",
+        "idle_up_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/idle_left",
+      "atlas": "customer_2",
+      "frames": [
+        "idle_left_0",
+        "idle_left_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/idle_right",
+      "atlas": "customer_2",
+      "frames": [
+        "idle_right_0",
+        "idle_right_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/walk_down",
+      "atlas": "customer_2",
+      "frames": [
+        "walk_down_0",
+        "walk_down_1",
+        "walk_down_2",
+        "walk_down_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/walk_up",
+      "atlas": "customer_2",
+      "frames": [
+        "walk_up_0",
+        "walk_up_1",
+        "walk_up_2",
+        "walk_up_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/walk_left",
+      "atlas": "customer_2",
+      "frames": [
+        "walk_left_0",
+        "walk_left_1",
+        "walk_left_2",
+        "walk_left_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/walk_right",
+      "atlas": "customer_2",
+      "frames": [
+        "walk_right_0",
+        "walk_right_1",
+        "walk_right_2",
+        "walk_right_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_2/attack_down",
+      "atlas": "customer_2",
+      "frames": [
+        "attack_down_0",
+        "attack_down_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/attack_up",
+      "atlas": "customer_2",
+      "frames": [
+        "attack_up_0",
+        "attack_up_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/attack_left",
+      "atlas": "customer_2",
+      "frames": [
+        "attack_left_0",
+        "attack_left_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/attack_right",
+      "atlas": "customer_2",
+      "frames": [
+        "attack_right_0",
+        "attack_right_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/hit_down",
+      "atlas": "customer_2",
+      "frames": [
+        "hit_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/hit_up",
+      "atlas": "customer_2",
+      "frames": [
+        "hit_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/hit_left",
+      "atlas": "customer_2",
+      "frames": [
+        "hit_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/hit_right",
+      "atlas": "customer_2",
+      "frames": [
+        "hit_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/ko_down",
+      "atlas": "customer_2",
+      "frames": [
+        "ko_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/ko_up",
+      "atlas": "customer_2",
+      "frames": [
+        "ko_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/ko_left",
+      "atlas": "customer_2",
+      "frames": [
+        "ko_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_2/ko_right",
+      "atlas": "customer_2",
+      "frames": [
+        "ko_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/idle_down",
+      "atlas": "customer_3",
+      "frames": [
+        "idle_down_0",
+        "idle_down_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/idle_up",
+      "atlas": "customer_3",
+      "frames": [
+        "idle_up_0",
+        "idle_up_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/idle_left",
+      "atlas": "customer_3",
+      "frames": [
+        "idle_left_0",
+        "idle_left_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/idle_right",
+      "atlas": "customer_3",
+      "frames": [
+        "idle_right_0",
+        "idle_right_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/walk_down",
+      "atlas": "customer_3",
+      "frames": [
+        "walk_down_0",
+        "walk_down_1",
+        "walk_down_2",
+        "walk_down_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/walk_up",
+      "atlas": "customer_3",
+      "frames": [
+        "walk_up_0",
+        "walk_up_1",
+        "walk_up_2",
+        "walk_up_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/walk_left",
+      "atlas": "customer_3",
+      "frames": [
+        "walk_left_0",
+        "walk_left_1",
+        "walk_left_2",
+        "walk_left_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/walk_right",
+      "atlas": "customer_3",
+      "frames": [
+        "walk_right_0",
+        "walk_right_1",
+        "walk_right_2",
+        "walk_right_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_3/attack_down",
+      "atlas": "customer_3",
+      "frames": [
+        "attack_down_0",
+        "attack_down_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/attack_up",
+      "atlas": "customer_3",
+      "frames": [
+        "attack_up_0",
+        "attack_up_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/attack_left",
+      "atlas": "customer_3",
+      "frames": [
+        "attack_left_0",
+        "attack_left_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/attack_right",
+      "atlas": "customer_3",
+      "frames": [
+        "attack_right_0",
+        "attack_right_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/hit_down",
+      "atlas": "customer_3",
+      "frames": [
+        "hit_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/hit_up",
+      "atlas": "customer_3",
+      "frames": [
+        "hit_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/hit_left",
+      "atlas": "customer_3",
+      "frames": [
+        "hit_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/hit_right",
+      "atlas": "customer_3",
+      "frames": [
+        "hit_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/ko_down",
+      "atlas": "customer_3",
+      "frames": [
+        "ko_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/ko_up",
+      "atlas": "customer_3",
+      "frames": [
+        "ko_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/ko_left",
+      "atlas": "customer_3",
+      "frames": [
+        "ko_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_3/ko_right",
+      "atlas": "customer_3",
+      "frames": [
+        "ko_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/idle_down",
+      "atlas": "customer_4",
+      "frames": [
+        "idle_down_0",
+        "idle_down_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/idle_up",
+      "atlas": "customer_4",
+      "frames": [
+        "idle_up_0",
+        "idle_up_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/idle_left",
+      "atlas": "customer_4",
+      "frames": [
+        "idle_left_0",
+        "idle_left_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/idle_right",
+      "atlas": "customer_4",
+      "frames": [
+        "idle_right_0",
+        "idle_right_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/walk_down",
+      "atlas": "customer_4",
+      "frames": [
+        "walk_down_0",
+        "walk_down_1",
+        "walk_down_2",
+        "walk_down_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/walk_up",
+      "atlas": "customer_4",
+      "frames": [
+        "walk_up_0",
+        "walk_up_1",
+        "walk_up_2",
+        "walk_up_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/walk_left",
+      "atlas": "customer_4",
+      "frames": [
+        "walk_left_0",
+        "walk_left_1",
+        "walk_left_2",
+        "walk_left_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/walk_right",
+      "atlas": "customer_4",
+      "frames": [
+        "walk_right_0",
+        "walk_right_1",
+        "walk_right_2",
+        "walk_right_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_4/attack_down",
+      "atlas": "customer_4",
+      "frames": [
+        "attack_down_0",
+        "attack_down_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/attack_up",
+      "atlas": "customer_4",
+      "frames": [
+        "attack_up_0",
+        "attack_up_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/attack_left",
+      "atlas": "customer_4",
+      "frames": [
+        "attack_left_0",
+        "attack_left_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/attack_right",
+      "atlas": "customer_4",
+      "frames": [
+        "attack_right_0",
+        "attack_right_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/hit_down",
+      "atlas": "customer_4",
+      "frames": [
+        "hit_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/hit_up",
+      "atlas": "customer_4",
+      "frames": [
+        "hit_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/hit_left",
+      "atlas": "customer_4",
+      "frames": [
+        "hit_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/hit_right",
+      "atlas": "customer_4",
+      "frames": [
+        "hit_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/ko_down",
+      "atlas": "customer_4",
+      "frames": [
+        "ko_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/ko_up",
+      "atlas": "customer_4",
+      "frames": [
+        "ko_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/ko_left",
+      "atlas": "customer_4",
+      "frames": [
+        "ko_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_4/ko_right",
+      "atlas": "customer_4",
+      "frames": [
+        "ko_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/idle_down",
+      "atlas": "customer_5",
+      "frames": [
+        "idle_down_0",
+        "idle_down_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/idle_up",
+      "atlas": "customer_5",
+      "frames": [
+        "idle_up_0",
+        "idle_up_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/idle_left",
+      "atlas": "customer_5",
+      "frames": [
+        "idle_left_0",
+        "idle_left_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/idle_right",
+      "atlas": "customer_5",
+      "frames": [
+        "idle_right_0",
+        "idle_right_1"
+      ],
+      "frameRate": 3,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/walk_down",
+      "atlas": "customer_5",
+      "frames": [
+        "walk_down_0",
+        "walk_down_1",
+        "walk_down_2",
+        "walk_down_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/walk_up",
+      "atlas": "customer_5",
+      "frames": [
+        "walk_up_0",
+        "walk_up_1",
+        "walk_up_2",
+        "walk_up_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/walk_left",
+      "atlas": "customer_5",
+      "frames": [
+        "walk_left_0",
+        "walk_left_1",
+        "walk_left_2",
+        "walk_left_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/walk_right",
+      "atlas": "customer_5",
+      "frames": [
+        "walk_right_0",
+        "walk_right_1",
+        "walk_right_2",
+        "walk_right_3"
+      ],
+      "frameRate": 8,
+      "repeat": -1
+    },
+    {
+      "key": "customer_5/attack_down",
+      "atlas": "customer_5",
+      "frames": [
+        "attack_down_0",
+        "attack_down_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/attack_up",
+      "atlas": "customer_5",
+      "frames": [
+        "attack_up_0",
+        "attack_up_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/attack_left",
+      "atlas": "customer_5",
+      "frames": [
+        "attack_left_0",
+        "attack_left_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/attack_right",
+      "atlas": "customer_5",
+      "frames": [
+        "attack_right_0",
+        "attack_right_1"
+      ],
+      "frameRate": 12,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/hit_down",
+      "atlas": "customer_5",
+      "frames": [
+        "hit_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/hit_up",
+      "atlas": "customer_5",
+      "frames": [
+        "hit_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/hit_left",
+      "atlas": "customer_5",
+      "frames": [
+        "hit_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/hit_right",
+      "atlas": "customer_5",
+      "frames": [
+        "hit_right_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/ko_down",
+      "atlas": "customer_5",
+      "frames": [
+        "ko_down_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/ko_up",
+      "atlas": "customer_5",
+      "frames": [
+        "ko_up_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/ko_left",
+      "atlas": "customer_5",
+      "frames": [
+        "ko_left_0"
+      ],
+      "frameRate": 1,
+      "repeat": 0
+    },
+    {
+      "key": "customer_5/ko_right",
+      "atlas": "customer_5",
       "frames": [
         "ko_right_0"
       ],

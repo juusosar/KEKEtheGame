@@ -139,6 +139,8 @@ export class GameScene extends Phaser.Scene {
   private predictor!: Predictor;
   /** Tiles covered by parked stock carts (M5-3): prediction treats them as walls, like the server. */
   private cartTiles = new Set<number>();
+  /** Scene seconds of the last customer gasp (one per group panic, P2-4). */
+  private lastGaspAt = -Infinity;
   private clock!: FixedStepClock;
   private lastMove: Vec2 = { x: 0, y: 0 };
   /** Aim and buttons of the last sampled input frame (held weapon, predicted swing, block pose). */
@@ -268,6 +270,8 @@ export class GameScene extends Phaser.Scene {
     this.menu?.pollPad(this.inputManager.padPressed());
     const menuOpen = this.menu?.isOpen === true;
     const steps = this.clock.advance(dt);
+    // Customers are solid (P2-4): predict around them where we drew them last frame.
+    if (this.npcs) this.predictor.setSolids(this.npcs.solidBodies());
     for (let i = 0; i < steps; i++) {
       if (!offline && !this.controlling) break;
       this.inputManager.setOrigin(this.predictor.state);
@@ -870,9 +874,20 @@ export class GameScene extends Phaser.Scene {
     const npcs = this.npcs;
     if (!npcs) return undefined;
     const listener = this.listenerPosition();
-    return npcs.draw(now, performance.now(), this.view?.phase === 'playing', (_id, at) => {
-      this.sfx?.play('forkliftBeep', hearingVolume(at, listener, renderConfig.forkliftBeepHearingPx));
-    });
+    return npcs.draw(
+      now,
+      performance.now(),
+      this.view?.phase === 'playing',
+      (_id, at) => {
+        this.sfx?.play('forkliftBeep', hearingVolume(at, listener, renderConfig.forkliftBeepHearingPx));
+      },
+      (_id, at) => {
+        // A whole group panics in the same tick: one gasp for it, not four (P2-4).
+        if (now - this.lastGaspAt < renderConfig.customerGaspMinGapSeconds) return;
+        this.lastGaspAt = now;
+        this.sfx?.play('customerGasp', hearingVolume(at, listener, renderConfig.sfxHearingPx));
+      },
+    );
   }
 
   // --- race mode (M6-3, §4.2) -----------------------------------------------------------------------

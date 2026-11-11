@@ -115,6 +115,8 @@ export interface RenderConfig {
   readonly forkliftBeepHearingPx: number;
   /** Other players' sounds (hits, pickups, ...) fade to silence at this distance, px (M7-2). */
   readonly sfxHearingPx: number;
+  /** At most one customer gasp this often, s: a group that panics together gasps once (P2-4). */
+  readonly customerGaspMinGapSeconds: number;
 }
 
 /** Validates the render config. Throws with every problem listed. */
@@ -184,6 +186,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const forkliftLightBlinkHz = num('forkliftLightBlinkHz', (n) => n > 0, 'positive');
   const forkliftBeepHearingPx = num('forkliftBeepHearingPx', (n) => n >= 0, '>= 0');
   const sfxHearingPx = num('sfxHearingPx', (n) => n >= 0, '>= 0');
+  const customerGaspMinGapSeconds = num('customerGaspMinGapSeconds', (n) => n >= 0, '>= 0');
   if (issues.length > 0) throw new Error(`Invalid render-config.json:\n  - ${issues.join('\n  - ')}`);
   return Object.freeze({
     cameraZoom,
@@ -244,6 +247,7 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     forkliftLightBlinkHz,
     forkliftBeepHearingPx,
     sfxHearingPx,
+    customerGaspMinGapSeconds,
   });
 }
 
