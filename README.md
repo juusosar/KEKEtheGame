@@ -45,7 +45,7 @@ git rm --cached -r . && git reset --hard
 
 ## Development
 
-`npm run dev` starts the game server in watch mode and the Vite dev server together. Open http://localhost:5173: the Boot scene reads the server's health check (`GET /healthz`, answering `{ ok, debug }`) and shows **connected**. Vite proxies `/colyseus/*` (HTTP matchmaking and the room WebSocket) to the server on `PORT` (default 2567), so the browser only talks to Vite. In dev the server's startup banner prints the Vite URLs (port 5173), since that is where the page lives.
+`npm run dev` starts the game server in watch mode and the Vite dev server together. Open http://localhost:5173: the Boot scene reads the server's health check (`GET /healthz`, answering `{ ok, debug, maps }`, where `maps` lists the theme ids of the maps the server loaded) and shows **connected**. Vite proxies `/colyseus/*` (HTTP matchmaking and the room WebSocket) to the server on `PORT` (default 2567), so the browser only talks to Vite. In dev the server's startup banner prints the Vite URLs (port 5173), since that is where the page lives.
 
 `npm run build` writes the client to `packages/client/dist`, which the server serves on its own port in production.
 
@@ -55,7 +55,7 @@ Run `npm run e2e:install` once to download Playwright's Chromium. After that, `n
 
 ## Soak test
 
-`npm run soak` plays whole sessions with 8 simulated players against an in-process server: a 3-round Timed, a 3-round Race, both again with teams on, then a 3-round Timed and a 3-round Race on the second map (Prisma), back to back in the same room (about 20 minutes with the soak's shorter rounds and a race quota of 2). The bots (`packages/server/src/soak/bot.ts`) play from their own decoded copy of the state like real clients: they walk with the shared pathfinder, fetch their target, deposit it, carry race boxes to the office, steal, fight each other and hit store workers (so they get Wanted). The soak fails on any server or client error, any desync (it pauses the simulation now and then and compares every client's state with the server's), a podium or lobby that is not clean, bots that never picked up, deposited, knocked someone out, got Wanted, packed a box or delivered one, and growth of tick time or heap between the first and the last session. It prints a summary and writes `test-results/soak/report.json`.
+`npm run soak` plays whole sessions with 8 simulated players against an in-process server: a 3-round Timed, a 3-round Race, both again with teams on, then a 3-round Timed and a 3-round Race on the second map (Prisma), back to back in the same room (about 17 minutes, 990 s measured at P1-6, with the soak's shorter rounds and a race quota of 2). The bots (`packages/server/src/soak/bot.ts`) play from their own decoded copy of the state like real clients: they walk with the shared pathfinder, fetch their target, deposit it, carry race boxes to the office, steal, fight each other and hit store workers (so they get Wanted). The soak fails on any server or client error, any desync (it pauses the simulation now and then and compares every client's state with the server's), a podium or lobby that is not clean, bots that never picked up, deposited, knocked someone out, got Wanted, packed a box or delivered one, and growth of tick time or heap between the first and the last session. It prints a summary and writes `test-results/soak/report.json`.
 
 Options: `--players 8`, `--sessions timed,race,timed+teams,race+teams,timed@prisma,race@prisma` (`@<map>` plays that session on that map; default the first map), `--rounds 3`, `--timed 45 --race 75` (round seconds; `--timed 180 --race 240` for the real lengths), `--port 2597`, `--seed 7`. `--browsers 2` makes two of the players real game clients in headless Chromium that join through the menus and mash keys, and fails on their console errors (run `npm run build` first). `npm test` runs a short version (2 Race rounds with teams, and 2 Timed rounds on Prisma).
 
@@ -89,6 +89,8 @@ Every theme with `available: true` in `packages/shared/src/theme/` is loaded at 
 ## Item catalogue
 
 The items players fetch live in `packages/shared/src/data/items.kespro.json` (fields `id`, `name`, `desc`, `zone`, `sprite`, `rarity`). It is generated from the Markdown tables in `tools/items/items.kespro.md`, which copy the design doc's item tables: edit the tables (or paste the doc's tables over them) and run `npm run gen:items`. The output is checked against the shared zod schema; a test fails if the committed JSON differs from the tables, if an item has no frame in the `items` atlas, or if an item zone has no spawn points on the map. Code reads it with `getItemCatalogue('kespro')` from `@keke/shared`.
+
+Each store has its own catalogue: `items.<theme>.json` from `tools/items/items.<theme>.md` (the second store's is `items.prisma.json` from `items.prisma.md`), and `npm run gen:items` regenerates every theme. Item zones belong to a catalogue, and the server checks each map against its own catalogue at startup. Code asks for a store's items with `getItemCatalogue(themeId)`; the room uses the catalogue of the map it plays.
 
 ## Store workers
 
@@ -145,12 +147,12 @@ docker run -d --name keke --restart unless-stopped -p 2567:2567 keke
 ```
 
 - `PORT` inside the container is 2567; change the published side instead (`-p 8080:2567`).
-- The image never sets `KEKE_DEBUG` or `KEKE_CONFIG`, so debug room messages are off: `curl http://localhost:2567/healthz` answers `{"ok":true,"debug":false}`. Do not pass `-e KEKE_DEBUG=1` to a server other people can reach.
+- The image never sets `KEKE_DEBUG` or `KEKE_CONFIG`, so debug room messages are off: `curl http://localhost:2567/healthz` answers `{"ok":true,"debug":false,"maps":["kespro","prisma"]}`. Do not pass `-e KEKE_DEBUG=1` to a server other people can reach.
 - Docker's own health check polls `/healthz`; `docker ps` shows `healthy` once the server is up.
 - Game state lives in memory only. Restarting the container ends every running room; there is nothing to back up.
 - Behind a proxy that intercepts TLS, give `npm ci` its CA certificate with `docker build --secret id=npm_ca,src=/path/to/ca.pem -t keke .`. The secret is only mounted while npm runs and is not stored in the image.
 
-`npm run docker:smoke` builds the image as `keke:smoke`, starts it on a free local port and checks that the page and its script load, `/healthz` reports debug off, a debug message is refused, two clients meet in one room by its code, and the Docker health check turns healthy. Add `-- --no-build` to test an image you already built (`KEKE_IMAGE` names it), and put extra `docker build` flags in `KEKE_DOCKER_BUILD_ARGS`. Run it after changing the Dockerfile, the build scripts or anything the server loads from disk at startup.
+`npm run docker:smoke` builds the image as `keke:smoke`, starts it on a free local port and checks that the page and its script load, `/healthz` reports debug off and lists every available map, a debug message is refused, two clients meet in one room by its code, and the Docker health check turns healthy. Add `-- --no-build` to test an image you already built (`KEKE_IMAGE` names it), and put extra `docker build` flags in `KEKE_DOCKER_BUILD_ARGS`. Run it after changing the Dockerfile, the build scripts or anything the server loads from disk at startup.
 
 ## Hosting online (VPS)
 
@@ -158,7 +160,7 @@ For games over the internet, run the image on any small Linux VPS (1 vCPU and 1 
 
 1. Copy the repo to the server (`git clone`) and build the image: `docker build -t keke .`
 2. Start it with the port published on localhost only, so the game is reached through Caddy and HTTPS: `docker run -d --name keke --restart unless-stopped -p 127.0.0.1:2567:2567 keke`
-3. Check it: `curl http://127.0.0.1:2567/healthz` answers `{"ok":true,"debug":false}`.
+3. Check it: `curl http://127.0.0.1:2567/healthz` answers `{"ok":true,"debug":false,"maps":["kespro","prisma"]}`.
 4. Copy `Caddyfile.example` to `/etc/caddy/Caddyfile`, put your domain in place of `game.example.com`, and run `sudo systemctl reload caddy`. Caddy fetches the HTTPS certificate itself and passes the WebSocket connections through.
 5. Open ports 80 and 443 in the VPS firewall (for example `sudo ufw allow 80,443/tcp`), and keep 2567 closed.
 6. Open `https://<your-domain>` and share the room code with your friends.

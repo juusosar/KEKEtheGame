@@ -55,8 +55,8 @@ import type {
   KekeRaceEvent,
   KekeRemoteSnapshot,
 } from '../game/hookTypes';
-import { hasMapFile, rawMapFor } from '../game/mapSource';
-import { assetTheme, stateMapId, themeFor, themeFromQuery } from '../game/mapTheme';
+import { rawMapFor } from '../game/mapSource';
+import { stateMapId, themeFor, themeFromQuery } from '../game/mapTheme';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
 import { PeelRenderer } from '../game/peels';
@@ -126,10 +126,8 @@ interface Remote {
  * `?debug=1` adds the zone/collision overlay and the `window.__KEKE__` test hook.
  */
 export class GameScene extends Phaser.Scene {
-  /** The round's map (P1-5): brand name and colours in the UI. */
+  /** The round's map (P1-5): its tiles, items, music, brand name and colours. */
   private theme!: MapTheme;
-  /** Where the tiles, item catalogue and music come from: `theme`, or the default map while its map is not built. */
-  private assets!: MapTheme;
   /** The asset manifest: theme-coloured sheet keys (van, order box) come from it. */
   private manifest: AssetManifest | undefined;
   private model!: MapModel;
@@ -218,10 +216,9 @@ export class GameScene extends Phaser.Scene {
     const current = currentRoom();
     // P1-5: the room's map (GameState.mapId), or `?map=` in the offline walk.
     this.theme = current ? themeFor(stateMapId(current.room.state)) : themeFromQuery(window.location.search);
-    this.assets = assetTheme(this.theme, hasMapFile);
     this.config = loadConfig();
-    const raw = rawMapFor(this.assets);
-    this.model = loadMap(raw, this.assets.assets.map);
+    const raw = rawMapFor(this.theme);
+    this.model = loadMap(raw, this.theme.assets.map);
     this.resetFields();
 
     this.room = current?.room ?? null;
@@ -249,7 +246,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.debug) this.createDebug();
     // §12: the map's music loops while the Game scene runs (intro, round, results and podium).
-    audioEngine().startMusic(`assets/${this.assets.assets.music}`);
+    audioEngine().startMusic(`assets/${this.theme.assets.music}`);
     // P3-2: a session can move to another map between rounds; fetch every loaded map's music now so the
     // switch does not start in silence. Tiles and sheets of every theme come with the manifest already.
     if (current) this.preloadRoomMusic(current.room.state);
@@ -358,7 +355,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createTilemap(raw: unknown): void {
-    const key = `map:${this.assets.id}`;
+    const key = `map:${this.theme.id}`;
     if (!this.cache.tilemap.exists(key)) {
       this.cache.tilemap.add(key, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: raw });
     }
@@ -401,7 +398,7 @@ export class GameScene extends Phaser.Scene {
     this.world = new WorldRenderer(
       this,
       this.model,
-      this.assets.id,
+      this.theme.id,
       {
         van: DEPTH.decor + 0.5,
         item: DEPTH.player - 0.5,
@@ -467,7 +464,7 @@ export class GameScene extends Phaser.Scene {
   /** Starts loading the music of every map the room's server has (P3-2). */
   private preloadRoomMusic(state: unknown): void {
     for (const id of readLobby(state, '').loadedMaps) {
-      audioEngine().preload(`assets/${assetTheme(themeFor(id), hasMapFile).assets.music}`);
+      audioEngine().preload(`assets/${themeFor(id).assets.music}`);
     }
   }
 
@@ -986,7 +983,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Online only: the HUD shows round state, so `?scene=game` walk mode has none. */
   private createHud(room: Room): void {
-    const catalogue = getItemCatalogue(this.assets.id);
+    const catalogue = getItemCatalogue(this.theme.id);
     this.hudContext = {
       catalogue,
       vanSlots: this.model.vanSlots,

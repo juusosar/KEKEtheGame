@@ -17,5 +17,6 @@ test('boot scene reaches the server health check', async ({ page }) => {
 test('the health check answers ok', async ({ request }) => {
   const res = await request.get('/healthz');
   expect(res.ok()).toBe(true);
-  expect(await res.json()).toMatchObject({ ok: true });
+  // Both maps loaded on the e2e server (P1 review F9).
+  expect(await res.json()).toMatchObject({ ok: true, maps: ['kespro', 'prisma'] });
 });
