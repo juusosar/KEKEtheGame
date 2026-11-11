@@ -22,6 +22,8 @@
   "hudTimerWarnSeconds": 10,
   "hudArrowMarginPx": 40,
   "hudArrowHoverPx": 36,
+  "hudArrowAvoidPx": 16,
+  "hudArrowMinFromCentrePx": 72,
   "swingFxSeconds": 0.15,
   "hitFlashSeconds": 0.12,
   "koAlpha": 0.45,

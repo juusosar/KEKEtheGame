@@ -46,6 +46,10 @@ export interface RenderConfig {
   readonly hudArrowMarginPx: number;
   /** How far the target arrow floats above an on-screen target, CSS px. */
   readonly hudArrowHoverPx: number;
+  /** The arrow's centre stays this far from any HUD panel (half its size plus a gap), px (playtest 1). */
+  readonly hudArrowAvoidPx: number;
+  /** Sliding off a panel, the arrow never comes closer than this to the screen centre, px. */
+  readonly hudArrowMinFromCentrePx: number;
   /** How long a melee swing arc stays drawn (M4-2 feedback), seconds. */
   readonly swingFxSeconds: number;
   /** How long a body flashes white after a hit, seconds. */
@@ -132,6 +136,8 @@ export function parseRenderConfig(data: unknown): RenderConfig {
   const hudTimerWarnSeconds = num('hudTimerWarnSeconds', (n) => n >= 0, '>= 0');
   const hudArrowMarginPx = num('hudArrowMarginPx', (n) => n >= 0, '>= 0');
   const hudArrowHoverPx = num('hudArrowHoverPx', (n) => n >= 0, '>= 0');
+  const hudArrowAvoidPx = num('hudArrowAvoidPx', (n) => n >= 0, '>= 0');
+  const hudArrowMinFromCentrePx = num('hudArrowMinFromCentrePx', (n) => n >= 0, '>= 0');
   const swingFxSeconds = num('swingFxSeconds', (n) => n > 0, 'positive');
   const hitFlashSeconds = num('hitFlashSeconds', (n) => n >= 0, '>= 0');
   const koAlpha = num('koAlpha', (n) => n >= 0 && n <= 1, 'in [0, 1]');
@@ -183,6 +189,8 @@ export function parseRenderConfig(data: unknown): RenderConfig {
     hudTimerWarnSeconds,
     hudArrowMarginPx,
     hudArrowHoverPx,
+    hudArrowAvoidPx,
+    hudArrowMinFromCentrePx,
     swingFxSeconds,
     hitFlashSeconds,
     koAlpha,
