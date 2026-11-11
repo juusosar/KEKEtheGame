@@ -8,6 +8,7 @@ import {
   type GameConfig,
   type GameMode,
   type MapModel,
+  type ThemeId,
 } from '@keke/shared';
 import { createGameServer } from '../app';
 import { loadMapRegistry } from '../maps';
@@ -31,6 +32,13 @@ export interface SessionPlan {
   readonly mode: GameMode;
   readonly teams: boolean;
   readonly rounds: number;
+  /** The map the session plays on (Phase 2, P1-6). Default: the first map. */
+  readonly map?: ThemeId;
+}
+
+/** `timed`, `race+teams@prisma`: the CLI's and the log's name for a session plan. */
+export function planName(plan: SessionPlan): string {
+  return `${plan.mode}${plan.teams ? '+teams' : ''}${plan.map && plan.map !== defaultThemeId ? `@${plan.map}` : ''}`;
 }
 
 export interface SoakOptions {
@@ -119,6 +127,9 @@ export const DEFAULT_SESSIONS: readonly SessionPlan[] = [
   { mode: 'race', teams: false, rounds: 3 },
   { mode: 'timed', teams: true, rounds: 3 },
   { mode: 'race', teams: true, rounds: 3 },
+  // P1-6: the second map, Timed and Race.
+  { mode: 'timed', teams: false, rounds: 3, map: 'prisma' },
+  { mode: 'race', teams: false, rounds: 3, map: 'prisma' },
 ];
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -216,7 +227,7 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
   const log = options.log ?? (() => {});
   const config = loadConfig({ ...loadConfig(), ...SOAK_CONFIG, ...options.config });
   const maps = loadMapRegistry();
-  const map: MapModel = maps.get(defaultThemeId).map;
+  const map: MapModel = maps.get(options.sessions[0]?.map ?? defaultThemeId).map;
   const random = mulberry32(options.seed ?? 7);
   const errors: string[] = [];
   const desyncs: string[] = [];
@@ -316,15 +327,23 @@ export async function runSoak(options: SoakOptions): Promise<SoakReport> {
 
     // --- Sessions, back to back in the same room. --------------------------------------------------
     for (const [index, plan] of options.sessions.entries()) {
-      const label = `session ${index + 1} (${plan.mode}${plan.teams ? ', teams' : ''})`;
+      const label = `session ${index + 1} (${planName(plan)})`;
       const sessionStart = performance.now();
+      const mapId = plan.map ?? defaultThemeId;
       log(`${label}: ${plan.rounds} rounds`);
-      host.send(ClientMessage.settings, { mode: plan.mode, teams: plan.teams, roundsPerMap: plan.rounds });
+      host.send(ClientMessage.settings, {
+        mode: plan.mode,
+        teams: plan.teams,
+        roundsPerMap: plan.rounds,
+        maps: mapId,
+      });
+      for (const bot of bots) bot.useMap(maps.get(mapId).map);
       await waitFor(
         () =>
           room.state.settings.mode === plan.mode &&
           room.state.settings.teams === plan.teams &&
-          room.state.settings.roundsPerMap === plan.rounds,
+          room.state.settings.roundsPerMap === plan.rounds &&
+          room.state.settings.maps === mapId,
         5000,
         `${label} settings`,
       );

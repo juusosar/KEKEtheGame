@@ -44,8 +44,6 @@ export default defineConfig({
     env: {
       PORT: String(port),
       KEKE_DEBUG: '1',
-      // P1-5: the fixture map stands in for the second map until the real one is switched on.
-      KEKE_TEST_MAPS: '1',
       KEKE_CONFIG: fileURLToPath(new URL('tests/e2e/config.e2e.json', import.meta.url)),
     },
     reuseExistingServer: !process.env['CI'],

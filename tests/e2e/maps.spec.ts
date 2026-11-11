@@ -2,9 +2,8 @@ import { expect, type Page } from '@playwright/test';
 import { createRoom, joinRoom, mapChoice, players, requireDebugServer, test, toPlay } from './helpers';
 
 // P1-5: the host picks the map in the lobby, every player sees the choice, and the round is played on
-// it (round intro, `<body data-map>`). The e2e server runs KEKE_TEST_MAPS=1, so the second map is the
-// P1-1 fixture map until the real one is switched on (P1-6); the client draws the default map's tiles
-// for a map whose file it does not have yet, under the picked map's name and colours.
+// it (round intro, `<body data-map>`). Since P1-6 both maps are the real ones; prisma.spec.ts plays rounds
+// on the second map.
 
 const lobbyMap = (page: Page) => page.locator('#keke-lobby');
 

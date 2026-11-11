@@ -25,23 +25,23 @@ git rm --cached -r . && git reset --hard
 
 ## Scripts
 
-| Script                 | What it does                                                            |
-| ---------------------- | ----------------------------------------------------------------------- |
-| `npm run dev`          | Server in watch mode + Vite dev server on http://localhost:5173         |
-| `npm run build`        | Builds every workspace package that has a `build` script                |
-| `npm start`            | Runs the built server on `PORT` (default 2567)                          |
-| `npm test`             | Vitest across all packages                                              |
-| `npm run test:e2e`     | Playwright end-to-end tests against the production build (Chromium)     |
-| `npm run e2e:install`  | Downloads Playwright's Chromium (once, before the first e2e run)        |
-| `npm run lint`         | ESLint + Prettier check                                                 |
-| `npm run format`       | Prettier write                                                          |
-| `npm run typecheck`    | `tsc --noEmit` for the root configs and every package                   |
-| `npm run gen:art`      | Regenerates the placeholder art (see below)                             |
-| `npm run gen:map`      | Regenerates `maps/kespro.tmj` from `tools/map/kespro.ts`                |
-| `npm run gen:items`    | Regenerates the item catalogue JSON from `tools/items/*.md`             |
-| `npm run gen:sfx`      | Regenerates the placeholder sound effects and music (see below)         |
-| `npm run docker:smoke` | Builds the Docker image and checks that it runs the game (needs Docker) |
-| `npm run soak`         | 8-player multi-session soak test (see below)                            |
+| Script                 | What it does                                                               |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `npm run dev`          | Server in watch mode + Vite dev server on http://localhost:5173            |
+| `npm run build`        | Builds every workspace package that has a `build` script                   |
+| `npm start`            | Runs the built server on `PORT` (default 2567)                             |
+| `npm test`             | Vitest across all packages                                                 |
+| `npm run test:e2e`     | Playwright end-to-end tests against the production build (Chromium)        |
+| `npm run e2e:install`  | Downloads Playwright's Chromium (once, before the first e2e run)           |
+| `npm run lint`         | ESLint + Prettier check                                                    |
+| `npm run format`       | Prettier write                                                             |
+| `npm run typecheck`    | `tsc --noEmit` for the root configs and every package                      |
+| `npm run gen:art`      | Regenerates the placeholder art (see below)                                |
+| `npm run gen:map`      | Regenerates both maps from `tools/map/kespro.ts` and `tools/map/prisma.ts` |
+| `npm run gen:items`    | Regenerates the item catalogue JSON from `tools/items/*.md`                |
+| `npm run gen:sfx`      | Regenerates the placeholder sound effects and music (see below)            |
+| `npm run docker:smoke` | Builds the Docker image and checks that it runs the game (needs Docker)    |
+| `npm run soak`         | 8-player multi-session soak test (see below)                               |
 
 ## Development
 
@@ -55,9 +55,9 @@ Run `npm run e2e:install` once to download Playwright's Chromium. After that, `n
 
 ## Soak test
 
-`npm run soak` plays whole sessions with 8 simulated players against an in-process server: a 3-round Timed, a 3-round Race, then both again with teams on, back to back in the same room (about 13 minutes with the soak's shorter rounds and a race quota of 2). The bots (`packages/server/src/soak/bot.ts`) play from their own decoded copy of the state like real clients: they walk with the shared pathfinder, fetch their target, deposit it, carry race boxes to the office, steal, fight each other and hit store workers (so they get Wanted). The soak fails on any server or client error, any desync (it pauses the simulation now and then and compares every client's state with the server's), a podium or lobby that is not clean, bots that never picked up, deposited, knocked someone out, got Wanted, packed a box or delivered one, and growth of tick time or heap between the first and the last session. It prints a summary and writes `test-results/soak/report.json`.
+`npm run soak` plays whole sessions with 8 simulated players against an in-process server: a 3-round Timed, a 3-round Race, both again with teams on, then a 3-round Timed and a 3-round Race on the second map (Prisma), back to back in the same room (about 20 minutes with the soak's shorter rounds and a race quota of 2). The bots (`packages/server/src/soak/bot.ts`) play from their own decoded copy of the state like real clients: they walk with the shared pathfinder, fetch their target, deposit it, carry race boxes to the office, steal, fight each other and hit store workers (so they get Wanted). The soak fails on any server or client error, any desync (it pauses the simulation now and then and compares every client's state with the server's), a podium or lobby that is not clean, bots that never picked up, deposited, knocked someone out, got Wanted, packed a box or delivered one, and growth of tick time or heap between the first and the last session. It prints a summary and writes `test-results/soak/report.json`.
 
-Options: `--players 8`, `--sessions timed,race,timed+teams,race+teams`, `--rounds 3`, `--timed 45 --race 75` (round seconds; `--timed 180 --race 240` for the real lengths), `--port 2597`, `--seed 7`. `--browsers 2` makes two of the players real game clients in headless Chromium that join through the menus and mash keys, and fails on their console errors (run `npm run build` first). `npm test` runs a short version (2 Race rounds with teams).
+Options: `--players 8`, `--sessions timed,race,timed+teams,race+teams,timed@prisma,race@prisma` (`@<map>` plays that session on that map; default the first map), `--rounds 3`, `--timed 45 --race 75` (round seconds; `--timed 180 --race 240` for the real lengths), `--port 2597`, `--seed 7`. `--browsers 2` makes two of the players real game clients in headless Chromium that join through the menus and mash keys, and fails on their console errors (run `npm run build` first). `npm test` runs a short version (2 Race rounds with teams, and 2 Timed rounds on Prisma).
 
 ## Placeholder art
 
@@ -74,13 +74,17 @@ Character frames are named `<anim>_<dir>_<i>`. The output is deterministic and c
 v1 sound is generated by `tools/gen-sfx.ts` (`npm run gen:sfx`), a small jsfxr-style synthesiser in `tools/sfx/`: each sound effect is a few oscillator layers (square, saw, triangle, sine or pitched noise) with a pitch slide or step sequence and an envelope (`tools/sfx/sounds.ts`), and each map's music loop is a short chiptune score rendered with the same synth (`tools/sfx/music.ts`). It writes 16-bit mono WAV files to `packages/client/public/assets/`:
 
 - `audio/<name>.wav`, one per name in `packages/client/src/audio/names.ts` (the client's list of sound effects);
-- the music loop each available theme names in `assets.music`, e.g. `music/kespro_loop.wav`.
+- the music loop each available theme names in `assets.music`: `music/kespro_loop.wav` and `music/prisma_loop.wav`.
 
 Everything is original and made in the repo. The output is deterministic and committed; a test fails if the committed files differ from the generator, so rerun `npm run gen:sfx` after changing it. To add a sound, add its name to `names.ts` and its layers to `sounds.ts`.
 
 ## Maps
 
 `maps/kespro.tmj` is a Tiled map (120 × 80 tiles of 32 px) generated by `tools/gen-kespro-map.ts` (`npm run gen:map`) from the layout in `tools/map/kespro.ts`. It has the tile layers `ground`, `walls` (collision), `decor` and `above` (drawn over players), and the object layers `zones`, `van_slots`, `item_spawns`, `npc_spawns`, `npc_waypoints`, `forklift_routes` and `office_trigger`. The tileset is embedded (copied from `maps/kespro_tiles.tsj`, first gid 1) so Phaser can load the map directly. The file opens in Tiled for a look, but edit the generator rather than the map: a test fails if the committed map differs from the generator output, and it also checks the zones, van slots, spawn counts, spawn reachability from the dock and spawn distance from the vans. Rerun `npm run gen:map` after `npm run gen:art` changes the tileset.
+
+`maps/prisma.tmj` is the second store, Prisma (100 × 72 tiles), generated by `tools/gen-prisma-map.ts` from `tools/map/prisma.ts` with the same layers and its own embedded tileset `prisma_tiles`. Its layout differs on purpose: the store front faces south onto a parking lot where the vans stand in two rows, and the office is across the road east of the lot, so race carriers run across the lot and the road rather than through the store. It has a bakery with an oven, a deli with the butcher behind the counter, a stockroom (staff only, Wanted on entry) with one forklift loop, self-checkout lanes and a bottle-return alcove. Its items are `items.prisma.json` (`tools/items/items.prisma.md`), its music `music/prisma_loop.wav`.
+
+Every theme with `available: true` in `packages/shared/src/theme/` is loaded at server start (the server refuses to start if a map fails its checks). The host picks the map in the lobby (**Map**: one store, or both, the first store's rounds first); everyone in the room plays the picked map and the client loads that map's tiles, items and music. `?scene=game&map=prisma` walks the second map offline.
 
 ## Item catalogue
 

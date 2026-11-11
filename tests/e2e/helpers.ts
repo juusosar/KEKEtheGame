@@ -34,8 +34,8 @@ export const mapChoice = (page: Page, choice: E2eMapChoice) =>
 
 /**
  * From Play: creates a room, waits for the lobby and returns the room code. With `map`, the host then
- * picks that map in the lobby and waits for the server to confirm it (P1-5). The e2e server has a
- * stand-in second map (KEKE_TEST_MAPS=1), so every choice can be picked.
+ * picks that map in the lobby and waits for the server to confirm it (P1-5). Both maps are loaded, so
+ * every choice can be picked.
  */
 export async function createRoom(page: Page, { map }: { map?: E2eMapChoice } = {}): Promise<string> {
   const code = await createRoomOnly(page);
