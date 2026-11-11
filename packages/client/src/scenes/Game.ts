@@ -15,6 +15,7 @@ import {
   inputStepSeconds,
   configForMap,
   loadConfig,
+  withHostRules,
   loadMap,
   playerHalfSize,
   vanSpawn,
@@ -104,7 +105,7 @@ import { SnapshotBuffer } from '../net/interpolation';
 import { isControlling, isOnMap, readGame, sceneForPhase, type GameView } from '../net/gameView';
 import { FixedStepClock, Predictor, inputSequenceFor, type InputSequence } from '../net/prediction';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
-import { readLobby } from '../net/lobbyView';
+import { readLobby, stateRules } from '../net/lobbyView';
 import { readTraps } from '../net/trapView';
 import { cartBodies, readCarts } from '../net/cartView';
 import { cartTileKeys, readNpcs, readStockCarts } from '../net/npcView';
@@ -227,8 +228,10 @@ export class GameScene extends Phaser.Scene {
     const current = currentRoom();
     // P1-5: the room's map (GameState.mapId), or `?map=` in the offline walk.
     this.theme = current ? themeFor(stateMapId(current.room.state)) : themeFromQuery(window.location.search);
-    // P4-1: the map's config (its `maps.<id>` overrides on top), so prediction and the HUD match the server.
-    this.config = configForMap(loadConfig(), this.theme.id);
+    // P4-1: the map's config (its `maps.<id>` overrides on top), with the host's rules on top of both, so
+    // prediction and the HUD match the server.
+    const rules = current ? stateRules(current.room.state) : {};
+    this.config = configForMap(withHostRules(loadConfig(), rules), this.theme.id);
     const raw = rawMapFor(this.theme);
     this.model = loadMap(raw, this.theme.assets.map);
     this.resetFields();

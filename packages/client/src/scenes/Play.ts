@@ -1,10 +1,15 @@
 import type { Room } from '@colyseus/sdk';
 import {
+  GAME_MODES,
+  MAP_CHOICES,
   ROOM_CODE_LENGTH,
   ROOM_NAMES,
   isRoomCode,
   loadConfig,
   normalizeRoomCode,
+  type GameConfig,
+  type GameMode,
+  type LobbySettings,
   type PlayerProfile,
 } from '@keke/shared';
 import Phaser from 'phaser';
@@ -23,7 +28,9 @@ import { markRoom, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
 import { themeFor } from '../game/mapTheme';
 import { createMenuLayer, h } from '../ui/dom';
-import type { PlaySceneData } from './Lobby';
+import { ROOM_SETUP_KEY, readRoomSetup } from '../ui/rules';
+import { RulesEditor } from '../ui/rulesEditor';
+import { MODE_LABEL, mapChoiceLabel, type PlaySceneData } from './Lobby';
 
 /** Scene that takes over once we're in a room (§13.1 step 4). */
 export const AFTER_JOIN_SCENE = 'Lobby';
@@ -44,6 +51,14 @@ export class PlayScene extends Phaser.Scene {
   private roomList!: HTMLUListElement;
   private roomsNote!: HTMLParagraphElement;
   private status!: HTMLParagraphElement;
+  private config!: GameConfig;
+  private mainPanel!: HTMLDivElement;
+  /** The room setup menu (Create room opens it): stores, mode, rounds, teams and the rules. */
+  private setupPanel!: HTMLDivElement;
+  private setup!: LobbySettings;
+  private setupButtons: { button: HTMLButtonElement; pressed: () => boolean }[] = [];
+  private rulesEditor!: RulesEditor;
+  private setupStatus!: HTMLParagraphElement;
 
   constructor() {
     super('Play');
@@ -60,7 +75,10 @@ export class PlayScene extends Phaser.Scene {
     this.closed = false;
     this.rooms = [];
     this.buttons = [];
-    this.profile = loadProfile(browserStorage(), loadConfig().nicknameMaxLength).profile;
+    this.setupButtons = [];
+    this.config = loadConfig();
+    this.profile = loadProfile(browserStorage(), this.config.nicknameMaxLength).profile;
+    this.setup = readRoomSetup(storedSetup(), this.config.maxRoundsPerMap);
     this.createPanel();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.closeListing());
     void this.openListing();
@@ -70,6 +88,7 @@ export class PlayScene extends Phaser.Scene {
   private createPanel(): void {
     const layer = createMenuLayer(this, 'play');
     const panel = h('div', { class: 'panel', role: 'region', 'aria-labelledby': 'keke-play-heading' });
+    this.mainPanel = panel;
     panel.append(h('h2', { id: 'keke-play-heading' }, t('play.heading')));
 
     const edit = this.button(t('play.editProfile'), 'link', () => this.scene.start('Profile'));
@@ -77,7 +96,9 @@ export class PlayScene extends Phaser.Scene {
       h('p', { class: 'muted' }, t('play.playingAs', { name: this.profile.nickname }), ' · ', edit),
     );
 
-    panel.append(this.button(t('play.create'), 'wide', () => void this.create_()));
+    const create = this.button(t('play.create'), 'wide', () => this.openSetup());
+    create.id = 'keke-play-create';
+    panel.append(create);
 
     panel.append(h('h3', {}, t('play.joinHeading')));
     this.codeInput = h('input', {
@@ -109,7 +130,110 @@ export class PlayScene extends Phaser.Scene {
     panel.append(this.status);
 
     layer.append(panel);
+    this.setupPanel = this.createSetupPanel();
+    this.setupPanel.hidden = true;
+    layer.append(this.setupPanel);
     this.updateJoinEnabled();
+    this.codeInput.focus();
+  }
+
+  // --- room setup ------------------------------------------------------------------------------------
+
+  private createSetupPanel(): HTMLDivElement {
+    const panel = h('div', {
+      class: 'panel setup-panel',
+      id: 'keke-setup',
+      role: 'region',
+      'aria-labelledby': 'keke-setup-heading',
+    });
+    panel.append(h('h2', { id: 'keke-setup-heading' }, t('play.setupHeading')));
+    panel.append(h('p', { class: 'muted' }, t('play.setupIntro')));
+
+    const settings = h('div', { class: 'settings' });
+    const group = (label: string, buttons: HTMLButtonElement[]): void => {
+      const row = h('div', { class: 'choice', role: 'group', 'aria-label': label }, ...buttons);
+      settings.append(h('label', {}, label), row);
+    };
+    group(
+      t('lobby.mapsLabel'),
+      MAP_CHOICES.map((choice) =>
+        this.setupChoice(mapChoiceLabel(choice), { maps: choice }, () => this.setup.maps === choice, {
+          'data-map-choice': choice,
+        }),
+      ),
+    );
+    group(
+      t('lobby.modeLabel'),
+      GAME_MODES.map((mode: GameMode) =>
+        this.setupChoice(t(MODE_LABEL[mode]), { mode }, () => this.setup.mode === mode),
+      ),
+    );
+    const rounds: HTMLButtonElement[] = [];
+    for (let n = 1; n <= this.config.maxRoundsPerMap; n++) {
+      rounds.push(
+        this.setupChoice(String(n), { roundsPerMap: n }, () => this.setup.roundsPerMap === n, {
+          'aria-label': t('lobby.roundsOption', { n }),
+        }),
+      );
+    }
+    group(t('lobby.roundsLabel'), rounds);
+    group(t('lobby.teamsLabel'), [
+      this.setupChoice(t('lobby.teamsOff'), { teams: false }, () => !this.setup.teams),
+      this.setupChoice(t('lobby.teamsOn'), { teams: true }, () => this.setup.teams),
+    ]);
+    panel.append(settings);
+
+    panel.append(h('h3', {}, t('play.rulesHeading')));
+    this.rulesEditor = new RulesEditor({
+      base: this.config,
+      rules: this.setup.rules,
+      idPrefix: 'keke-setup-rule',
+      onChange: (rules) => (this.setup = { ...this.setup, rules }),
+    });
+    panel.append(this.rulesEditor.root);
+
+    const open = this.button(t('play.setupCreate'), 'wide start', () => void this.create_());
+    open.id = 'keke-setup-create';
+    const back = this.button(t('play.setupBack'), 'secondary', () => this.closeSetup());
+    back.id = 'keke-setup-back';
+    this.setupStatus = h('p', { class: 'status', role: 'status', 'aria-live': 'polite' });
+    panel.append(open, this.setupStatus, h('div', { class: 'actions' }, back));
+    this.renderSetup();
+    return panel;
+  }
+
+  private setupChoice(
+    label: string,
+    change: Partial<LobbySettings>,
+    pressed: () => boolean,
+    attrs: Record<string, string> = {},
+  ): HTMLButtonElement {
+    const button = this.button(label, '', () => {
+      this.setup = { ...this.setup, ...change };
+      this.renderSetup();
+    });
+    for (const [name, value] of Object.entries(attrs)) button.setAttribute(name, value);
+    this.setupButtons.push({ button, pressed });
+    return button;
+  }
+
+  private renderSetup(): void {
+    for (const { button, pressed } of this.setupButtons)
+      button.setAttribute('aria-pressed', String(pressed()));
+  }
+
+  private openSetup(): void {
+    if (this.busy) return;
+    this.mainPanel.hidden = true;
+    this.setupPanel.hidden = false;
+    this.setStatus('', false);
+    document.getElementById('keke-setup-create')?.focus();
+  }
+
+  private closeSetup(): void {
+    if (this.busy) return;
+    this.setupPanel.hidden = true;
+    this.mainPanel.hidden = false;
     this.codeInput.focus();
   }
 
@@ -124,8 +248,10 @@ export class PlayScene extends Phaser.Scene {
 
   private async create_(): Promise<void> {
     if (!this.begin(t('play.creating'))) return;
+    const settings: LobbySettings = { ...this.setup, rules: this.rulesEditor.rules };
     try {
-      const room = await createGameRoom(gameClient(), this.profile);
+      const room = await createGameRoom(gameClient(), this.profile, settings);
+      storeSetup(settings);
       this.enter(room, await waitForRoomCode(room));
     } catch (err) {
       console.error('[keke] could not create a room', err);
@@ -181,8 +307,11 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private setStatus(message: string, error: boolean): void {
-    this.status.textContent = message;
-    this.status.classList.toggle('error', error);
+    // The setup menu has its own status line under its button; the main panel's is hidden with it.
+    for (const status of [this.status, this.setupStatus]) {
+      status.textContent = message;
+      status.classList.toggle('error', error);
+    }
   }
 
   private updateJoinEnabled(): void {
@@ -248,5 +377,21 @@ export class PlayScene extends Phaser.Scene {
         ),
       );
     }
+  }
+}
+
+function storedSetup(): string | null {
+  try {
+    return browserStorage()?.getItem(ROOM_SETUP_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function storeSetup(settings: LobbySettings): void {
+  try {
+    browserStorage()?.setItem(ROOM_SETUP_KEY, JSON.stringify(settings));
+  } catch {
+    // Storage off (private mode): the menu starts from the defaults next time.
   }
 }

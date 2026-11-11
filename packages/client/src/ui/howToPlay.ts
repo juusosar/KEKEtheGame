@@ -19,6 +19,7 @@ import {
   getTheme,
   getWeaponCatalogue,
   loadConfig,
+  type GameConfig,
   type WeaponDef,
 } from '@keke/shared';
 import { CONTROL_ACTIONS, buttonName, type ControlAction } from '../input/controls';
@@ -38,6 +39,11 @@ import { character, sprite } from './sprite';
 export interface HowToPlayOptions {
   /** 'page': the title menu screen; 'tutorial': the first-time card over the lobby. */
   variant: 'page' | 'tutorial';
+  /**
+   * The values the pages quote (round time, quota, respawn, Wanted): the room's config with the host's
+   * rules in the lobby, the shipped config on the title screen.
+   */
+  config?: GameConfig;
   /** Label of the close button ("Back", "Skip"). */
   closeLabel: string;
   /** Label of "next" on the last page ("Done", "Let's play"). */
@@ -84,9 +90,11 @@ export class HowToPlay {
   private index = 0;
   private closed = false;
   private readonly look: { color: string; hat: string | null };
+  private readonly config: GameConfig;
 
   constructor(private readonly opts: HowToPlayOptions) {
     this.look = opts.look ?? { color: '#3FA9F5', hat: 'cap' };
+    this.config = opts.config ?? loadConfig();
     const heading = h('h2', { id: 'keke-howto-heading' }, opts.heading ?? t('howto.heading'));
     const tablist = h('div', { class: 'howto-tabs', role: 'tablist', 'aria-label': t('howto.tabs') });
     const body = h('div', { class: 'howto-body' });
@@ -257,7 +265,7 @@ export class HowToPlay {
   }
 
   private goalPage(): HTMLElement[] {
-    const cfg = loadConfig();
+    const cfg = this.config;
     const theme = getTheme(defaultThemeId);
     const target = h(
       'span',
@@ -319,7 +327,7 @@ export class HowToPlay {
         arrowGlyph(),
         h('span', { class: 'howto-trophy', 'aria-hidden': 'true' }, '1st'),
       ),
-      t('howto.mode.timed', { minutes: Math.round(cfg.timedRoundSeconds / 60) }),
+      t('howto.mode.timed', { clock: formatClock(cfg.timedRoundSeconds) }),
     );
     const race = card(
       'race',
@@ -441,7 +449,7 @@ export class HowToPlay {
   }
 
   private fightPage(): HTMLElement[] {
-    const cfg = loadConfig();
+    const cfg = this.config;
     const groups = new Map<string, WeaponDef[]>();
     for (const weapon of getWeaponCatalogue().rollable) {
       const kind = weapon.behaviour === 'shot_then_melee' ? 'thrown' : weapon.behaviour;
@@ -548,7 +556,7 @@ export class HowToPlay {
   }
 
   private staffPage(): HTMLElement[] {
-    const cfg = loadConfig();
+    const cfg = this.config;
     const staff = h(
       'div',
       { class: 'howto-cards four' },
@@ -635,7 +643,7 @@ export class HowToPlay {
   }
 
   private store2Page(): HTMLElement[] {
-    const cfg = loadConfig();
+    const cfg = this.config;
     const store = getTheme(SECOND_STORE);
     const oven = h(
       'span',

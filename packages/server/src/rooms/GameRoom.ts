@@ -163,8 +163,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   override onCreate(options?: GameJoinOptions): void {
     // The room setup menu's choices (host rules) are checked before anything is reserved: a refused
     // set fails the create. They are applied once the map systems exist, like a lobby update.
-    const setup = options?.settings;
+    let setup: unknown = options?.settings;
     if (setup !== undefined) {
+      // A remembered map choice this server has not loaded is not worth failing over: its default map.
+      if (this.checkSettings(setup) === 'map_unavailable' && typeof setup === 'object' && setup !== null) {
+        setup = Object.fromEntries(Object.entries(setup).filter(([key]) => key !== 'maps'));
+      }
       const error = this.checkSettings(setup);
       if (error !== null) throw new ServerError(INVALID_SETTINGS_ERROR, `Room settings refused: ${error}`);
     }

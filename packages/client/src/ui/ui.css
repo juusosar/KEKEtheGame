@@ -2126,3 +2126,85 @@ body[data-phase='podium'] .keke-minimap {
 .keke-menu .howto-overlay .howto {
   background: var(--keke-panel);
 }
+
+/* --- Room setup and host rules (Play.ts setup panel, Lobby.ts Rules overlay, ui/rulesEditor.ts). */
+#keke-play .panel.setup-panel {
+  width: min(560px, calc(100vw - 32px));
+}
+.keke-menu .rules-editor > label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 13px;
+  color: #bdbdbd;
+}
+.keke-menu .rules-group {
+  margin-top: 10px;
+  border-top: 1px solid #555;
+  padding-top: 6px;
+}
+.keke-menu .rules-group > summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 4px 0;
+}
+.keke-menu .rule {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 4px 0;
+}
+.keke-menu .rule > label {
+  margin: 0;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #f2f2f2;
+}
+.keke-menu .rule[data-changed='true'] > label {
+  color: var(--keke-accent);
+  font-weight: 700;
+}
+.keke-menu .rule-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.keke-menu .rule-input input {
+  width: 64px;
+  padding: 4px;
+  font-size: 14px;
+  text-align: right;
+}
+.keke-menu .rule-input button.step {
+  min-width: 28px;
+  padding: 2px 6px;
+  font-size: 16px;
+  box-shadow: none;
+}
+.keke-menu .rule-input .unit {
+  min-width: 34px;
+  font-size: 12px;
+  color: #bdbdbd;
+}
+.keke-menu .rule-standard {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+.keke-menu .rules-editor[data-readonly='true'] .step {
+  display: none;
+}
+.keke-menu .rules-summary {
+  margin: 0 0 6px;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.keke-menu .rules-summary[data-standard='true'] {
+  list-style: none;
+  padding-left: 0;
+  color: #bdbdbd;
+}
+.keke-menu .rules-overlay .rules-panel {
+  width: min(560px, calc(100vw - 32px));
+  background: var(--keke-panel);
+}

@@ -9,6 +9,7 @@ import {
   isMapChoice,
   readRules,
   type GameMode,
+  type HostRules,
   type LobbyErrorCode,
   type LobbySettings,
   type RoundPhase,
@@ -157,4 +158,10 @@ export function lobbyErrorKey(code: unknown): `lobby.error.${LobbyErrorCode | 'u
     default:
       return 'lobby.error.unknown';
   }
+}
+
+/** The host's rules from the synced state (`settings.rules`); empty before the first patch. */
+export function stateRules(state: unknown): HostRules {
+  const settings = isBag(state) ? state['settings'] : undefined;
+  return readRules(isBag(settings) ? settings['rules'] : undefined);
 }

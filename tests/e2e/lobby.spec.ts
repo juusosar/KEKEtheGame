@@ -11,6 +11,7 @@ test('host and guest meet in the lobby, ready up, change settings and start', as
 
   await toPlay(host, 'Hostess');
   await host.getByRole('button', { name: 'Create room' }).click();
+  await host.getByRole('button', { name: 'Open lobby' }).click();
   await expect(host.locator('body')).toHaveAttribute('data-scene', 'lobby', { timeout: 10_000 });
   await expect(host.locator('body')).toHaveAttribute('data-room', /^[A-Z]{4}$/);
   const code = (await host.locator('body').getAttribute('data-room')) ?? '';
@@ -69,6 +70,7 @@ test('host and guest meet in the lobby, ready up, change settings and start', as
 test('leaving the lobby goes back to Play', async ({ page }) => {
   await toPlay(page, 'Quitter');
   await page.getByRole('button', { name: 'Create room' }).click();
+  await page.getByRole('button', { name: 'Open lobby' }).click();
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'lobby', { timeout: 10_000 });
   await expect(players(page)).toHaveCount(1);
   await page.getByRole('button', { name: 'Leave room' }).click();

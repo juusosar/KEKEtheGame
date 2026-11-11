@@ -3,7 +3,13 @@
 // - join by code: client.join('game', { code, ...profile }), matched with filterBy(['code'])
 // - room list: the built-in LobbyRoom 'lobby' with realtime listing ("rooms", "+", "-" messages)
 import type { Client, Room } from '@colyseus/sdk';
-import { ROOM_CODE_LENGTH, ROOM_NAMES, type GameJoinOptions, type PlayerProfile } from '@keke/shared';
+import {
+  ROOM_CODE_LENGTH,
+  ROOM_NAMES,
+  type GameJoinOptions,
+  type LobbySettingsUpdate,
+  type PlayerProfile,
+} from '@keke/shared';
 
 /**
  * Cleans what the player types into the code box as they type: upper case, letters only, at most
@@ -17,8 +23,12 @@ export function cleanCodeInput(input: string): string {
 }
 
 /** Creates a new game room; the server assigns the code. */
-export function createGameRoom(client: Client, profile: PlayerProfile): Promise<Room> {
-  const options: GameJoinOptions = { ...profile };
+export function createGameRoom(
+  client: Client,
+  profile: PlayerProfile,
+  settings?: LobbySettingsUpdate,
+): Promise<Room> {
+  const options: GameJoinOptions = { ...profile, ...(settings ? { settings } : {}) };
   return client.create(ROOM_NAMES.game, options);
 }
 

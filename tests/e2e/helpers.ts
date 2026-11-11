@@ -65,10 +65,12 @@ export async function createRoom(page: Page, { map }: { map?: E2eMapChoice } = {
 }
 
 async function createRoomOnly(page: Page): Promise<string> {
-  const create = page.getByRole('button', { name: 'Create room' });
+  // Create room opens the room setup menu; Open lobby there creates the room with its choices.
+  await openRoomSetup(page);
+  const create = page.locator('#keke-setup-create');
   await create.click();
   // On a page drawing a few fps the click was lost once or twice in many runs (M4 review F1 note): the
-  // Play status stayed empty and the buttons enabled, so create never started. Not reproduced by hand;
+  // status stayed empty and the buttons enabled, so create never started. Not reproduced by hand;
   // if the click left no trace after 3 s, click again (a started create disables the button).
   // One evaluate, no auto-waiting locators: the button is gone once the Lobby has taken over.
   const noTrace = () =>
@@ -79,12 +81,12 @@ async function createRoomOnly(page: Page): Promise<string> {
         (globalThis as unknown as { document: { querySelector(s: string): unknown } }).document.querySelector(
           sel,
         ) as { textContent: string | null; disabled?: boolean } | null;
-      const button = q('#keke-play button.wide');
+      const button = q('#keke-setup-create');
       return (
         doc.body.dataset['scene'] === 'play' &&
         button !== null &&
         button.disabled !== true &&
-        (q('#keke-play p.status')?.textContent ?? '') === ''
+        (q('#keke-setup p.status')?.textContent ?? '') === ''
       );
     });
   const lost = await expect
@@ -107,6 +109,12 @@ async function createRoomOnly(page: Page): Promise<string> {
     'createRoom: this page should host the new room, not have joined another',
   ).toBeVisible();
   return (await page.locator('body').getAttribute('data-room')) ?? '';
+}
+
+/** From Play: Create room, then wait for the room setup menu. */
+export async function openRoomSetup(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Create room' }).click();
+  await expect(page.locator('#keke-setup')).toBeVisible();
 }
 
 /** From Play: joins a room by its code and waits for the lobby. */
