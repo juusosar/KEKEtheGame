@@ -2,7 +2,7 @@
 export {
   ANY_ZONE,
   ITEM_RARITIES,
-  ITEM_ZONES,
+  checkItemMap,
   getItemCatalogue,
   isJokeItem,
   itemCatalogueSchema,
@@ -10,6 +10,7 @@ export {
   loadItemCatalogue,
   type ItemCatalogue,
   type ItemDef,
+  type ItemMap,
   type ItemRarity,
   type ItemZone,
   type ItemZoneId,

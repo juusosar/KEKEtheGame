@@ -6,8 +6,10 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import {
   HEALTH_PATH,
   ROOM_NAMES,
+  checkItemMap,
   checkNpcMap,
   defaultThemeId,
+  getItemCatalogue,
   getNpcCatalogue,
   getTheme,
   loadConfig,
@@ -53,6 +55,10 @@ export function createGameServer({
   const npcProblems = checkNpcMap(getNpcCatalogue(), map);
   if (npcProblems.length > 0) {
     throw new Error(`The map cannot host the store workers:\n${npcProblems.join('\n')}`);
+  }
+  const itemProblems = checkItemMap(getItemCatalogue(defaultThemeId), map);
+  if (itemProblems.length > 0) {
+    throw new Error(`The map cannot host the item catalogue:\n${itemProblems.join('\n')}`);
   }
   const server = new Server({
     transport: new WebSocketTransport(),

@@ -2,6 +2,7 @@
 import { Canvas, OUTLINE, hex, textWidth, type Rgba } from './canvas';
 import type { Frame } from './atlas';
 import { DIRECTIONS } from './characters';
+import { PRISMA_JOKE_ITEMS, PRISMA_NORMAL_ITEMS } from './prismaItems';
 import type { ArtTheme } from './theme';
 
 const WHITE = hex('#ffffff');
@@ -27,9 +28,10 @@ function star(c: Canvas, cx: number, cy: number, r: number, col: Rgba): void {
 
 // ── Items ─────────────────────────────────────────────────────────────────────
 
-type ItemShape = 'bag' | 'box' | 'bottle' | 'carton' | 'tub' | 'block' | 'pack' | 'sausage' | 'fish' | 'long';
+export type ItemShape =
+  'bag' | 'box' | 'bottle' | 'carton' | 'tub' | 'block' | 'pack' | 'sausage' | 'fish' | 'long';
 
-interface ItemLook {
+export interface ItemLook {
   id: string;
   shape: ItemShape;
   color: string;
@@ -183,6 +185,9 @@ export function itemFrames(): Frame[] {
   return [
     ...NORMAL_ITEMS.map((look) => itemFrame(look, ITEM_SIZE, false)),
     ...JOKE_ITEMS.map((look) => itemFrame(look, JOKE_ITEM_SIZE, true)),
+    // Phase 2 catalogue (§9.2): appended after the first map's frames, one shared `items` atlas.
+    ...PRISMA_NORMAL_ITEMS.map((look) => itemFrame(look, ITEM_SIZE, false)),
+    ...PRISMA_JOKE_ITEMS.map((look) => itemFrame(look, JOKE_ITEM_SIZE, true)),
   ];
 }
 

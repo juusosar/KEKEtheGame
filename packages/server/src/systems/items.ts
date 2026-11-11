@@ -6,6 +6,7 @@ import {
   addCarryPlayer,
   assignTargets,
   carryMultiplier,
+  checkItemMap,
   createItemWorld,
   createRng,
   deliver,
@@ -81,6 +82,11 @@ export class ItemSystem {
     seed: number,
   ) {
     this.catalogue = getItemCatalogue(theme);
+    // §9.1: every zone the catalogue names needs item spawns on this map (phase 2: zones are per catalogue).
+    const problems = checkItemMap(this.catalogue, map);
+    if (problems.length > 0) {
+      throw new Error(`The map cannot host the ${theme} item catalogue:\n${problems.join('\n')}`);
+    }
     this.rng = createRng(seed);
   }
 
