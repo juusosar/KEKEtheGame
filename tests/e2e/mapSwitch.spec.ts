@@ -92,7 +92,9 @@ test('a session on both maps switches the map between rounds without leaving the
     const intro = page.getByRole('dialog', { name: 'Get ready' });
     await expect(intro.locator('.intro-round')).toHaveText('Round 2 of 2');
     await expect(intro.locator('.intro-map')).toHaveAttribute('data-map', 'prisma');
-    await expect(intro.locator('.intro-new-map')).toHaveText(/^New store: .+!$/);
+    // One store line that says it is new (P2 review F3): the store is not named twice.
+    await expect(intro.locator('.intro-map')).toHaveCount(1);
+    await expect(intro.locator('.intro-map.intro-new-map')).toHaveText(/^New store: .+ supermarket!$/);
   });
   await forBoth(waitControlling);
   await forBoth(async (page) => {

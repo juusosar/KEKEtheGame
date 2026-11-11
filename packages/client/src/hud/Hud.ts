@@ -60,8 +60,9 @@ interface FeedEntry {
 }
 
 /**
- * What the target arrow keeps clear of (playtest 1): the HUD panels, the minimap, the sound button, and
- * anything else on screen marked `data-arrow-avoid` (menus and prompts added later can opt in).
+ * What the target arrow keeps clear of (playtest 1): the HUD panels, the full scoreboard while it is
+ * held open, the minimap, the sound button, and anything else on screen marked `data-arrow-avoid` (menus
+ * and prompts added later can opt in).
  */
 const ARROW_AVOID_SELECTOR = [
   '#keke-hud-target',
@@ -69,6 +70,7 @@ const ARROW_AVOID_SELECTOR = [
   '#keke-hud-quota',
   '#keke-hud-timer',
   '#keke-hud-scores',
+  '#keke-hud-board',
   '#keke-hud-feed',
   '#keke-hud-combat',
   '#keke-minimap',

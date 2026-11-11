@@ -423,7 +423,8 @@
 }
 .keke-hud .hud-scores {
   width: 100%;
-  background: rgba(0, 0, 0, 0.55);
+  /* Opaque enough that shelves and name labels do not read as part of a row (P2 review F3). */
+  background: rgba(0, 0, 0, 0.78);
   font-size: 13px;
 }
 .keke-hud .hud-scores li {
@@ -755,13 +756,8 @@
   font-weight: 700;
   color: var(--keke-accent);
 }
+/* The store line on a map switch round: same accent colour, a short pulse. */
 .keke-round .intro-new-map {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #ffd54a;
   animation: keke-new-map 0.6s ease-in-out 3 alternate;
 }
 @keyframes keke-new-map {
