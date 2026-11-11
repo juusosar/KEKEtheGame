@@ -41,6 +41,10 @@ export interface LobbyView {
   everyoneReady: boolean;
   /** True once the first state patch has arrived (we appear in the player map). */
   synced: boolean;
+  /** Theme id of the lobby's map: the first map of the `maps` setting (P1-5). */
+  mapId: string;
+  /** Theme ids of the maps the server loaded: the picker offers only choices made of these. */
+  loadedMaps: string[];
 }
 
 export type Bag = Record<string, unknown>;
@@ -117,7 +121,24 @@ export function readLobby(state: unknown, mySessionId: string): LobbyView {
     isHost: hostId !== '' && hostId === mySessionId,
     everyoneReady: canStart(players),
     synced: me !== null,
+    mapId: str(s, 'mapId'),
+    loadedMaps: readStrings(s['loadedMaps']),
   };
+}
+
+/** A schema ArraySchema (has forEach) or a plain array of strings; anything else reads as empty. */
+function readStrings(value: unknown): string[] {
+  const out: string[] = [];
+  if (Array.isArray(value)) {
+    for (const v of value as unknown[]) if (typeof v === 'string') out.push(v);
+    return out;
+  }
+  if (isBag(value) && typeof value['forEach'] === 'function') {
+    (value['forEach'] as (cb: (v: unknown) => void) => void).call(value, (v) => {
+      if (typeof v === 'string') out.push(v);
+    });
+  }
+  return out;
 }
 
 /** i18n key for a refused lobby request (ServerMessage.lobbyError). */

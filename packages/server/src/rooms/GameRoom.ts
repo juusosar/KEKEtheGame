@@ -164,6 +164,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       ? (this.state.settings.maps as MapChoice)
       : (this.maps.ids[0] as ThemeId);
     this.state.settings.maps = choice;
+    this.state.loadedMaps.push(...this.maps.ids);
     this.state.mapId = mapForRound(choice, 0, 1);
     this.buildMapSystems(this.maps.get(this.state.mapId as ThemeId));
     // One state patch per simulation tick.

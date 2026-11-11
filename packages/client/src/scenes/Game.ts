@@ -8,11 +8,9 @@ import {
   RaceEventMessage,
   TILE_LAYERS,
   aabbOverlapsSolid,
-  defaultThemeId,
   getItemCatalogue,
   getNpcCatalogue,
   getWeaponCatalogue,
-  getTheme,
   inputStepSeconds,
   loadConfig,
   loadMap,
@@ -51,7 +49,8 @@ import type {
   KekeRaceEvent,
   KekeRemoteSnapshot,
 } from '../game/hookTypes';
-import { rawMapFor } from '../game/mapSource';
+import { hasMapFile, rawMapFor } from '../game/mapSource';
+import { assetTheme, stateMapId, themeFor, themeFromQuery } from '../game/mapTheme';
 import { renderConfig } from '../game/renderConfig';
 import { SpectatorCycle, spectateCandidates } from '../game/spectate';
 import { PeelRenderer } from '../game/peels';
@@ -117,7 +116,10 @@ interface Remote {
  * `?debug=1` adds the zone/collision overlay and the `window.__KEKE__` test hook.
  */
 export class GameScene extends Phaser.Scene {
+  /** The round's map (P1-5): brand name and colours in the UI. */
   private theme!: MapTheme;
+  /** Where the tiles, item catalogue and music come from: `theme`, or the default map while its map is not built. */
+  private assets!: MapTheme;
   private model!: MapModel;
   private config!: GameConfig;
   private inputManager!: InputManager;
@@ -191,13 +193,15 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.debug = isDebugEnabled(window.location.search);
-    this.theme = getTheme(defaultThemeId);
+    const current = currentRoom();
+    // P1-5: the room's map (GameState.mapId), or `?map=` in the offline walk.
+    this.theme = current ? themeFor(stateMapId(current.room.state)) : themeFromQuery(window.location.search);
+    this.assets = assetTheme(this.theme, hasMapFile);
     this.config = loadConfig();
-    const raw = rawMapFor(this.theme);
-    this.model = loadMap(raw, this.theme.assets.map);
+    const raw = rawMapFor(this.assets);
+    this.model = loadMap(raw, this.assets.assets.map);
     this.resetFields();
 
-    const current = currentRoom();
     this.room = current?.room ?? null;
     this.code = current?.code ?? '';
 
@@ -222,9 +226,10 @@ export class GameScene extends Phaser.Scene {
 
     if (this.debug) this.createDebug();
     // §12: the map's music loops while the Game scene runs (intro, round, results and podium).
-    audioEngine().startMusic(`assets/${this.theme.assets.music}`);
+    audioEngine().startMusic(`assets/${this.assets.assets.music}`);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown());
     document.body.dataset['scene'] = 'game';
+    document.body.dataset['map'] = this.theme.id;
 
     if (this.room !== null) this.joinRoom(this.room);
   }
@@ -304,7 +309,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createTilemap(raw: unknown): void {
-    const key = `map:${this.theme.id}`;
+    const key = `map:${this.assets.id}`;
     if (!this.cache.tilemap.exists(key)) {
       this.cache.tilemap.add(key, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: raw });
     }
@@ -344,7 +349,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createWorld(offlineColor: string): void {
-    this.world = new WorldRenderer(this, this.model, this.theme.id, {
+    this.world = new WorldRenderer(this, this.model, this.assets.id, {
       van: DEPTH.decor + 0.5,
       item: DEPTH.player - 0.5,
       carried: DEPTH.player + 0.6,
@@ -408,7 +413,7 @@ export class GameScene extends Phaser.Scene {
       DEPTH.player - 0.6,
       (weapon) => getWeaponCatalogue().get(weapon)?.sprite ?? weapon,
     );
-    this.roundScreen = new RoundScreen();
+    this.roundScreen = new RoundScreen(this.theme);
     this.createNpcs(room);
     this.createRace(room);
     // Hidden until the first patch says where we are (and whether we are in the round at all).
@@ -458,6 +463,12 @@ export class GameScene extends Phaser.Scene {
       // The session is over (podium → lobby): everyone goes back to the lobby.
       this.leaving = true;
       this.scene.start(sceneForPhase(view.phase));
+      return;
+    }
+    if (themeFor(stateMapId(room.state)).id !== this.theme.id) {
+      // The next round is on another map (P1-5): build the scene again for it, still in the room.
+      this.leaving = true;
+      this.scene.restart();
       return;
     }
 
@@ -828,7 +839,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Online only: the HUD shows round state, so `?scene=game` walk mode has none. */
   private createHud(room: Room): void {
-    const catalogue = getItemCatalogue(this.theme.id);
+    const catalogue = getItemCatalogue(this.assets.id);
     this.hudContext = {
       catalogue,
       vanSlots: this.model.vanSlots,
@@ -1001,6 +1012,7 @@ export class GameScene extends Phaser.Scene {
     audioEngine().stopMusic();
     this.teardownDebug();
     delete document.body.dataset['scene'];
+    delete document.body.dataset['map'];
     delete document.body.dataset['phase'];
   }
 

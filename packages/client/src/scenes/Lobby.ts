@@ -2,17 +2,24 @@ import type { Room } from '@colyseus/sdk';
 import {
   ClientMessage,
   GAME_MODES,
+  MAP_CHOICES,
   ServerMessage,
+  getTheme,
   loadConfig,
+  mapChoiceAvailable,
+  mapRotation,
   teamColor,
   type GameMode,
+  type MapChoice,
+  type ThemeId,
   type LobbySettingsUpdate,
 } from '@keke/shared';
 import Phaser from 'phaser';
 import { t, type MessageKey } from '../i18n';
 import { lobbyErrorKey, readLobby, type LobbyPlayerView, type LobbyView } from '../net/lobbyView';
 import { ROOM_CODE_REGISTRY_KEY, currentRoom, setCurrentRoom } from '../net/session';
-import { createMenuLayer, h } from '../ui/dom';
+import { stateMapId, themeFor } from '../game/mapTheme';
+import { createMenuLayer, h, themeMenuLayer } from '../ui/dom';
 
 /** Scene that takes over when the host starts (or when we join a room that is already playing). */
 export const AFTER_LOBBY_SCENE = 'Game';
@@ -20,6 +27,14 @@ export const AFTER_LOBBY_SCENE = 'Game';
 /** Data the Play scene accepts: a notice to show, e.g. after losing the room. */
 export interface PlaySceneData {
   notice?: string;
+}
+
+/** A map choice's button text: the store's name from its theme, or "both" naming the two (P1-5). */
+export function mapChoiceLabel(choice: MapChoice): string {
+  const names = mapRotation(choice).map((id) => getTheme(id).brand.storeName);
+  return names.length === 1
+    ? (names[0] ?? '')
+    : t('lobby.mapsBoth', { first: names[0] ?? '', second: names[1] ?? '' });
 }
 
 const MODE_LABEL: Record<GameMode, MessageKey> = {
@@ -41,6 +56,9 @@ export class LobbyScene extends Phaser.Scene {
   private codeEl!: HTMLElement;
   private playerList!: HTMLUListElement;
   private readyButton!: HTMLButtonElement;
+  private layer!: HTMLDivElement;
+  private layerTheme = '';
+  private mapButtons = new Map<MapChoice, HTMLButtonElement>();
   private modeButtons = new Map<GameMode, HTMLButtonElement>();
   private roundButtons: HTMLButtonElement[] = [];
   private teamsButtons!: { off: HTMLButtonElement; on: HTMLButtonElement };
@@ -65,7 +83,9 @@ export class LobbyScene extends Phaser.Scene {
     this.leaving = false;
     this.unsubscribe = [];
     this.modeButtons = new Map();
+    this.mapButtons = new Map();
     this.roundButtons = [];
+    this.layerTheme = '';
 
     this.createPanel(current.code);
     this.listen();
@@ -133,7 +153,8 @@ export class LobbyScene extends Phaser.Scene {
   // --- panel -------------------------------------------------------------------------------------
 
   private createPanel(code: string): void {
-    const layer = createMenuLayer(this, 'lobby');
+    const layer = createMenuLayer(this, 'lobby', themeFor(stateMapId(this.room.state)));
+    this.layer = layer;
     const panel = h('div', { class: 'panel', role: 'region', 'aria-labelledby': 'keke-lobby-heading' });
 
     panel.append(h('h2', { id: 'keke-lobby-heading' }, t('lobby.heading')));
@@ -167,6 +188,17 @@ export class LobbyScene extends Phaser.Scene {
 
   private createSettings(): HTMLElement {
     const settings = h('div', { class: 'settings' });
+
+    // Map picker (P1-5): one store, the other, or both in turn. Choices the server has not loaded are
+    // shown but disabled; the server refuses them anyway (map_unavailable).
+    const maps = h('div', { class: 'choice', role: 'group', 'aria-label': t('lobby.mapsLabel') });
+    for (const choice of MAP_CHOICES) {
+      const button = this.button(mapChoiceLabel(choice), '', () => this.sendSettings({ maps: choice }));
+      button.dataset['mapChoice'] = choice;
+      this.mapButtons.set(choice, button);
+      maps.append(button);
+    }
+    settings.append(h('label', {}, t('lobby.mapsLabel')), maps);
 
     const modes = h('div', { class: 'choice', role: 'group', 'aria-label': t('lobby.modeLabel') });
     for (const mode of GAME_MODES) {
@@ -228,6 +260,17 @@ export class LobbyScene extends Phaser.Scene {
     this.readyButton.setAttribute('aria-pressed', String(me?.ready ?? false));
 
     const host = view.isHost;
+    const lobbyMap = themeFor(view.mapId);
+    if (lobbyMap.id !== this.layerTheme) {
+      this.layerTheme = lobbyMap.id;
+      themeMenuLayer(this.layer, lobbyMap);
+      this.layer.dataset['map'] = lobbyMap.id;
+    }
+    for (const [choice, button] of this.mapButtons) {
+      const loaded = mapChoiceAvailable(choice, view.loadedMaps as ThemeId[]);
+      this.pressed(button, view.settings.maps === choice, host && loaded);
+      button.title = loaded ? '' : t('lobby.error.map_unavailable');
+    }
     for (const [mode, button] of this.modeButtons) this.pressed(button, view.settings.mode === mode, host);
     this.roundButtons.forEach((button, i) =>
       this.pressed(button, view.settings.roundsPerMap === i + 1, host),

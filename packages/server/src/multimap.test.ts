@@ -71,6 +71,8 @@ describe('multi-map rooms (integration, P1-1)', () => {
     const { room, host, conns } = await lobby();
     expect(room.state.mapId).toBe('kespro');
     expect(room.currentMap.id).toBe('kespro');
+    // The picker's list of loaded maps (P1-5) reaches the clients.
+    expect([...host.state.loadedMaps]).toEqual(['kespro', 'prisma']);
 
     host.send(ClientMessage.settings, { maps: 'prisma' });
     await waitFor(() => room.state.settings.maps === 'prisma');

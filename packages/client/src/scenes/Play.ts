@@ -21,6 +21,7 @@ import {
 } from '../net/rooms';
 import { markRoom, setCurrentRoom } from '../net/session';
 import { browserStorage, loadProfile } from '../profile/storage';
+import { themeFor } from '../game/mapTheme';
 import { createMenuLayer, h } from '../ui/dom';
 import type { PlaySceneData } from './Lobby';
 
@@ -231,6 +232,8 @@ export class PlayScene extends Phaser.Scene {
       join.disabled = this.busy || !isJoinable(room);
       const info = t('play.roomInfo', {
         host: room.hostName,
+        // The store the room plays now (P1-5); the default one from a server without the field.
+        map: themeFor(room.map).brand.storeName,
         players: room.clients,
         max: room.maxClients,
         phase: t(room.phase === null || room.phase === 'lobby' ? 'play.phase.lobby' : 'play.phase.playing'),

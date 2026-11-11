@@ -25,8 +25,30 @@ export async function toPlay(page: Page, nickname: string, query = ''): Promise<
   await expect(page.locator('body')).toHaveAttribute('data-scene', 'play');
 }
 
-/** From Play: creates a room, waits for the lobby and returns the room code. */
-export async function createRoom(page: Page): Promise<string> {
+/** Lobby map choices (P1-5): a theme id or both. Specs cannot import @keke/shared's MapChoice. */
+export type E2eMapChoice = 'kespro' | 'prisma' | 'both';
+
+/** The Lobby's map picker button for a choice (found by data attribute: store names stay out of specs). */
+export const mapChoice = (page: Page, choice: E2eMapChoice) =>
+  page.locator(`#keke-lobby button[data-map-choice="${choice}"]`);
+
+/**
+ * From Play: creates a room, waits for the lobby and returns the room code. With `map`, the host then
+ * picks that map in the lobby and waits for the server to confirm it (P1-5). The e2e server has a
+ * stand-in second map (KEKE_TEST_MAPS=1), so every choice can be picked.
+ */
+export async function createRoom(page: Page, { map }: { map?: E2eMapChoice } = {}): Promise<string> {
+  const code = await createRoomOnly(page);
+  if (map !== undefined) {
+    const button = mapChoice(page, map);
+    await expect(button).toBeEnabled();
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+  }
+  return code;
+}
+
+async function createRoomOnly(page: Page): Promise<string> {
   const create = page.getByRole('button', { name: 'Create room' });
   await create.click();
   // On a page drawing a few fps the click was lost once or twice in many runs (M4 review F1 note): the

@@ -17,7 +17,7 @@
 //                                           .podium-rest); .tie-break when item points decided it
 //
 // Each is a role dialog named by its heading. The Game scene owns one and renders it on every patch.
-import { getTheme, defaultThemeId } from '@keke/shared';
+import { defaultThemeId, getTheme, type MapTheme } from '@keke/shared';
 import { t, type MessageKey } from '../i18n';
 import { h } from '../ui/dom';
 import {
@@ -36,9 +36,9 @@ export class RoundScreen {
   readonly root: HTMLDivElement;
   private key = '';
 
-  constructor() {
+  /** `theme`: the room's map (P1-5), for the accent colour and the store named in the intro. */
+  constructor(private readonly theme: MapTheme = getTheme(defaultThemeId)) {
     this.root = h('div', { id: 'keke-round', class: 'keke-round' });
-    const theme = getTheme(defaultThemeId);
     this.root.style.setProperty('--keke-accent', theme.colors.primary);
     document.body.appendChild(this.root);
   }
@@ -82,7 +82,7 @@ export class RoundScreen {
   // --- Round intro ----------------------------------------------------------------------------------
 
   private intro(model: Extract<RoundScreenModel, { kind: 'intro' }>): HTMLElement {
-    const theme = getTheme(defaultThemeId);
+    const theme = this.theme;
     const count = h(
       'div',
       {
@@ -103,7 +103,7 @@ export class RoundScreen {
         'aria-labelledby': 'keke-intro-title',
       },
       h('h2', { id: 'keke-intro-title' }, t('round.intro.title')),
-      h('p', { class: 'intro-map' }, t('round.intro.map', { store: theme.brand.storeName })),
+      h('p', { class: 'intro-map', 'data-map': theme.id }, theme.brand.storeDescription),
       h('p', { class: 'intro-mode' }, modeLabel(model.mode)),
       model.totalRounds > 0
         ? h('p', { class: 'intro-round' }, t('round.of', { round: model.round, total: model.totalRounds }))
