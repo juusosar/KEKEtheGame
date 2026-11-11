@@ -23,6 +23,16 @@
   border-top: 6px solid var(--keke-accent);
   box-shadow: 0 6px 0 #1a1a1a;
 }
+/* The Play panel holds the live room list, which grows and shrinks as rooms come and go. Centred, the
+   whole panel would move and the Create button with it, under a pointer about to click (M5 review F7);
+   pinned to the top, everything above the list stays put. */
+#keke-play.keke-menu {
+  align-items: flex-start;
+}
+#keke-play .panel {
+  margin-top: max(16px, 8vh);
+  max-height: calc(100vh - max(16px, 8vh) - 16px);
+}
 .keke-menu .panel.side {
   margin-left: auto;
   margin-right: max(16px, 8vw);
