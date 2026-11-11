@@ -32,6 +32,7 @@ const PORT = 2585;
 
 const config = loadConfig({
   ...loadConfig(),
+  roundStartProtectionSeconds: 0,
   countdownSeconds: 0.05,
   // Different from the race cap, so the test can tell which clock the mode chose.
   timedRoundSeconds: 20,

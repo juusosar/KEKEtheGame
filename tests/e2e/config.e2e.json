@@ -1,4 +1,5 @@
 {
   "countdownSeconds": 6,
-  "respawnSeconds": 6
+  "respawnSeconds": 6,
+  "roundStartProtectionSeconds": 0
 }

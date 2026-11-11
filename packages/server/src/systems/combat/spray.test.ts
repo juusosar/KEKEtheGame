@@ -17,7 +17,7 @@ import { loadThemeMap } from '../../maps';
 import { GameState, PlayerState } from '../../schema/GameState';
 import { CombatSystem } from './CombatSystem';
 
-const config = loadConfig();
+const config = loadConfig({ ...loadConfig(), roundStartProtectionSeconds: 0 });
 const weapons = getWeaponCatalogue();
 const TICK = 1 / config.serverTickHz;
 let map: MapModel;

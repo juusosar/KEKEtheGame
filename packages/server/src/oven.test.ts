@@ -23,6 +23,7 @@ const PORT = 2608;
 
 const config = loadConfig({
   ...loadConfig(),
+  roundStartProtectionSeconds: 0,
   countdownSeconds: 0.05,
   timedRoundSeconds: 60,
   roundResultsSeconds: 60,
