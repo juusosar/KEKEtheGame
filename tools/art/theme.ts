@@ -24,8 +24,10 @@ function toArtTheme(theme: MapTheme): ArtTheme {
   };
 }
 
-/** Themes whose maps exist (`available`), default theme first. */
+/**
+ * Every theme in `themes`, default theme first. Art is drawn for themes that are not `available`
+ * yet too, so a new map can be built on its tileset before the theme is switched on.
+ */
 export const ART_THEMES: readonly ArtTheme[] = Object.values(themes)
-  .filter((t) => t.available)
   .sort((a, b) => Number(b.id === defaultThemeId) - Number(a.id === defaultThemeId))
   .map(toArtTheme);
