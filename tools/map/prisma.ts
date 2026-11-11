@@ -64,6 +64,12 @@ export const EXIT_DOORS: readonly [number, number] = [21, 24];
 /** Stockroom staff doors: rows in its west wall (x = 43) and columns in its south wall (y = 13). */
 const STAFF_WEST_DOOR: readonly [number, number] = [9, 10];
 const STAFF_SOUTH_DOOR: readonly [number, number] = [47, 48];
+/**
+ * Staff exit (P4-2, P1 review F7): rows in the stockroom's east wall (x = STORE[2]), a one-way door out
+ * to the sidewalk east of the store. Like the first store's staff room, the stockroom becomes a race
+ * shortcut to the office for the price of being Wanted on the way through.
+ */
+export const STAFF_EXIT_DOOR: readonly [number, number] = [7, 8];
 const OFFICE_DOOR: readonly [number, number] = [32, 35]; // rows in x = 87
 
 /**
@@ -78,7 +84,8 @@ export const GATE_LANES: readonly number[] = [14, 18, 22, 26, 30, 33];
 /**
  * One-way gates (P2-1, phase 2 decision 9), the `gates` object layer: a self-checkout gate on every lane
  * (out of the store, south, with the stop) and the entrance doors (into the store, north, no stop). So a
- * player comes in through the entrance and leaves through the checkout; the exit doors stay plain.
+ * player comes in through the entrance and leaves through the checkout; the exit doors stay plain. The
+ * stockroom's staff exit (P4-2) is a one-way door out too, east, with no stop.
  */
 export const GATES: readonly { rect: Rect; dir: 'n' | 'e' | 's' | 'w'; kind: 'checkout' | 'door' }[] = [
   ...GATE_LANES.map((x) => ({
@@ -87,6 +94,7 @@ export const GATES: readonly { rect: Rect; dir: 'n' | 'e' | 's' | 'w'; kind: 'ch
     kind: 'checkout' as const,
   })),
   { rect: [ENTRANCE_DOORS[0], FRONT_Y, ENTRANCE_DOORS[1], FRONT_Y], dir: 'n', kind: 'door' },
+  { rect: [STORE[2], STAFF_EXIT_DOOR[0], STORE[2], STAFF_EXIT_DOOR[1]], dir: 'e', kind: 'door' },
 ];
 
 /** Oven: oven tiles on the west wall, hot floor in front of them (the `oven` hazard sub-zone). */
@@ -111,12 +119,22 @@ const BOTTLE_HUM_RADIUS_TILES = 9;
 export const CORRAL: Rect = [28, 46, 37, 50];
 
 /**
- * Pushable carts (P2-5): 8 in the corral, two rows with a free tile east of each cart and the middle row
+ * Pushable carts (P2-5): 5 in the corral, two rows with a free tile east of each cart and the middle row
  * open, so a player can walk in and push every cart out of the open west side. Noses point west.
  */
-export const CART_SPAWN_TILES: readonly TilePoint[] = [47, 49].flatMap((y) =>
-  [29, 31, 33, 35].map((x): TilePoint => [x, y]),
-);
+export const CART_SPAWN_TILES: readonly TilePoint[] = [
+  ...[29, 31, 33].map((x): TilePoint => [x, 47]),
+  ...[31, 33].map((x): TilePoint => [x, 49]),
+];
+/**
+ * Stray carts left in the lot (P4-2, P2 review T4): nobody pushed a corral cart in 8 rounds, so three
+ * stand where players walk, on the sidewalk by the doors and between the two van rows, as cover.
+ */
+export const STRAY_CART_TILES: readonly TilePoint[] = [
+  [14, 46],
+  [9, 58],
+  [22, 58],
+];
 
 /** Pantry gondolas: 1-tile rows with 2-tile aisles between; cross aisles at x 17–18, 30–31, 41–42. */
 const SHELF_ROWS = [15, 18, 21, 24, 27, 30, 33];
@@ -190,17 +208,24 @@ const CARS: readonly TilePoint[] = [
 
 // ── Objects ────────────────────────────────────────────────────────────────────────────────────
 
-/** Van slot centres in tiles (vans are 2 × 3 tiles). Slots 1–8 front row, 9–16 back row, west to east. */
+/**
+ * Front-row columns in slot order, from the middle of the row outwards (P4-2, P1 review F4): the host
+ * gets slot 1, so it was always the west end, the longest run to the office. Now the first players park
+ * in the middle and their walks differ less.
+ */
+const VAN_COLUMN_ORDER: readonly number[] = [3, 4, 2, 5, 1, 6, 0, 7];
+/** Van slot centres in tiles (vans are 2 × 3 tiles). Slots 1–8 front row, 9–16 back row, middle outwards. */
 export const VAN_SLOT_TILES: readonly TilePoint[] = [53.5, 63.5].flatMap((y) =>
-  Array.from({ length: 8 }, (_, i): TilePoint => [4 + 3 * i, y]),
+  VAN_COLUMN_ORDER.map((i): TilePoint => [4 + 3 * i, y]),
 );
 /**
  * Van slot `index` of team 1's and team 2's van with Teams on (P1 review F3). Slots 1 and 2 stand 3 tiles
- * apart here, so Teams rounds opened with a fight at the vans. Slots 1 (front row, west end) and 12 (back
- * row) are 13.5 tiles apart, and their mean walk to the item spawns (54 and 59 tiles) and to the office (92
- * and 87) differ by under 10 %, the closest pair at least 8 tiles apart (tools/prisma-play.test.ts).
+ * apart here, so Teams rounds opened with a fight at the vans. Slots 7 (front row, west end) and 9 (back
+ * row, fourth from the west) are 13.5 tiles apart, and their mean walk to the item spawns (54 and 59 tiles)
+ * and to the office (92 and 87) differ by under 10 %, the closest pair at least 8 tiles apart
+ * (tools/prisma-play.test.ts). They were slots 1 and 12 before the P4-2 middle-out order: same places.
  */
-export const TEAM_VAN_SLOTS: readonly [number, number] = [1, 12];
+export const TEAM_VAN_SLOTS: readonly [number, number] = [7, 9];
 const VAN_ROWS: readonly [number, number][] = [
   [52, 54],
   [62, 64],
@@ -216,7 +241,9 @@ export const ITEM_SPAWN_TILES: Readonly<Record<string, readonly TilePoint[]>> = 
     [4, 34],
     [12, 34],
   ],
+  // The first sits on the oven's hot floor (P4-2, P2 review T7): fresh bread is worth a burn.
   bakery: [
+    [4, 19],
     [7, 15],
     [12, 15],
     [10, 19],
@@ -319,7 +346,7 @@ const NPC_WAYPOINT_TILES: readonly TilePoint[] = [
   [17, 33],
   [10, 25],
   [10, 37],
-  [25, 37],
+  [25, 31], // P4-2 (P2 review T3): was (25, 37), the checkout guard's tile in front of the lanes
   [40, 36],
   [55, 37],
   [48, 24],
@@ -475,7 +502,10 @@ function paintTiles(): TileLayers {
   ground.fill([STOCKROOM[0], STAFF_WEST_DOOR[0], STOCKROOM[0], STAFF_WEST_DOOR[1]], 'staff_door');
   walls.fill([STAFF_SOUTH_DOOR[0], STOCKROOM[3], STAFF_SOUTH_DOOR[1], STOCKROOM[3]], null);
   ground.fill([STAFF_SOUTH_DOOR[0], STOCKROOM[3], STAFF_SOUTH_DOOR[1], STOCKROOM[3]], 'staff_door');
+  walls.fill([STORE[2], STAFF_EXIT_DOOR[0], STORE[2], STAFF_EXIT_DOOR[1]], null);
+  ground.fill([STORE[2], STAFF_EXIT_DOOR[0], STORE[2], STAFF_EXIT_DOOR[1]], 'staff_door');
   above.set(STOCKROOM[0], STAFF_WEST_DOOR[0] - 1, 'sign').set(STAFF_SOUTH_DOOR[0] - 1, STOCKROOM[3], 'sign');
+  above.set(STORE[2], STAFF_EXIT_DOOR[0] - 1, 'sign');
   for (const r of STOCK_RACKS) walls.fill(r, 'rack');
   for (const r of STOCK_PALLETS) walls.fill(r, 'pallet_stack');
 
@@ -668,7 +698,7 @@ export function buildPrismaMap(tileset: Record<string, unknown>): Record<string,
     });
   });
 
-  const cartSpawns = CART_SPAWN_TILES.map(([x, y], i) =>
+  const cartSpawns = [...CART_SPAWN_TILES, ...STRAY_CART_TILES].map(([x, y], i) =>
     point(centre(x), centre(y), `cart_${i + 1}`, [{ name: 'dir', type: 'string', value: 'left' }]),
   );
 
