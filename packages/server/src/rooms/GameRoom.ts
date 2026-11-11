@@ -31,6 +31,7 @@ import {
   rankRaceRound,
   rankSession,
   rankTimedRound,
+  clearWanted,
   removeWantedPlayer,
   updateWantedZones,
   wantedEventToWire,
@@ -787,6 +788,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       round.map((p) => ({ id: p.sessionId, inZone: p.alive && inWantedZone(this.map.zones, p.x, p.y) })),
       now,
       this.config,
+    );
+    events.push(...result.events);
+    // A KO ends Wanted (playtest 1): otherwise the respawn at the dock walks into the staff-door guard.
+    result = clearWanted(
+      result.world,
+      round.filter((p) => !p.alive).map((p) => p.sessionId),
     );
     events.push(...result.events);
     result = expireWanted(result.world, now);

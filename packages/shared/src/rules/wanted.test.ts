@@ -6,6 +6,7 @@ import type { CombatEvent } from './combat';
 import { gridFrom } from './testGrid';
 import {
   applyWantedHits,
+  clearWanted,
   createWantedWorld,
   expireWanted,
   findWanted,
@@ -112,6 +113,27 @@ describe('markWanted / isWanted / expireWanted', () => {
     expect(wantedPlayers(w, 10)).toEqual(['b', 'a']);
     expect(wantedPlayers(w, 22)).toEqual(['a']);
     expect(wantedPlayers(removeWantedPlayer(w, 'a'), 10)).toEqual(['b']);
+  });
+});
+
+describe('clearWanted (KO, playtest 1)', () => {
+  it('ends the status of the given players only, with one event each', () => {
+    let w: WantedWorld = markWanted(createWantedWorld(), 'a', 'npc_damage', 0, config).world;
+    w = markWanted(w, 'b', 'npc_damage', 0, config).world;
+    const r = clearWanted(w, ['a', 'c']);
+    expect(r.events).toEqual([{ type: 'wantedEnded', player: 'a' }]);
+    expect(isWanted(r.world, 'a', 1)).toBe(false);
+    expect(isWanted(r.world, 'b', 1)).toBe(true);
+    expect(clearWanted(r.world, ['a'])).toEqual({ world: r.world, events: [] });
+  });
+
+  it('drops the zone flag, so a KO inside staff_only starts no timer on respawn', () => {
+    let w = updateWantedZones(createWantedWorld(), [{ id: 'a', inZone: true }], 0, config).world;
+    w = clearWanted(w, ['a']).world;
+    expect(findWanted(w, 'a')).toMatchObject({ until: null, inZone: false });
+    const after = updateWantedZones(w, [{ id: 'a', inZone: false }], 1, config);
+    expect(after.events).toEqual([]);
+    expect(isWanted(after.world, 'a', 1)).toBe(false);
   });
 });
 

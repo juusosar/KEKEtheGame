@@ -7,6 +7,8 @@
 //  - damage a player while a security guard within `wantedGuardRangeTiles` (6) tiles has a clear line of
 //    sight to the attacker or to the victim,
 //  - enter a zone with `wantedOnEnter` (staff_only). They stay Wanted while inside; the 20 s run from leaving.
+// A KO ends the status (`clearWanted`, playtest 1): a Wanted player who respawned at the dock was
+// chased straight back down by the staff-door guard.
 // Wanted is per player, also with Teams on. Only hits that land with damage > 0 count: a 0-damage slip
 // or push is not "damage", and a rejected hit (teammate, spawn protection) never reaches these rules.
 // NPC ids and types are the server's business (M5-1/M5-3): guards come in as plain ids + positions.
@@ -241,6 +243,23 @@ export function updateWantedZones(
     }
   }
   return { world: w, events };
+}
+
+/**
+ * Ends the status of `ids` at once (a KO, playtest 1): `wantedEnded` for each one who was Wanted, and
+ * their zone flag is dropped so leaving a `wantedOnEnter` zone by KO starts no new timer.
+ */
+export function clearWanted(world: WantedWorld, ids: Iterable<string>): WantedResult {
+  const clear = new Set(ids);
+  const events: WantedEvent[] = [];
+  let changed = false;
+  const players = world.players.map((p) => {
+    if (!clear.has(p.id) || (p.until === null && !p.inZone)) return p;
+    changed = true;
+    if (p.until !== null) events.push({ type: 'wantedEnded', player: p.id });
+    return { ...p, until: null, inZone: false };
+  });
+  return changed ? { world: { players }, events } : { world, events };
 }
 
 /** Call every tick: ends the status of players whose time ran out (`wantedEnded`, until -> null). */
