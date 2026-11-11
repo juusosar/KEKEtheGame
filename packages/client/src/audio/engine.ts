@@ -9,6 +9,16 @@ import { busGains, loadAudioSettings, saveAudioSettings, type AudioSettings } fr
 
 type Listener = (settings: AudioSettings) => void;
 
+/** A looping sound on the SFX bus (ambient hums, P2-6). */
+export interface LoopHandle {
+  /** Glides to `volume` (0..1) over a few frames, so walking past never clicks. */
+  setVolume(volume: number): void;
+  stop(): void;
+}
+
+/** How fast a loop's volume follows setVolume, seconds (time constant). */
+const LOOP_GLIDE_SECONDS = 0.08;
+
 interface Graph {
   ctx: AudioContext;
   music: GainNode;
@@ -85,6 +95,57 @@ export class AudioEngine {
         // Closed context or similar: stay silent.
       }
     });
+  }
+
+  /**
+   * Loops `url` on the SFX bus at `volume` until stopped. Without audio it returns a handle that does
+   * nothing; a slow load starts the loop late (at the latest volume), a stop before that cancels it.
+   */
+  startLoop(url: string, volume: number): LoopHandle {
+    const graph = this.context();
+    let level = Math.max(0, Math.min(1, volume));
+    let stopped = false;
+    let source: AudioBufferSourceNode | null = null;
+    let gain: GainNode | null = null;
+    if (graph !== null) {
+      void this.load(url).then((buffer) => {
+        if (buffer === null || stopped) return;
+        try {
+          gain = graph.ctx.createGain();
+          gain.gain.value = level;
+          source = graph.ctx.createBufferSource();
+          source.buffer = buffer;
+          source.loop = true;
+          source.connect(gain).connect(graph.sfx);
+          source.start();
+        } catch {
+          // Closed context or similar: stay silent.
+        }
+      });
+    }
+    return {
+      setVolume(next: number): void {
+        level = Math.max(0, Math.min(1, next));
+        if (gain === null || graph === null) return;
+        try {
+          gain.gain.setTargetAtTime(level, graph.ctx.currentTime, LOOP_GLIDE_SECONDS);
+        } catch {
+          // A closed context.
+        }
+      },
+      stop(): void {
+        stopped = true;
+        try {
+          source?.stop();
+        } catch {
+          // Already stopped.
+        }
+        source?.disconnect();
+        gain?.disconnect();
+        source = null;
+        gain = null;
+      },
+    };
   }
 
   /** Dips the music for a moment so a key sound about us stands out; a new dip restarts the hold. */

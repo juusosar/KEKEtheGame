@@ -169,6 +169,28 @@ describe('maps/prisma.tmj', () => {
     );
   });
 
+  it('makes the two bottle-return spawns the odd spots for joke items (decision 11, P2-6)', () => {
+    const odd = map.itemSpawns.filter((s) => s.oddSpot);
+    expect(odd).toHaveLength(2);
+    for (const s of odd) {
+      expect(map.zoneAt(s.x, s.y)?.id).toBe('bottle_return');
+      expect(isReachable(s.x, s.y)).toBe(true);
+    }
+  });
+
+  it('hums at the bottle machines (P2-6)', () => {
+    expect(map.ambientSounds).toHaveLength(1);
+    const hum = map.ambientSounds[0];
+    if (!hum) throw new Error('no hum');
+    expect(hum.sound).toBe('bottleHum');
+    expect(map.collision.isSolid(tileOf(hum.x), tileOf(hum.y))).toBe(true); // on the machine row
+    expect(map.zoneAt(hum.x, hum.y - map.tileSize)?.id).toBe('bottle_return');
+    // Heard all over the alcove, not from across the store.
+    const alcove = zoneById('bottle_return').bounds;
+    expect(Math.hypot(alcove.minX - hum.x, alcove.minY - hum.y)).toBeLessThan(hum.radius);
+    expect(hum.radius).toBeLessThanOrEqual(12 * map.tileSize);
+  });
+
   it('keeps every item spawn far enough from the vans (§3.1)', () => {
     const min = config.targetMinDistanceFromVanTiles * map.tileSize;
     for (const s of map.itemSpawns) {

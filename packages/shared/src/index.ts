@@ -54,6 +54,7 @@ export {
 export {
   eligibleSpawns,
   modelCAssigner,
+  preferredSpawnsForItem,
   spawnsForItem,
   type TargetAssigner,
   type TargetConfig,
@@ -267,6 +268,7 @@ export { placementPointsFor, rankSession, type SessionSide, type SessionStanding
 export {
   MapError,
   OBJECT_LAYERS,
+  OPTIONAL_OBJECT_LAYERS,
   TILE_LAYERS,
   inOfficeTrigger,
   loadMap,
@@ -275,6 +277,7 @@ export {
   type Bounds,
   type MapCollisionGrid,
   type ForkliftRoute,
+  type AmbientSound,
   type ItemSpawn,
   type MapModel,
   type NpcSpawn,

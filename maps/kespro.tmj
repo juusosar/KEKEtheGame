@@ -1274,6 +1274,11 @@
               "name": "zone",
               "type": "string",
               "value": "dry_goods"
+            },
+            {
+              "name": "oddSpot",
+              "type": "bool",
+              "value": true
             }
           ]
         },
@@ -1483,6 +1488,11 @@
               "name": "zone",
               "type": "string",
               "value": "beverages"
+            },
+            {
+              "name": "oddSpot",
+              "type": "bool",
+              "value": true
             }
           ]
         },
@@ -1882,6 +1892,11 @@
               "name": "zone",
               "type": "string",
               "value": "meat_fish"
+            },
+            {
+              "name": "oddSpot",
+              "type": "bool",
+              "value": true
             }
           ]
         },
