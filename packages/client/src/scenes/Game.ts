@@ -76,6 +76,7 @@ import {
 } from '../hud/feed';
 import { readHud, type HudContext } from '../hud/hudState';
 import { RoundScreen } from '../hud/RoundScreen';
+import { GameMenu } from '../ui/gameMenu';
 import { readRoundScreen } from '../hud/roundScreens';
 import { t, type MessageKey } from '../i18n';
 import { InputManager, STANDARD, coneAimAssist, inputConfig } from '../input';
@@ -152,6 +153,8 @@ export class GameScene extends Phaser.Scene {
   private leaving = false;
   private unsubscribe: (() => void)[] = [];
   private hud: Hud | undefined;
+  /** Esc / Start menu (M7 review F5); never pauses the round. */
+  private menu: GameMenu | undefined;
   /** Round intro / results / podium panels (§13.1); online only. */
   private roundScreen: RoundScreen | undefined;
   private hudContext!: HudContext;
@@ -219,6 +222,7 @@ export class GameScene extends Phaser.Scene {
       coneAimAssist(() => this.enemyPositions(), inputConfig.aimAssistConeDegrees),
     );
     this.clock = new FixedStepClock(inputStepSeconds(this.config));
+    this.createMenu();
 
     if (this.debug) this.createDebug();
     // §12: the map's music loops while the Game scene runs (intro, round, results and podium).
@@ -234,11 +238,15 @@ export class GameScene extends Phaser.Scene {
     const dt = Math.min(deltaMs / 1000, renderConfig.maxFrameSeconds);
     const offline = this.room === null;
 
+    this.menu?.pollPad(this.inputManager.padPressed());
+    const menuOpen = this.menu?.isOpen === true;
     const steps = this.clock.advance(dt);
     for (let i = 0; i < steps; i++) {
       if (!offline && !this.controlling) break;
       this.inputManager.setOrigin(this.predictor.state);
-      const frame = this.inputManager.sample();
+      const sampled = this.inputManager.sample();
+      // The round keeps running behind the menu: send idle frames (aim kept) instead of nothing.
+      const frame = menuOpen ? { ...sampled, move: { x: 0, y: 0 }, buttons: 0 } : sampled;
       this.lastMove = frame.move;
       if (!offline) this.onLocalButtons(frame.buttons, frame.aim);
       this.lastAim = frame.aim;
@@ -855,7 +863,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateHud(hud: Hud): void {
     hud.tick(performance.now());
-    hud.setBoardOpen(this.inputManager.scoreboardHeld());
+    hud.setBoardOpen(this.menu?.isOpen !== true && this.inputManager.scoreboardHeld());
     hud.updateArrow((world) => this.worldToClient(world), {
       width: hud.root.clientWidth,
       height: hud.root.clientHeight,
@@ -963,6 +971,38 @@ export class GameScene extends Phaser.Scene {
     delete document.body.dataset['spectating'];
   }
 
+  // --- In-game menu (§13.3 Menu, M7 review F5) ------------------------------------------------------
+
+  private createMenu(): void {
+    const online = this.room !== null;
+    this.menu = new GameMenu({
+      leaveLabel: online ? t('menu.leave') : t('menu.backToTitle'),
+      confirmText: online ? t('menu.leaveText', { code: this.code }) : t('menu.leaveTextOffline'),
+      onLeave: () => this.leaveGame(),
+      device: this.inputManager.device,
+      onDeviceChange: (listener) => this.inputManager.onDeviceChange(listener),
+    });
+  }
+
+  /**
+   * Leave room from the menu: a consented leave, so the server drops our slot at once instead of
+   * holding it for the 30 s reconnect window, then back to Play (offline walk mode: back to Title).
+   */
+  private leaveGame(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    const room = this.room;
+    if (room === null) {
+      this.scene.start('Title');
+      return;
+    }
+    void room.leave(true);
+    setCurrentRoom(null);
+    this.registry.remove(ROOM_CODE_REGISTRY_KEY);
+    delete document.body.dataset['room'];
+    this.scene.start('Play');
+  }
+
   /** The connection is gone for good (the SDK already tried to reconnect, or the server closed the room). */
   private lost(): void {
     if (this.leaving) return;
@@ -977,6 +1017,8 @@ export class GameScene extends Phaser.Scene {
   private shutdown(): void {
     for (const off of this.unsubscribe) off();
     this.unsubscribe = [];
+    this.menu?.destroy();
+    this.menu = undefined;
     for (const remote of this.remotes.values()) remote.avatar.destroy();
     this.remotes.clear();
     this.world.destroy();

@@ -102,6 +102,15 @@ export class InputManager {
     return pad?.buttons[STANDARD.buttons.view]?.pressed ?? false;
   }
 
+  /**
+   * Pressed flags of the first connected pad's buttons (standard mapping index), or null without a pad.
+   * The in-game menu reads Start, A, B and the D-pad from here (F5).
+   */
+  padPressed(): boolean[] | null {
+    const pad = this.scene.input.gamepad?.getAll().find((p) => p.connected);
+    return pad ? pad.buttons.map((b) => b.pressed) : null;
+  }
+
   destroy(): void {
     const keyboard = this.scene.input.keyboard;
     keyboard?.off(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.onKeyDown);
