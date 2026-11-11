@@ -6,6 +6,7 @@ import {
   ROOM_NAMES,
   isRoomCode,
   loadConfig,
+  maxBots,
   normalizeRoomCode,
   type GameConfig,
   type GameMode,
@@ -78,7 +79,7 @@ export class PlayScene extends Phaser.Scene {
     this.setupButtons = [];
     this.config = loadConfig();
     this.profile = loadProfile(browserStorage(), this.config.nicknameMaxLength).profile;
-    this.setup = readRoomSetup(storedSetup(), this.config.maxRoundsPerMap);
+    this.setup = readRoomSetup(storedSetup(), this.config.maxRoundsPerMap, maxBots(this.config));
     this.createPanel();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.closeListing());
     void this.openListing();

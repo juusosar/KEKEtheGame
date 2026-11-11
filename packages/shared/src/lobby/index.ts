@@ -4,6 +4,7 @@ export * from './settings';
 export * from './rules';
 export * from './maps';
 export * from './players';
+export * from './bots';
 export * from './messages';
 export * from './itemEvents';
 export * from './combatEvents';

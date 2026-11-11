@@ -1,6 +1,6 @@
 // Synchronised room state (§15.2 schema/). Clients read it; only the server writes it.
 import { schema, t, type SchemaType } from '@colyseus/schema';
-import { DEFAULT_MAP_CHOICE, defaultThemeId } from '@keke/shared';
+import { DEFAULT_BOT_LEVEL, DEFAULT_MAP_CHOICE, defaultThemeId } from '@keke/shared';
 
 /** One connected player (or late-joining spectator). Keyed by sessionId in `GameState.players`. */
 export const PlayerState = schema(
@@ -18,6 +18,8 @@ export const PlayerState = schema(
     joinOrder: t.uint32().default(0),
     /** Joined while a round was running; watches until the next round starts (§13.1). */
     spectator: t.boolean().default(false),
+    /** A bot player the server runs (host setting `bots`): always connected and ready, never host. */
+    bot: t.boolean().default(false),
     /** False while the player is inside the reconnect window (set by M2-6). */
     connected: t.boolean().default(true),
     /** Body centre in pixels, set by the server's movement simulation (M2-2). */
@@ -341,6 +343,10 @@ export const RoomSettingsState = schema(
      * the server's with these on top (`withHostRules`); clients predict and label with the same.
      */
     rules: t.map('number'),
+    /** Bot players the host asked for; fewer sit in the room when people need the seats (`botSeats`). */
+    bots: t.uint8().default(0),
+    /** BotLevel: 'easy' | 'normal' | 'hard'. */
+    botLevel: t.string().default(DEFAULT_BOT_LEVEL),
   },
   'RoomSettingsState',
 );

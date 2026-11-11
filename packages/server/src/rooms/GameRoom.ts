@@ -71,7 +71,12 @@ import {
   type WantedWorld,
   GateEventMessage,
   type GateStopMessage,
+  BOT_NAMES,
+  HAT_IDS,
+  PLAYER_COLORS,
+  botSeats,
 } from '@keke/shared';
+import { BotSystem } from '../bots/BotSystem';
 import type { MapEntry, MapRegistry } from '../maps';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
 import { CartSystem } from '../systems/carts';
@@ -122,6 +127,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   private rng: Rng = createRng(randomSeed());
   private joinCounter = 0;
+  /** The creator is in: from now on joins need the code (M2 review F3). Bots never count. */
+  private creatorIn = false;
+  /** Bot players (host setting `bots`): built in onCreate, plays every bot in each 'playing' tick. */
+  private bots!: BotSystem;
+  /** Bot sessionIds handed out so far; a new bot never reuses an id. */
+  private botCounter = 0;
   private phaseTimer: Delayed | undefined;
   private phaseEndsAt = 0;
   /** The map the systems below are built for (`buildMapSystems`); `state.mapId` names it from each countdown. */
@@ -174,6 +185,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     }
     this.maxClients = this.config.maxPlayersPerRoom;
     this.sessionConfig = this.config;
+    this.bots = new BotSystem({
+      state: this.state,
+      receive: (player, frame) => this.movement.receive(player, frame),
+      seed: randomSeed(),
+    });
     this.state.code = generateRoomCode(this.rng, codesInUse);
     codesInUse.add(this.state.code);
 
@@ -238,7 +254,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   /** The creator joins without a code; everyone after them must name this room's code. */
   override onAuth(_client: Client, options: GameJoinOptions | undefined, _context: AuthContext): boolean {
-    if (this.joinCounter === 0) return true;
+    if (!this.creatorIn) return true;
     if (normalizeRoomCode(options?.code) !== this.state.code) {
       throw new ServerError(WRONG_CODE_ERROR, 'No room with that code.');
     }
@@ -259,7 +275,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.state.players.set(client.sessionId, player);
 
     if (this.state.hostId === '') this.state.hostId = client.sessionId;
-    if (player.joinOrder === 0) void this.unlock();
+    if (!this.creatorIn) {
+      this.creatorIn = true;
+      void this.unlock();
+    }
+    // A person always gets a seat: a bot gives up its own when the room is full (lobby; else at the countdown).
+    if (this.state.phase === 'lobby') this.syncBots();
     this.publishMetadata();
   }
 
@@ -290,19 +311,70 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   /** A consented leave, or a reconnect window that ran out. */
   override onLeave(client: Client): void {
-    const player = this.state.players.get(client.sessionId);
+    this.removePlayer(client.sessionId);
+    if (this.state.hostId === client.sessionId) this.reassignHost();
+    // A seat freed up: a bot the room had no seat for comes back.
+    if (this.state.phase === 'lobby') this.syncBots();
+    if (this.state.phase === 'lobby' && this.state.settings.teams)
+      this.applyTeams(balanceTeams(this.activeRoster()));
+    this.publishMetadata();
+  }
+
+  /** Takes a player (a person who left for good, or a bot) out of the room and every system. */
+  private removePlayer(id: string): void {
+    const player = this.state.players.get(id);
     if (player) {
       this.items.removePlayer(player, this.roundSeconds());
       this.combat.removePlayer(player);
       this.npcs.removePlayer(player.sessionId);
       this.wanted = removeWantedPlayer(this.wanted, player.sessionId);
     }
-    this.state.players.delete(client.sessionId);
-    this.movement.remove(client.sessionId);
-    if (this.state.hostId === client.sessionId) this.reassignHost();
-    if (this.state.phase === 'lobby' && this.state.settings.teams)
-      this.applyTeams(balanceTeams(this.activeRoster()));
-    this.publishMetadata();
+    this.state.players.delete(id);
+    this.movement.remove(id);
+    this.bots.remove(id);
+  }
+
+  // --- Bot players (host setting `bots`) ------------------------------------------------------------
+
+  /**
+   * Adds or removes bots so the room holds `botSeats(settings.bots, people)`: what the host asked for,
+   * less any seat a person needs. Runs in the lobby and at each countdown (never mid-round). The newest
+   * bots leave first. Teams are rebalanced when the roster changed.
+   */
+  private syncBots(): void {
+    if (!this.creatorIn) return;
+    const players = [...this.state.players.values()];
+    const humans = players.filter((p) => !p.bot).length;
+    const bots = players.filter((p) => p.bot).sort((a, b) => a.joinOrder - b.joinOrder);
+    const want = botSeats(this.state.settings.bots, humans, this.config);
+    if (bots.length === want) return;
+    while (bots.length > want) {
+      const gone = bots.pop();
+      if (gone) this.removePlayer(gone.sessionId);
+    }
+    for (let n = bots.length; n < want; n++) bots.push(this.addBot(bots));
+    if (this.state.settings.teams) this.applyTeams(balanceTeams(this.activeRoster()));
+  }
+
+  private addBot(bots: readonly PlayerState[]): PlayerState {
+    const names = new Set(bots.map((b) => b.nickname));
+    const n = this.botCounter++;
+    const player = new PlayerState();
+    player.sessionId = `bot_${n + 1}`;
+    player.bot = true;
+    player.nickname = BOT_NAMES.find((name) => !names.has(name)) ?? `Bot ${n + 1}`;
+    player.color = distinctColor(
+      PLAYER_COLORS[(n * 5 + 3) % PLAYER_COLORS.length] ?? PLAYER_COLORS[0],
+      this.colorsTakenBy(player.sessionId),
+    );
+    player.hat = HAT_IDS[n % HAT_IDS.length] ?? HAT_IDS[0];
+    player.joinOrder = this.joinCounter++;
+    player.ready = true;
+    // Seats change in the lobby and at the countdown, where everyone takes part.
+    player.spectator = false;
+    if (this.state.settings.teams) player.team = teamForJoiner(this.activeRoster());
+    this.state.players.set(player.sessionId, player);
+    return player;
   }
 
   override onDispose(): void {
@@ -340,7 +412,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     const error = this.checkSettings(message);
     if (error !== null) return error;
     const parsed = settingsUpdateSchema(this.config).parse(message);
-    const { mode, roundsPerMap, teams, maps, rules } = parsed;
+    const { mode, roundsPerMap, teams, maps, rules, bots, botLevel } = parsed;
     const settings = this.state.settings;
     if (mode !== undefined) settings.mode = mode;
     if (rules !== undefined) this.applyRules(rules);
@@ -350,6 +422,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       this.useLobbyMap();
     }
     if (roundsPerMap !== undefined) settings.roundsPerMap = roundsPerMap;
+    if (botLevel !== undefined) settings.botLevel = botLevel;
+    if (bots !== undefined) {
+      settings.bots = bots;
+      this.syncBots();
+    }
     if (teams !== undefined && teams !== settings.teams) {
       settings.teams = teams;
       if (teams) this.applyTeams(balanceTeams(this.activeRoster()));
@@ -586,6 +663,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       entry.npcs,
     );
     this.combat.npcTargets = this.npcs;
+    this.bots.useMap(entry.map, liveMap.collision, config);
     // §9.2 bakery oven (P2-2): burns land through the combat damage path like a forklift's run-over.
     this.hazards = new HazardSystem(liveMap, config, (hit) => this.combat.externalHit(hit));
     // Every pickup rolls a weapon (§7), on its own RNG stream (M3 review H2); an order box does not
@@ -602,6 +680,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       { reset: () => npcs.reset(), startRound: (players) => npcs.startRound(players.length) },
       // Pushable carts back at their spawns each round (P2-5).
       this.carts,
+      // Bots think afresh each round.
+      this.bots,
     ];
   }
 
@@ -880,6 +960,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.combat.beginTick(now);
     // Customers are solid (Phase 2 decision 8): players move around them as they stood at the tick start.
     const solids = this.npcs.solidBodies();
+    // Bots send their frames first, like clients whose messages arrived before the tick.
+    this.bots.tick();
     this.movement.tick(this.state.players.values(), {
       // Carry slowdown times stun/slow/KO/block, from synced fields only (review H1).
       modifiers: (player) => {
@@ -1034,8 +1116,10 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private admitSpectators(): void {
     this.state.players.forEach((p) => {
       p.spectator = false;
-      p.ready = false;
+      p.ready = p.bot;
     });
+    // A person who joined a full room mid-session takes a bot's seat now; a seat freed by a leaver refills.
+    this.syncBots();
     if (this.state.settings.teams) this.applyTeams(balanceTeams(this.activeRoster()));
   }
 
@@ -1047,9 +1131,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.state.round = 0;
     this.state.totalRounds = 0;
     this.state.players.forEach((p) => {
-      p.ready = false;
+      // Bots are always ready.
+      p.ready = p.bot;
       p.spectator = false;
     });
+    this.syncBots();
     if (this.state.settings.teams) this.applyTeams(balanceTeams(this.activeRoster()));
     this.useLobbyMap();
   }
@@ -1109,9 +1195,11 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
    * role stays with a player inside the reconnect window, and is '' only once the room is empty.
    */
   private reassignHost(): void {
-    const online = this.roster().filter((e) => this.state.players.get(e.id)?.connected === true);
+    // Bots are never host.
+    const people = this.roster().filter((e) => this.state.players.get(e.id)?.bot === false);
+    const online = people.filter((e) => this.state.players.get(e.id)?.connected === true);
     const next = pickHost(online) ?? (this.state.players.has(this.state.hostId) ? this.state.hostId : null);
-    this.state.hostId = next ?? pickHost(this.roster()) ?? '';
+    this.state.hostId = next ?? pickHost(people) ?? '';
     this.publishMetadata();
   }
 

@@ -12,6 +12,8 @@ describe('host settings', () => {
       teams: false,
       maps: 'both',
       rules: {},
+      bots: 0,
+      botLevel: 'normal',
     });
   });
 
@@ -19,6 +21,8 @@ describe('host settings', () => {
     expect(schema.safeParse({ mode: 'race' }).success).toBe(true);
     expect(schema.safeParse({ roundsPerMap: 3, teams: true }).success).toBe(true);
     expect(schema.safeParse({ maps: 'both' }).success).toBe(true);
+    expect(schema.safeParse({ bots: 15, botLevel: 'hard' }).success).toBe(true);
+    expect(schema.safeParse({ bots: 0, botLevel: 'easy' }).success).toBe(true);
     expect(schema.safeParse({ rules: { timedRoundSeconds: 120, raceQuota: 10 } }).success).toBe(true);
   });
 
@@ -32,5 +36,9 @@ describe('host settings', () => {
     expect(schema.safeParse({ maps: 'mall' }).success).toBe(false);
     expect(schema.safeParse({ rules: { raceQuota: 0 } }).success).toBe(false);
     expect(schema.safeParse({ rules: { tileSize: 16 } }).success).toBe(false);
+    expect(schema.safeParse({ bots: -1 }).success).toBe(false);
+    expect(schema.safeParse({ bots: 2.5 }).success).toBe(false);
+    expect(schema.safeParse({ bots: 16 }).success).toBe(false);
+    expect(schema.safeParse({ botLevel: 'insane' }).success).toBe(false);
   });
 });
