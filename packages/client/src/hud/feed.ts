@@ -25,7 +25,18 @@ import { isBag } from '../net/lobbyView';
 import { weaponName } from './combatHud';
 
 export type FeedKind =
-  'steal' | 'joke' | 'deposit' | 'slip' | 'runover' | 'hit' | 'ko' | 'wanted' | 'box' | 'packed' | 'delivery';
+  | 'steal'
+  | 'joke'
+  | 'deposit'
+  | 'slip'
+  | 'runover'
+  | 'hit'
+  | 'ko'
+  | 'wanted'
+  | 'box'
+  | 'packed'
+  | 'delivery'
+  | 'team';
 
 export interface FeedLine {
   kind: FeedKind;
@@ -259,3 +270,13 @@ export function raceFeedLine(type: string, message: unknown, ctx: RaceFeedContex
 
 /** Race message types the feed listens to (M6-3). */
 export const RACE_FEED_MESSAGES = [RaceEventMessage.boxPacked, RaceEventMessage.delivery] as const;
+
+/**
+ * Teams (§4.3, M6 review F7): the room rebalances teams at every countdown, which can move us across.
+ * `before` is our team when we last looked (undefined = not seen yet, e.g. the first patch of the
+ * session), `now` our team at this countdown. A line only when we really changed from one team to the other.
+ */
+export function teamMoveLine(before: number | undefined, now: number): FeedLine | null {
+  if (before === undefined || before <= 0 || now <= 0 || before === now) return null;
+  return { kind: 'team', text: t('hud.feed.teamMoved', { team: now }) };
+}

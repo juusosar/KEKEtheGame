@@ -1006,9 +1006,11 @@
     height: 32px;
   }
 }
-/* The in-round HUD steps back while the results and podium are up. */
+/* The in-round HUD and the minimap (M6 review F6) step back while the results and podium are up. */
 body[data-phase='roundResults'] .keke-hud,
-body[data-phase='podium'] .keke-hud {
+body[data-phase='podium'] .keke-hud,
+body[data-phase='roundResults'] .keke-minimap,
+body[data-phase='podium'] .keke-minimap {
   display: none;
 }
 

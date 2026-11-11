@@ -124,6 +124,8 @@ test('a Timed round: intro, scripted pickup and deposit, results, podium', async
   await forBoth(async (page) => {
     const results = page.getByRole('dialog', { name: /Round 1 results/ });
     await expect(results).toBeVisible();
+    // The minimap steps back with the HUD while the results are up (M6 review F6).
+    await expect(page.locator('.keke-minimap')).toBeHidden();
     await expect(page.locator('body')).toHaveAttribute('data-phase', 'roundResults');
     await expect(page.locator('#keke-hud')).toBeHidden();
     const rows = results.locator('.results-players tbody tr[data-player-id]');

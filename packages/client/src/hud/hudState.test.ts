@@ -222,6 +222,14 @@ describe('readHud in race mode (M6-3)', () => {
     expect(hud.race).toEqual({ points: 4, quota: 6, controlled: 4, carryingBox: false, stolen: false });
   });
 
+  it('takes the quota the room synced over the bundled config (M6 review F5)', () => {
+    const vans = { '0': { van: 0, points: 2, team: 0, controlled: 2 } };
+    const synced = { ...race([player('a', 0, { van: 0 })], {}, vans), raceQuota: 9 };
+    expect(readHud(synced, 'a', raceCtx).race?.quota).toBe(9);
+    // An older server (no field, or 0) falls back to the bundled value.
+    expect(readHud(race([player('a', 0, { van: 0 })], {}, vans), 'a', raceCtx).race?.quota).toBe(6);
+  });
+
   it('points the arrow at the office while carrying a box and names it in the carry slot', () => {
     const hud = readHud(
       race([player('a', 0, { van: 0, carrying: 5 })], box('a', 0), {

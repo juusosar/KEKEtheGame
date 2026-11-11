@@ -69,6 +69,7 @@ import {
   RACE_FEED_MESSAGES,
   combatFeedLine,
   feedLine,
+  teamMoveLine,
   npcFeedLine,
   raceFeedLine,
   type RaceNames,
@@ -140,6 +141,8 @@ export class GameScene extends Phaser.Scene {
   private code = '';
   private sequence: InputSequence | null = null;
   private view: GameView | null = null;
+  /** Our team at the last patch (M6 review F7: tell us when a rebalance moves us). */
+  private lastTeam: number | undefined;
   private worldView: WorldView | null = null;
   private controlling = false;
   private remotes = new Map<string, Remote>();
@@ -275,6 +278,7 @@ export class GameScene extends Phaser.Scene {
     this.code = '';
     this.sequence = null;
     this.view = null;
+    this.lastTeam = undefined;
     this.worldView = null;
     this.controlling = false;
     this.remotes = new Map();
@@ -460,6 +464,9 @@ export class GameScene extends Phaser.Scene {
     const me = view.me;
     if (me === null) return;
     this.sequence?.sync(me.ack);
+    const moved = view.teams ? teamMoveLine(this.lastTeam, me.team) : null;
+    if (moved) this.hud?.pushFeed(moved, performance.now());
+    this.lastTeam = me.team;
     this.local.setLook(me);
     this.local.setOutline(playerBodyOutline(me.team, view.teams));
     this.local.setLabel(me.nickname);

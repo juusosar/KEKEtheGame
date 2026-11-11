@@ -120,7 +120,7 @@ export interface HudContext {
   vanSlots: readonly Vec2[];
   /** Race: centre of the office trigger (the arrow's goal while carrying a box); none = no office arrow. */
   office?: Vec2;
-  /** Race quota (`GameConfig.raceQuota`); defaults to 6. */
+  /** Race quota from the bundled config, used only when the room has not synced `raceQuota`; defaults to 6. */
   raceQuota?: number;
 }
 
@@ -256,7 +256,8 @@ export function readHud(state: unknown, mySessionId: string, ctx: HudContext): H
     const van = lobby.me ? vanOf(lobby.me.id) : undefined;
     raceHud = {
       points: van?.points ?? 0,
-      quota: ctx.raceQuota ?? DEFAULT_RACE_QUOTA,
+      // The room's synced quota wins over the bundled config (M6 review F5).
+      quota: num(s, 'raceQuota') > 0 ? num(s, 'raceQuota') : (ctx.raceQuota ?? DEFAULT_RACE_QUOTA),
       controlled: van?.controlled ?? 0,
       carryingBox: carried?.box != null,
       stolen: carried?.box != null && carried.box.packedVan !== num(meBag, 'van', -1),

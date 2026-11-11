@@ -85,6 +85,18 @@ The store workers (§8) live in `packages/shared/src/data/npcs.json`: one entry 
 
 Wanted (§8, §17) is set from `packages/shared/src/data/config.json`: `wantedSeconds` (how long Wanted lasts after the last offence, 20), `wantedGuardRangeTiles` (how far a guard sees a fight, with a clear line, 6) and `npcRespawnSeconds` (how long a knocked-out worker stays down, 30). Hitting a worker, being seen hitting a player by a guard, or entering a staff-only zone makes a player Wanted; guards chase Wanted players.
 
+## Game modes and Teams
+
+The host picks the mode and Teams in the lobby; both stay fixed from **Start** until the session is back in the lobby. Round timers, the quota and the scoring numbers live in `packages/shared/src/data/config.json`.
+
+- **Timed** (`timedRoundSeconds`, 180 s): fetch your highlighted target, carry it to your van and it banks automatically within `depositRangeTiles` of the van. Rank by item points deposited; a joke item is worth `jokeItemValue`.
+- **Quota + Race** (`raceRoundSeconds`, 240 s cap): when your van's banked points reach `raceQuota` (6), the items are packed into an order box that the depositor carries (slower, no other items). Run it to the office (the `office_trigger` object on the map, an arrow on the HUD and a marker on everyone's minimap); the first delivery ends the round and that side is 1st. Anyone can grab a dropped box (Q, a KO, a banana slip, a forklift) and deliver it as their own; a stolen box counts for nobody until delivered. If two carriers reach the office in the same tick, the room's seeded RNG picks one. At the cap, everyone is ranked by items they control (banked points plus their side's own box). The results screen shows that number as **Controlled**, and the deliverer gets a **Delivered** tag.
+- **Teams**: two teams, red and blue, auto-balanced when Teams is switched on, when players join or leave, and at every countdown (a moved player gets a feed line). Each team shares one van, one quota and one box; targets stay personal and there is no friendly fire. Team places use the team van's total (Timed) or the items it controls (Race). Wanted stays per player.
+
+Session standings (§5): placement points per round, ties broken by item points deposited. Code: the pure rules in `packages/shared/src/rules/modes/` (`timed.ts`, `race.ts`) and the server flow in `packages/server/src/rooms/GameRoom.ts`.
+
+Testing aids (only with `KEKE_DEBUG=1`, never on a real server): `__KEKE__.vanPoints(n)` sets our van's banked points (`raceQuota - 1` plus one deposit packs a box) and `__KEKE__.giveWeapon(id)` hands us a weapon. `KEKE_CONFIG=<file.json>` overrides config keys on the server (the e2e server uses `tests/e2e/config.e2e.json` for short timers). The client bundles its own copy of the config for prediction, so do not override keys it also reads (movement speeds, tick rate); the race quota is synced from the room, so overriding it is fine.
+
 ## Walking the map (M1)
 
 Boot starts the Title menu. To walk the map offline without a room, open the game with `?scene=game` (http://localhost:5173/?scene=game in dev, add `&debug=1` for the overlay): one local player on the map, starting at van slot 1 on the loading dock. Move with WASD or a gamepad's left stick. Movement runs through the shared rules in `packages/shared/src/rules/movement.ts`, the same code the server will run, so walls and the slippery cold room behave the same everywhere. The camera follows at 2× zoom. Client-only render values (zoom, follow smoothing, the player's default colour and hat) are in `packages/client/src/game/render-config.json`.

@@ -118,6 +118,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.maxClients = this.config.maxPlayersPerRoom;
     this.state.code = generateRoomCode(this.rng, codesInUse);
     codesInUse.add(this.state.code);
+    this.state.raceQuota = Math.min(255, this.config.raceQuota);
 
     this.onMessage(ClientMessage.ready, (client, message: unknown) => this.handleReady(client, message));
     this.onMessage(ClientMessage.settings, (client, message: unknown) =>
@@ -508,14 +509,22 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
         team.roundPoints = placementPointsFor(side.place, this.config);
         team.sessionPoints += team.roundPoints;
         // Race: the round's itemPoints are the items the team controlled, but the session tie-break (§5)
-        // counts deposits, as it does for players: the members' own deposits.
+        // counts deposits, as it does for players: everything deposited at the team's van this round,
+        // including members who have left for good (as the van total does in Timed; M6 review F9).
         team.sessionItemPoints +=
-          this.state.settings.mode === 'race'
-            ? active.filter((p) => p.team === team.team).reduce((sum, p) => sum + p.deposited, 0)
-            : side.itemPoints;
+          this.state.settings.mode === 'race' ? this.teamDeposits(team.team) : side.itemPoints;
       }
     }
     this.rankSessionStandings();
+  }
+
+  /** Race with Teams: item points deposited at the team's van(s) this round. */
+  private teamDeposits(team: number): number {
+    let sum = 0;
+    this.state.vans.forEach((van) => {
+      if (van.team === team) sum += this.items.depositedAt(van.van);
+    });
+    return sum;
   }
 
   /**
@@ -574,16 +583,21 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   }
 
   /**
-   * Race (§4.2): every box carrier whose body centre is inside the office trigger delivers, in join order;
-   * only the first delivery counts and it ends 'playing' in this tick. True when the round ended.
+   * Race (§4.2): a box carrier whose body centre is inside the office trigger delivers; only one delivery
+   * counts and it ends 'playing' in this tick. Two carriers inside in the same tick: the room's seeded RNG
+   * picks the deliverer, so join order gives nobody an edge (M6 review F8, logged in Notion). True when
+   * the round ended.
    */
   private checkDelivery(now: number): boolean {
     if (this.state.settings.mode !== 'race' || this.state.phase !== 'playing' || this.delivery) return false;
-    const carriers = [...this.state.players.values()]
-      .filter((p) => !p.spectator && p.alive && this.items.carriesBox(p))
-      .sort((a, b) => a.joinOrder - b.joinOrder);
-    for (const p of carriers) {
-      if (!inOfficeTrigger(this.map, p.x, p.y)) continue;
+    const inside = [...this.state.players.values()]
+      .filter(
+        (p) => !p.spectator && p.alive && this.items.carriesBox(p) && inOfficeTrigger(this.map, p.x, p.y),
+      )
+      .sort((a, b) => a.joinOrder - b.joinOrder); // a stable list for the RNG to pick from
+    while (inside.length > 0) {
+      const p = this.rng.pick(inside);
+      inside.splice(inside.indexOf(p), 1);
       const delivery = this.items.deliverBox(p, now);
       if (!delivery) continue;
       this.delivery = delivery;

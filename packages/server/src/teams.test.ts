@@ -263,4 +263,29 @@ describe('Teams option on the server (integration)', () => {
     expect(moved?.me.van).toBe(1);
     expect(room.combatWorld.players.find((c) => c.id === moved?.conn.sessionId)?.team).toBe(2);
   });
+
+  it('race: a team keeps the deposits of a member who left for good in its session tie-break (M6 review F9)', async () => {
+    const { room, red } = await playing(4, 'race');
+    const [r1, r2] = red;
+    if (!r1 || !r2) throw new Error('red needs two players');
+    // r1 banks their target at the shared van (far below the quota: no box), then leaves for good.
+    const target = room.state.items.get(String(r1.me.target));
+    if (!target) throw new Error('no target');
+    moveTo(r1, target);
+    await press(r1, Button.Interact);
+    await press(r1);
+    expect(r1.me.carrying).toBe(target.id);
+    moveTo(r1, vanSpawn(map, r1.me.van, playerHalfSize(config)));
+    await press(r1);
+    const banked = r1.me.deposited;
+    expect(banked).toBeGreaterThan(0);
+    expect(banked).toBeLessThan(config.raceQuota);
+    await r1.conn.leave();
+    await waitFor(() => !room.state.players.has(r1.conn.sessionId));
+
+    room.advancePhase(); // the cap ran out: roundResults
+    expect(room.state.phase).toBe('roundResults');
+    expect(room.state.teams.get('1')?.sessionItemPoints).toBe(banked);
+    expect(r2.me.sessionItemPoints).toBe(0); // players keep their own deposits only
+  });
 });

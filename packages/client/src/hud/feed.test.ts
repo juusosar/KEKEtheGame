@@ -1,6 +1,6 @@
 import { getItemCatalogue, getWeaponCatalogue } from '@keke/shared';
 import { describe, expect, it } from 'vitest';
-import { combatFeedLine, feedLine, npcFeedLine, raceFeedLine, type FeedContext } from './feed';
+import { combatFeedLine, feedLine, npcFeedLine, raceFeedLine, teamMoveLine, type FeedContext } from './feed';
 
 const names: Record<string, string> = { a: 'Juuso', b: 'Mikko' };
 const ctx: FeedContext = { catalogue: getItemCatalogue('kespro'), nameOf: (id) => names[id] ?? id };
@@ -249,5 +249,19 @@ describe('race feed lines (M6-3)', () => {
   it('ignores other types and malformed messages', () => {
     expect(raceFeedLine('pickup', { player: 'a' }, rctx)).toBeNull();
     expect(raceFeedLine('delivery', null, rctx)).toBeNull();
+  });
+});
+
+describe('team move line (M6 review F7)', () => {
+  it('tells us when a rebalance moved us to the other team', () => {
+    expect(teamMoveLine(1, 2)).toEqual({ kind: 'team', text: 'Teams were rebalanced: you moved to Team 2' });
+    expect(teamMoveLine(2, 1)?.text).toBe('Teams were rebalanced: you moved to Team 1');
+  });
+
+  it('stays quiet on the first look, without a change, and without teams', () => {
+    expect(teamMoveLine(undefined, 2)).toBeNull();
+    expect(teamMoveLine(1, 1)).toBeNull();
+    expect(teamMoveLine(0, 1)).toBeNull();
+    expect(teamMoveLine(1, 0)).toBeNull();
   });
 });
