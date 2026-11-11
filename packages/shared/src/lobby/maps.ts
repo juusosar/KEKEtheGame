@@ -1,13 +1,16 @@
 // Map choice (§5, Phase 2 decision 1): which store maps a session plays. A host setting; the server
 // checks the choice against the maps it has loaded (themes with `available: true`).
-import { defaultThemeId, type ThemeId } from '../theme';
+import type { ThemeId } from '../theme';
 
 /** Every map choice: one theme id, or `both` (the 'kespro' rounds first, then 'prisma', §5). */
 export const MAP_CHOICES = ['kespro', 'prisma', 'both'] as const satisfies readonly (ThemeId | 'both')[];
 export type MapChoice = (typeof MAP_CHOICES)[number];
 
-/** The lobby default: the MVP map alone (becomes `both` once cross-map sessions land, P3-1). */
-export const DEFAULT_MAP_CHOICE: MapChoice = defaultThemeId;
+/**
+ * The lobby default: both maps (P3-1, Phase 2 decision 1). A server that has not loaded every map of it
+ * falls back to its first map when a room is created.
+ */
+export const DEFAULT_MAP_CHOICE: MapChoice = 'both';
 
 /** The maps a session with this choice plays, in order. */
 export function mapRotation(choice: MapChoice): readonly ThemeId[] {

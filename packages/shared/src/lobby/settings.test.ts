@@ -6,7 +6,7 @@ const schema = settingsUpdateSchema(loadConfig());
 
 describe('host settings', () => {
   it('defaults to free-for-all Timed with one round', () => {
-    expect(DEFAULT_LOBBY_SETTINGS).toEqual({ mode: 'timed', roundsPerMap: 1, teams: false, maps: 'kespro' });
+    expect(DEFAULT_LOBBY_SETTINGS).toEqual({ mode: 'timed', roundsPerMap: 1, teams: false, maps: 'both' });
   });
 
   it('accepts partial updates within range', () => {

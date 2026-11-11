@@ -1,8 +1,9 @@
 import { ColyseusTestServer } from '@colyseus/testing';
 import type { Room as ClientRoom } from '@colyseus/sdk';
-import { ClientMessage, loadConfig } from '@keke/shared';
+import { ClientMessage, defaultThemeId, getTheme, loadConfig } from '@keke/shared';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createGameServer } from './app';
+import { loadMapRegistry } from './maps';
 import type { GameRoom } from './rooms/GameRoom';
 import type { GameState } from './schema/GameState';
 
@@ -23,7 +24,8 @@ describe('GameRoom reconnect + spectators (integration)', () => {
 
   beforeAll(async () => {
     // Own port: other integration files use 2568 and 2571, and test files run in parallel.
-    const server = createGameServer({ config });
+    // One map: the tests count one-round sessions (the default Maps = Both needs a second map).
+    const server = createGameServer({ config, maps: loadMapRegistry([getTheme(defaultThemeId)]) });
     await server.listen(2572);
     colyseus = new ColyseusTestServer(server);
   });

@@ -31,7 +31,7 @@ describe('readLobby', () => {
       expect(view.synced).toBe(false);
       expect(view.phase).toBe('lobby');
       expect(view.players).toEqual([]);
-      expect(view.settings).toEqual({ mode: 'timed', roundsPerMap: 1, teams: false, maps: 'kespro' });
+      expect(view.settings).toEqual({ mode: 'timed', roundsPerMap: 1, teams: false, maps: 'both' });
       expect(view.isHost).toBe(false);
       expect(view.everyoneReady).toBe(false);
     }
@@ -85,7 +85,7 @@ describe('readLobby', () => {
     const view = readLobby({ phase: 'warmup', settings: { mode: 'deathmatch' } }, 'me');
     expect(view.phase).toBe('lobby');
     expect(view.settings.mode).toBe('timed');
-    expect(view.settings.maps).toBe('kespro');
+    expect(view.settings.maps).toBe('both');
   });
 
   it('reports a running round', () => {

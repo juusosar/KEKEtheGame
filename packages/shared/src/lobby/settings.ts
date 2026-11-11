@@ -12,7 +12,7 @@ export interface LobbySettings {
   maps: MapChoice;
 }
 
-/** Free-for-all Timed, one round: the §4 defaults. */
+/** Free-for-all Timed, one round per map on both maps: the §4 defaults (maps: P3-1). */
 export const DEFAULT_LOBBY_SETTINGS: Readonly<LobbySettings> = Object.freeze({
   mode: 'timed',
   roundsPerMap: 1,

@@ -51,12 +51,12 @@ test('the host picks a map in the lobby and both players play on it', async ({ n
   expect(pageErrors).toEqual([]);
 });
 
-test('the default map stays the lobby default', async ({ newPlayer }) => {
+test('a new room plays both maps by default, starting on the first (P3-1)', async ({ newPlayer }) => {
   const pageErrors: Error[] = [];
   const host = await newPlayer(pageErrors);
   await toPlay(host, 'Hostia');
   await createRoom(host);
-  await expect(mapChoice(host, 'kespro')).toHaveAttribute('aria-pressed', 'true');
+  await expect(mapChoice(host, 'both')).toHaveAttribute('aria-pressed', 'true');
   await expect(lobbyMap(host)).toHaveAttribute('data-map', 'kespro');
   expect(pageErrors).toEqual([]);
 });

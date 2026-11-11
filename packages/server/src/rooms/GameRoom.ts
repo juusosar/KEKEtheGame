@@ -69,6 +69,7 @@ import type { MapEntry, MapRegistry } from '../maps';
 import { GameState, PlayerState, TeamState } from '../schema/GameState';
 import { CombatSystem } from '../systems/combat/CombatSystem';
 import { ItemSystem } from '../systems/items';
+import type { MapSystem } from '../systems/mapSystem';
 import { MovementSystem } from '../systems/movement';
 import { NpcSystem } from '../systems/npcs/NpcSystem';
 
@@ -115,6 +116,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
   private items!: ItemSystem;
   private combat!: CombatSystem;
   private npcs!: NpcSystem;
+  /**
+   * Every system built for the current map, in round-start order (P3-1): a map switch and the lobby
+   * reset them all, each countdown starts a round on them all. New per-map systems join in
+   * `buildMapSystems`.
+   */
+  private mapSystems: MapSystem[] = [];
   /** Wanted status per player this round (§8; M5-2 rules, wired in M5-3). */
   private wanted: WantedWorld = createWantedWorld();
   /** Round seconds of the last `wanted` refresh sent to each player (rate limit, M5 review F8). */
@@ -427,14 +434,12 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   /**
    * Builds the map-dependent systems (live map, movement, items, combat, NPCs) for one map. A rebuild
-   * first clears what the old systems put into the synced state (items, vans, projectiles, traps, NPCs).
+   * (P3-1: the next round is on another map) first resets every old map system, which clears what it put
+   * into the synced state (items, vans, projectiles, traps, NPCs, stock carts). A new per-map system is
+   * built here and added to `mapSystems`; it then resets and starts rounds with the others.
    */
   private buildMapSystems(entry: MapEntry): void {
-    if (this.mapEntry) {
-      this.items.reset();
-      this.combat.reset();
-      this.npcs.reset();
-    }
+    this.resetMapSystems();
     this.mapEntry = entry;
     // The live map: stock carts parked by stockers block movement like walls (M5-3). Items keep the
     // static map (spawns and drops never depend on a cart that is gone a few seconds later).
@@ -495,6 +500,18 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     this.items.onPickup = (playerId, kind) => {
       if (kind !== 'box') this.combat.onPickup(playerId, 'item');
     };
+    const npcs = this.npcs;
+    this.mapSystems = [
+      this.items,
+      this.combat,
+      // NPC counts scale with the number of players (§8).
+      { reset: () => npcs.reset(), startRound: (players) => npcs.startRound(players.length) },
+    ];
+  }
+
+  /** Resets every system of the current map (map switch, lobby). */
+  private resetMapSystems(): void {
+    for (const system of this.mapSystems) system.reset();
   }
 
   /** Countdown: the round's map from the `maps` setting; rebuilds the map systems when it changes. */
@@ -506,6 +523,8 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     );
     if (this.mapEntry?.id !== id) this.buildMapSystems(this.maps.get(id));
     this.state.mapId = id;
+    // Round history (P3-1): one entry per round, at its countdown.
+    this.state.roundMaps.push(id);
   }
 
   /** The map the room simulates on now. */
@@ -574,9 +593,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
     );
     for (const p of active) p.van = vans.get(p.sessionId) ?? 0;
     this.movement.spawn(active);
-    this.items.startRound(active);
-    this.combat.startRound(active);
-    this.npcs.startRound(active.length);
+    for (const system of this.mapSystems) system.startRound?.(active);
     this.resetWanted();
   }
 
@@ -726,6 +743,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
       p.sessionPlace = 0;
     });
     this.state.teams.clear();
+    this.state.roundMaps.clear();
     if (starting && this.state.settings.teams) {
       for (const n of [1, 2]) {
         const team = new TeamState();
@@ -889,9 +907,7 @@ export abstract class GameRoom extends Room<{ state: GameState; metadata: GameRo
 
   private resetToLobby(): void {
     this.clearDelivery();
-    this.items.reset();
-    this.combat.reset();
-    this.npcs.reset();
+    this.resetMapSystems();
     this.resetWanted();
     this.resetSession(false);
     this.state.round = 0;

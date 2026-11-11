@@ -1,5 +1,6 @@
 // Synchronised room state (§15.2 schema/). Clients read it; only the server writes it.
 import { schema, t, type SchemaType } from '@colyseus/schema';
+import { DEFAULT_MAP_CHOICE } from '@keke/shared';
 
 /** One connected player (or late-joining spectator). Keyed by sessionId in `GameState.players`. */
 export const PlayerState = schema(
@@ -301,8 +302,11 @@ export const RoomSettingsState = schema(
     mode: t.string().default('timed'),
     roundsPerMap: t.uint8().default(1),
     teams: t.boolean().default(false),
-    /** MapChoice: 'kespro' | 'prisma' | 'both' (Phase 2). Only maps the server loaded can be picked. */
-    maps: t.string().default('kespro'),
+    /**
+     * MapChoice: 'kespro' | 'prisma' | 'both' (Phase 2). Only maps the server loaded can be picked; a room
+     * on a server without every map of the default starts on its first map.
+     */
+    maps: t.string().default(DEFAULT_MAP_CHOICE),
   },
   'RoomSettingsState',
 );
@@ -360,6 +364,12 @@ export const GameState = schema(
      * offers only choices made of these.
      */
     loadedMaps: t.array('string'),
+    /**
+     * Theme id of the map of each round of this session so far (P3-1, Phase 2 decision 14): index 0 is
+     * round 1. A round's entry is added at its countdown; emptied at Start and in the lobby. The round
+     * results and podium show which map each round was on.
+     */
+    roundMaps: t.array('string'),
   },
   'GameState',
 );
